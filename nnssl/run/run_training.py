@@ -263,8 +263,6 @@ def run_training(
         nnunet_trainer.perform_actual_validation(export_validation_probabilities)
 
 
-
-
 def run_training_entry():
     import argparse
 
