@@ -1,0 +1,169 @@
+import shutil
+from typing import List, Type, Optional, Tuple, Union, TYPE_CHECKING
+
+import nnssl
+from batchgenerators.utilities.file_and_folder_operations import join
+from nnssl.experiment_planning.dataset_fingerprint.abstract_fingerprint_extraction import (
+    DatasetFingerprintExtractor,
+    get_dataset_fingerprint_extractor,
+    FingerprintExtractionProtocol,
+)
+from nnssl.experiment_planning.experiment_planners.default_experiment_planner import ExperimentPlanner
+from nnssl.experiment_planning.experiment_planners.plan import Plan
+from nnssl.experiment_planning.verify_dataset_integrity import verify_dataset_integrity
+from nnssl.paths import nnUNet_raw, nnssl_preprocessed
+from nnssl.preprocessing.preprocessors.abstract_preprocessor import get_preprocessor
+
+if TYPE_CHECKING:
+    from nnssl.preprocessing.preprocessors.abstract_preprocessor import PreprocessorProtocol
+from nnssl.utilities.dataset_name_id_conversion import convert_id_to_dataset_name
+from nnssl.utilities.find_class_by_name import recursive_find_python_class
+from nnssl.configuration import default_num_processes
+
+
+def extract_fingerprint_dataset(
+    dataset_id: int,
+    fingerprint_extractor: FingerprintExtractionProtocol,
+    num_processes: int = default_num_processes,
+    check_dataset_integrity: bool = False,
+    clean: bool = True,
+    verbose: bool = True,
+) -> dict:
+    """
+    Returns the fingerprint as a dictionary (additionally to saving it)
+    """
+    dataset_name = convert_id_to_dataset_name(dataset_id)
+    print(dataset_name)
+
+    if check_dataset_integrity:
+        verify_dataset_integrity(join(nnUNet_raw, dataset_name), num_processes)
+
+    fingerprint = fingerprint_extractor(dataset_id, num_processes, verbose=verbose, overwrite_existing=clean)
+    return fingerprint
+
+
+def extract_fingerprints(
+    dataset_ids: List[int],
+    fingerprint_extractor_class_name: DatasetFingerprintExtractor,
+    num_processes: int = default_num_processes,
+    check_dataset_integrity: bool = False,
+    clean: bool = True,
+    verbose: bool = True,
+):
+    """
+    Extracts fingerprints from the specified dataset IDs using the given fingerprint extractor.
+
+    Args:
+        dataset_ids (List[int]): The list of dataset IDs to extract fingerprints from.
+        fingerprint_extractor_class_name (DatasetFingerprintExtractor): The (enum) class name of the fingerprint extractor to use.
+        num_processes (int, optional): The number of processes to use for parallel extraction. Defaults to default_num_processes.
+        check_dataset_integrity (bool, optional): Whether to check the integrity of the dataset before extraction. Defaults to False.
+        clean (bool, optional): Whether to clean the extracted fingerprints. Defaults to True.
+        verbose (bool, optional): Whether to print verbose output during extraction. Defaults to True.
+    """
+
+    fingerprint_extractor: FingerprintExtractionProtocol = get_dataset_fingerprint_extractor(
+        fingerprint_extractor_class_name
+    )
+    for d in dataset_ids:
+        extract_fingerprint_dataset(d, fingerprint_extractor, num_processes, check_dataset_integrity, clean, verbose)
+
+
+def plan_experiment_dataset(
+    dataset_id: int,
+    experiment_planner_class: Type[ExperimentPlanner] = ExperimentPlanner,
+    gpu_memory_target_in_gb: float = 11,
+    preprocess_class_name: str = "DefaultPreprocessor",
+    overwrite_target_spacing: Optional[Tuple[float, ...]] = None,
+    overwrite_plans_name: Optional[str] = None,
+) -> Plan:
+    """
+    overwrite_target_spacing ONLY applies to 3d_fullres and 3d_cascade fullres!
+    """
+    kwargs = {}
+    if overwrite_plans_name is not None:
+        kwargs["plans_name"] = overwrite_plans_name
+    return experiment_planner_class(
+        dataset_id,
+        gpu_memory_target_in_gb=gpu_memory_target_in_gb,
+        preprocessor_name=preprocess_class_name,
+        overwrite_target_spacing=[float(i) for i in overwrite_target_spacing]
+        if overwrite_target_spacing is not None
+        else overwrite_target_spacing,
+        suppress_transpose=False,  # might expose this later,
+        **kwargs,
+    ).plan_experiment()
+
+
+def plan_experiments(
+    dataset_ids: List[int],
+    experiment_planner_class_name: str = "ExperimentPlanner",
+    gpu_memory_target_in_gb: float = 11,
+    preprocess_class_name: str = "DefaultPreprocessor",
+    overwrite_target_spacing: Optional[Tuple[float, ...]] = None,
+    overwrite_plans_name: Optional[str] = None,
+):
+    """
+    overwrite_target_spacing ONLY applies to 3d_fullres and 3d_cascade fullres!
+    """
+    experiment_planner = recursive_find_python_class(
+        join(nnssl.__path__[0], "experiment_planning"),
+        experiment_planner_class_name,
+        current_module="nnssl.experiment_planning",
+    )
+    for d in dataset_ids:
+        plan_experiment_dataset(
+            d,
+            experiment_planner,
+            gpu_memory_target_in_gb,
+            preprocess_class_name,
+            overwrite_target_spacing,
+            overwrite_plans_name,
+        )
+
+
+def preprocess_dataset(
+    dataset_id: int,
+    plans_identifier: str = "nnsslPlans",
+    configurations: Union[Tuple[str], List[str]] = ("3d_fullres"),
+    num_processes: Union[int, Tuple[int, ...], List[int]] = (8, 4, 8),
+    verbose: bool = False,
+) -> None:
+    if not isinstance(num_processes, list):
+        num_processes = list(num_processes)
+    if len(num_processes) == 1:
+        num_processes = num_processes * len(configurations)
+    if len(num_processes) != len(configurations):
+        raise RuntimeError(
+            f"The list provided with num_processes must either have len 1 or as many elements as there are "
+            f"configurations (see --help). Number of configurations: {len(configurations)}, length "
+            f"of num_processes: "
+            f"{len(num_processes)}"
+        )
+
+    dataset_name = convert_id_to_dataset_name(dataset_id)
+    print(f"Preprocessing dataset {dataset_name}")
+    plans_file = join(nnssl_preprocessed, dataset_name, plans_identifier + ".json")
+    plan: Plan = Plan.load_from_file(plans_file)
+    for n, c in zip(num_processes, configurations):
+        print(f"Configuration: {c}...")
+        if c not in plan.configurations.keys():
+            print(
+                f"INFO: Configuration {c} not found in plans file {plans_identifier + '.json'} of "
+                f"dataset {dataset_name}. Skipping."
+            )
+            continue
+        config = plan.configurations[c]
+        preprocessor: PreprocessorProtocol = get_preprocessor(config.preprocessor_name)
+        preprocessor(dataset_id, c, plans_identifier, num_processes=n)
+
+
+def preprocess(
+    dataset_ids: List[int],
+    plans_identifier: str = "nnsslPlans",
+    configurations: Union[Tuple[str], List[str]] = ("3d_fullres"),
+    num_processes: Union[int, Tuple[int, ...], List[int]] = (4),
+    verbose: bool = False,
+):
+    for d in dataset_ids:
+        preprocess_dataset(d, plans_identifier, configurations, num_processes, verbose)
