@@ -30,7 +30,6 @@ keywords = [
     'self supervised learning'
 ]
 dependencies = [
-    "nnunet==1.7.1",
     "torch>=2.0.0",
     "acvl-utils>=0.2",
     "dynamic-network-architectures>=0.2",
