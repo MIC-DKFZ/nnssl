@@ -1,11 +1,9 @@
 from abc import ABC, abstractmethod
 from dataclasses import asdict
 import inspect
-import multiprocessing
 import os
 import shutil
 import sys
-import warnings
 from copy import deepcopy
 from datetime import datetime
 from time import time, sleep
@@ -16,7 +14,6 @@ import torch
 from batchgenerators.dataloading.single_threaded_augmenter import SingleThreadedAugmenter
 from batchgenerators.transforms.abstract_transforms import AbstractTransform, Compose
 
-from batchgenerators.transforms.spatial_transforms import SpatialTransform, MirrorTransform
 from batchgenerators.transforms.utility_transforms import NumpyToTensor
 from batchgenerators.utilities.file_and_folder_operations import join, isfile, save_json, maybe_mkdir_p
 from torch._dynamo import OptimizedModule
@@ -25,7 +22,6 @@ from torch._dynamo import OptimizedModule
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.paths import nnssl_preprocessed, nnssl_results
 from nnssl.ssl_data.configure_basic_dummyDA import configure_rotation_dummyDA_mirroring_and_inital_patch_size
-from nnssl.ssl_data.data_augmentation.transforms_for_dummy_2d import Convert2DTo3DTransform, Convert3DTo2DTransform
 from nnssl.ssl_data.dataloading.data_loader_3d import nnsslDataLoader3D
 from nnssl.ssl_data.dataloading.nnssl_dataset import nnsslDataset
 from nnssl.ssl_data.dataloading.utils import get_case_identifiers, unpack_dataset
@@ -35,15 +31,14 @@ from nnssl.training.logging.nnssl_logger import nnSSLLogger
 from nnssl.training.lr_scheduler.polylr import PolyLRScheduler
 from nnssl.utilities.collate_outputs import collate_outputs
 from nnssl.utilities.default_n_proc_DA import get_allowed_n_proc_DA
-from nnssl.utilities.helpers import empty_cache, dummy_context
-from torch import autocast
+from nnssl.utilities.helpers import empty_cache
 from torch import distributed as dist
 from torch.cuda import device_count
 from torch.cuda.amp import GradScaler
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 
-class AbstractnnsslTrainer(ABC):
+class AbstractBaseTrainer(ABC):
     def __init__(
         self,
         plan: Plan,
@@ -131,7 +126,6 @@ class AbstractnnsslTrainer(ABC):
         ### Some hyperparameters for you to fiddle with
         self.initial_lr = 1e-2
         self.weight_decay = 3e-5
-        self.oversample_foreground_percent = 0.33
         self.num_iterations_per_epoch = 250
         self.num_val_iterations_per_epoch = 50
         self.num_epochs = 1000
@@ -169,7 +163,7 @@ class AbstractnnsslTrainer(ABC):
 
         ## DDP batch size and oversampling can differ between workers and needs adaptation
         # we need to change the batch size in DDP because we don't use any of those distributed samplers
-        self._set_batch_size_and_oversample()
+        self._set_batch_size()
 
         self.was_initialized = False
 
@@ -188,6 +182,18 @@ class AbstractnnsslTrainer(ABC):
     def build_architecture(
         self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int, *args, **kwargs
     ) -> torch.nn.Module:
+        pass
+
+    @abstractmethod
+    def _build_loss(self):
+        pass
+
+    @abstractmethod
+    def train_step(self, batch: dict) -> dict:
+        pass
+
+    @abstractmethod
+    def validation_step(self, batch: dict) -> dict:
         pass
 
     def initialize(self):
@@ -214,106 +220,28 @@ class AbstractnnsslTrainer(ABC):
                 "That should not happen."
             )
 
-    def _do_i_compile(self):
-        return ("nnUNet_compile" in os.environ.keys()) and (
-            os.environ["nnUNet_compile"].lower() in ("true", "1", "t")
-        )
+    def run_training(self):
+        self.on_train_start()
 
-    def _save_debug_information(self):
-        # saving some debug information
-        if self.local_rank == 0:
-            dct = {}
-            for k in self.__dir__():
-                if not k.startswith("__"):
-                    if not callable(getattr(self, k)) or k in [
-                        "loss",
-                    ]:
-                        dct[k] = str(getattr(self, k))
-                    elif k in [
-                        "network",
-                    ]:
-                        dct[k] = str(getattr(self, k).__class__.__name__)
-                    else:
-                        # print(k)
-                        pass
-                if k in ["dataloader_train", "dataloader_val"]:
-                    if hasattr(getattr(self, k), "generator"):
-                        dct[k + ".generator"] = str(getattr(self, k).generator)
-                    if hasattr(getattr(self, k), "num_processes"):
-                        dct[k + ".num_processes"] = str(getattr(self, k).num_processes)
-                    if hasattr(getattr(self, k), "transform"):
-                        dct[k + ".transform"] = str(getattr(self, k).transform)
-            import subprocess
+        for epoch in range(self.current_epoch, self.num_epochs):
+            self.on_epoch_start()
 
-            hostname = subprocess.getoutput(["hostname"])
-            dct["hostname"] = hostname
-            torch_version = torch.__version__
-            if self.device.type == "cuda":
-                gpu_name = torch.cuda.get_device_name()
-                dct["gpu_name"] = gpu_name
-                cudnn_version = torch.backends.cudnn.version()
-            else:
-                cudnn_version = "None"
-            dct["device"] = str(self.device)
-            dct["torch_version"] = torch_version
-            dct["cudnn_version"] = cudnn_version
-            save_json(dct, join(self.output_folder, "debug.json"))
+            self.on_train_epoch_start()
+            train_outputs = []
+            for batch_id in range(self.num_iterations_per_epoch):
+                train_outputs.append(self.train_step(next(self.dataloader_train)))
+            self.on_train_epoch_end(train_outputs)
 
-    def _set_batch_size_and_oversample(self):
-        if not self.is_ddp:
-            # set batch size to what the plan says, leave oversample untouched
-            self.batch_size = self.config_plan.batch_size
-        else:
-            # batch size is distributed over DDP workers and we need to change oversample_percent for each worker
-            batch_sizes = []
-            oversample_percents = []
+            with torch.no_grad():
+                self.on_validation_epoch_start()
+                val_outputs = []
+                for batch_id in range(self.num_val_iterations_per_epoch):
+                    val_outputs.append(self.validation_step(next(self.dataloader_val)))
+                self.on_validation_epoch_end(val_outputs)
 
-            world_size = dist.get_world_size()
-            my_rank = dist.get_rank()
+            self.on_epoch_end()
 
-            global_batch_size = self.config_plan.batch_size
-            assert global_batch_size >= world_size, (
-                "Cannot run DDP if the batch size is smaller than the number of " "GPUs... Duh."
-            )
-
-            batch_size_per_GPU = np.ceil(global_batch_size / world_size).astype(int)
-
-            for rank in range(world_size):
-                if (rank + 1) * batch_size_per_GPU > global_batch_size:
-                    batch_size = batch_size_per_GPU - ((rank + 1) * batch_size_per_GPU - global_batch_size)
-                else:
-                    batch_size = batch_size_per_GPU
-
-                batch_sizes.append(batch_size)
-
-                sample_id_low = 0 if len(batch_sizes) == 0 else np.sum(batch_sizes[:-1])
-                sample_id_high = np.sum(batch_sizes)
-
-                if sample_id_high / global_batch_size < (1 - self.oversample_foreground_percent):
-                    oversample_percents.append(0.0)
-                elif sample_id_low / global_batch_size > (1 - self.oversample_foreground_percent):
-                    oversample_percents.append(1.0)
-                else:
-                    percent_covered_by_this_rank = (
-                        sample_id_high / global_batch_size - sample_id_low / global_batch_size
-                    )
-                    oversample_percent_here = 1 - (
-                        ((1 - self.oversample_foreground_percent) - sample_id_low / global_batch_size)
-                        / percent_covered_by_this_rank
-                    )
-                    oversample_percents.append(oversample_percent_here)
-
-            print("worker", my_rank, "oversample", oversample_percents[my_rank])
-            print("worker", my_rank, "batch_size", batch_sizes[my_rank])
-            # self.print_to_log_file("worker", my_rank, "oversample", oversample_percents[my_rank])
-            # self.print_to_log_file("worker", my_rank, "batch_size", batch_sizes[my_rank])
-
-            self.batch_size = batch_sizes[my_rank]
-            self.oversample_foreground_percent = oversample_percents[my_rank]
-
-    @abstractmethod
-    def _build_loss(self):
-        pass
+        self.on_train_end()
 
     def print_to_log_file(self, *args, also_print_to_console=True, add_timestamp=True):
         if self.local_rank == 0:
@@ -362,26 +290,6 @@ class AbstractnnsslTrainer(ABC):
         )
         lr_scheduler = PolyLRScheduler(optimizer, self.initial_lr, self.num_epochs)
         return optimizer, lr_scheduler
-
-    def do_split(self):
-        """
-        The default split is a 5 fold CV on all available training cases. nnU-Net will create a split (it is seeded,
-        so always the same) and save it as splits_final.pkl file in the preprocessed data directory.
-        Sometimes you may want to create your own split for various reasons. For this you will need to create your own
-        splits_final.pkl file. If this file is present, nnU-Net is going to use it and whatever splits are defined in
-        it. You can create as many splits in this file as you want. Note that if you define only 4 splits (fold 0-3)
-        and then set fold=4 when training (that would be the fifth split), nnU-Net will print a warning and proceed to
-        use a random 80:20 data split.
-        :return:
-        """
-        # if self.fold == "all":
-        # if fold==all then we use all images for training and validation
-        # There used to be a if/else for the case that we don't use all samples, but we only do self-supervised thingies,
-        #   so we use all samples for training and validation
-        case_identifiers = get_case_identifiers(self.preprocessed_dataset_folder)
-        tr_keys = case_identifiers
-        val_keys = tr_keys
-        return tr_keys, val_keys
 
     def get_tr_and_val_datasets(self):
         # create dataset split (We only have 'all' as splits anyway!)
@@ -471,6 +379,7 @@ class AbstractnnsslTrainer(ABC):
         return dl_tr, dl_val
 
     @staticmethod
+    @abstractmethod
     def get_training_transforms(
         patch_size: Union[np.ndarray, Tuple[int]],
         rotation_for_DA: dict,
@@ -481,75 +390,12 @@ class AbstractnnsslTrainer(ABC):
         border_val_seg: int = -1,
         use_mask_for_norm: List[bool] = None,
     ) -> AbstractTransform:
-        tr_transforms = []
-        if do_dummy_2d_data_aug:
-            ignore_axes = (0,)
-            tr_transforms.append(Convert3DTo2DTransform())
-            patch_size_spatial = patch_size[1:]
-        else:
-            patch_size_spatial = patch_size
-            ignore_axes = None
-
-        tr_transforms.append(
-            SpatialTransform(
-                patch_size_spatial,
-                patch_center_dist_from_border=None,
-                do_elastic_deform=False,
-                alpha=(0, 0),
-                sigma=(0, 0),
-                do_rotation=True,
-                angle_x=rotation_for_DA["x"],
-                angle_y=rotation_for_DA["y"],
-                angle_z=rotation_for_DA["z"],
-                p_rot_per_axis=1,  # todo experiment with this
-                do_scale=True,
-                scale=(0.7, 1.4),
-                border_mode_data="constant",
-                border_cval_data=0,
-                order_data=order_resampling_data,
-                border_mode_seg="constant",
-                border_cval_seg=border_val_seg,
-                order_seg=order_resampling_seg,
-                random_crop=False,  # random cropping is part of our dataloaders
-                p_el_per_sample=0,
-                p_scale_per_sample=0.2,
-                p_rot_per_sample=0.2,
-                independent_scale_for_each_axis=False,  # todo experiment with this
-            )
-        )
-
-        if do_dummy_2d_data_aug:
-            tr_transforms.append(Convert2DTo3DTransform())
-
-        # tr_transforms.append(GaussianNoiseTransform(p_per_sample=0.1))
-        # tr_transforms.append(
-        #     GaussianBlurTransform((0.5, 1.0), different_sigma_per_channel=True, p_per_sample=0.2, p_per_channel=0.5)
-        # )
-        # tr_transforms.append(BrightnessMultiplicativeTransform(multiplier_range=(0.75, 1.25), p_per_sample=0.15))
-        # tr_transforms.append(ContrastAugmentationTransform(p_per_sample=0.15))
-        # tr_transforms.append(
-        #     SimulateLowResolutionTransform(
-        #         zoom_range=(0.5, 1),
-        #         per_channel=True,
-        #         p_per_channel=0.5,
-        #         order_downsample=0,
-        #         order_upsample=3,
-        #         p_per_sample=0.25,
-        #         ignore_axes=ignore_axes,
-        #     )
-        # )
-        # tr_transforms.append(GammaTransform((0.7, 1.5), True, True, retain_stats=True, p_per_sample=0.1))
-        # tr_transforms.append(GammaTransform((0.7, 1.5), False, True, retain_stats=True, p_per_sample=0.3))
-
-        if mirror_axes is not None and len(mirror_axes) > 0:
-            tr_transforms.append(MirrorTransform(mirror_axes))
-
-        tr_transforms.append(NumpyToTensor(["data"], "float"))
-        tr_transforms = Compose(tr_transforms)
-        return tr_transforms
+        pass
 
     @staticmethod
+    @abstractmethod
     def get_validation_transforms() -> AbstractTransform:
+        pass
         val_transforms = []
         val_transforms.append(NumpyToTensor(["data"], "float"))
         val_transforms = Compose(val_transforms)
@@ -617,42 +463,6 @@ class AbstractnnsslTrainer(ABC):
         empty_cache(self.device)
         self.print_to_log_file("Training done.")
 
-    def on_train_epoch_start(self):
-        self.network.train()
-        self.lr_scheduler.step(self.current_epoch)
-        self.print_to_log_file("")
-        self.print_to_log_file(f"Epoch {self.current_epoch}")
-        self.print_to_log_file(f"Current learning rate: {np.round(self.optimizer.param_groups[0]['lr'], decimals=5)}")
-        # lrs are the same for all workers so we don't need to gather them in case of DDP training
-        self.logger.log("lrs", self.optimizer.param_groups[0]["lr"], self.current_epoch)
-
-    def train_step(self, batch: dict) -> dict:
-        data = batch["data"]
-        data = data.to(self.device, non_blocking=True)
-        target = {"target": data}
-
-        self.optimizer.zero_grad(set_to_none=True)
-        # Autocast is a little bitch.
-        # If the device_type is 'cpu' then it's slow as heck and needs to be disabled.
-        # If the device_type is 'mps' then it will complain that mps is not implemented, even if enabled=False is set. Whyyyyyyy. (this is why we don't make use of enabled=False)
-        # So autocast will only be active if we have a cuda device.
-        with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
-            output = self.network(data)
-            # del data
-            l = self.loss(output, target)
-
-        if self.grad_scaler is not None:
-            self.grad_scaler.scale(l).backward()
-            self.grad_scaler.unscale_(self.optimizer)
-            torch.nn.utils.clip_grad_norm_(self.network.parameters(), 12)
-            self.grad_scaler.step(self.optimizer)
-            self.grad_scaler.update()
-        else:
-            l.backward()
-            torch.nn.utils.clip_grad_norm_(self.network.parameters(), 12)
-            self.optimizer.step()
-        return {"loss": l.detach().cpu().numpy()}
-
     def on_train_epoch_end(self, train_outputs: List[dict]):
         outputs = collate_outputs(train_outputs)
 
@@ -664,25 +474,6 @@ class AbstractnnsslTrainer(ABC):
             loss_here = np.mean(outputs["loss"])
 
         self.logger.log("train_losses", loss_here, self.current_epoch)
-
-    def on_validation_epoch_start(self):
-        self.network.eval()
-
-    def validation_step(self, batch: dict) -> dict:
-        data = batch["data"]
-        data = data.to(self.device, non_blocking=True)
-        target = {"target": data}
-
-        # Autocast is a little bitch.
-        # If the device_type is 'cpu' then it's slow as heck and needs to be disabled.
-        # If the device_type is 'mps' then it will complain that mps is not implemented, even if enabled=False is set. Whyyyyyyy. (this is why we don't make use of enabled=False)
-        # So autocast will only be active if we have a cuda device.
-        with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
-            output = self.network(data)
-            del data
-            l = self.loss(output, target)
-
-        return {"loss": l.detach().cpu().numpy()}
 
     def on_validation_epoch_end(self, val_outputs: List[dict]):
         outputs_collated = collate_outputs(val_outputs)
@@ -696,6 +487,18 @@ class AbstractnnsslTrainer(ABC):
             loss_here = np.mean(outputs_collated["loss"])
 
         self.logger.log("val_losses", loss_here, self.current_epoch)
+
+    def on_train_epoch_start(self):
+        self.network.train()
+        self.lr_scheduler.step(self.current_epoch)
+        self.print_to_log_file("")
+        self.print_to_log_file(f"Epoch {self.current_epoch}")
+        self.print_to_log_file(f"Current learning rate: {np.round(self.optimizer.param_groups[0]['lr'], decimals=5)}")
+        # lrs are the same for all workers so we don't need to gather them in case of DDP training
+        self.logger.log("lrs", self.optimizer.param_groups[0]["lr"], self.current_epoch)
+
+    def on_validation_epoch_start(self):
+        self.network.eval()
 
     def on_epoch_start(self):
         self.logger.log("epoch_start_timestamps", time(), self.current_epoch)
@@ -787,28 +590,102 @@ class AbstractnnsslTrainer(ABC):
             if checkpoint["grad_scaler_state"] is not None:
                 self.grad_scaler.load_state_dict(checkpoint["grad_scaler_state"])
 
-    def run_training(self):
-        self.on_train_start()
-
-        for epoch in range(self.current_epoch, self.num_epochs):
-            self.on_epoch_start()
-
-            self.on_train_epoch_start()
-            train_outputs = []
-            for batch_id in range(self.num_iterations_per_epoch):
-                train_outputs.append(self.train_step(next(self.dataloader_train)))
-            self.on_train_epoch_end(train_outputs)
-
-            with torch.no_grad():
-                self.on_validation_epoch_start()
-                val_outputs = []
-                for batch_id in range(self.num_val_iterations_per_epoch):
-                    val_outputs.append(self.validation_step(next(self.dataloader_val)))
-                self.on_validation_epoch_end(val_outputs)
-
-            self.on_epoch_end()
-
-        self.on_train_end()
-
     def perform_actual_validation(self, save_probabilities: bool = False):
         print("Actual Validation is trainer specific and needs to be written here. To be implemented late!")
+
+    def _do_i_compile(self):
+        return ("nnUNet_compile" in os.environ.keys()) and (
+            os.environ["nnUNet_compile"].lower() in ("true", "1", "t")
+        )
+
+    def _save_debug_information(self):
+        # saving some debug information
+        if self.local_rank == 0:
+            dct = {}
+            for k in self.__dir__():
+                if not k.startswith("__"):
+                    if not callable(getattr(self, k)) or k in [
+                        "loss",
+                    ]:
+                        dct[k] = str(getattr(self, k))
+                    elif k in [
+                        "network",
+                    ]:
+                        dct[k] = str(getattr(self, k).__class__.__name__)
+                    else:
+                        # print(k)
+                        pass
+                if k in ["dataloader_train", "dataloader_val"]:
+                    if hasattr(getattr(self, k), "generator"):
+                        dct[k + ".generator"] = str(getattr(self, k).generator)
+                    if hasattr(getattr(self, k), "num_processes"):
+                        dct[k + ".num_processes"] = str(getattr(self, k).num_processes)
+                    if hasattr(getattr(self, k), "transform"):
+                        dct[k + ".transform"] = str(getattr(self, k).transform)
+            import subprocess
+
+            hostname = subprocess.getoutput(["hostname"])
+            dct["hostname"] = hostname
+            torch_version = torch.__version__
+            if self.device.type == "cuda":
+                gpu_name = torch.cuda.get_device_name()
+                dct["gpu_name"] = gpu_name
+                cudnn_version = torch.backends.cudnn.version()
+            else:
+                cudnn_version = "None"
+            dct["device"] = str(self.device)
+            dct["torch_version"] = torch_version
+            dct["cudnn_version"] = cudnn_version
+            save_json(dct, join(self.output_folder, "debug.json"))
+
+    def _set_batch_size(self):
+        if not self.is_ddp:
+            # set batch size to what the plan says, leave oversample untouched
+            self.batch_size = self.config_plan.batch_size
+        else:
+            # batch size is distributed over DDP workers and we need to change oversample_percent for each worker
+            batch_sizes = []
+
+            world_size = dist.get_world_size()
+            my_rank = dist.get_rank()
+
+            global_batch_size = self.config_plan.batch_size
+            assert global_batch_size >= world_size, (
+                "Cannot run DDP if the batch size is smaller than the number of " "GPUs... Duh."
+            )
+
+            batch_size_per_GPU = np.ceil(global_batch_size / world_size).astype(int)
+
+            for rank in range(world_size):
+                if (rank + 1) * batch_size_per_GPU > global_batch_size:
+                    batch_size = batch_size_per_GPU - ((rank + 1) * batch_size_per_GPU - global_batch_size)
+                else:
+                    batch_size = batch_size_per_GPU
+
+                batch_sizes.append(batch_size)
+
+            print("worker", my_rank, "batch_size", batch_sizes[my_rank])
+            # self.print_to_log_file("worker", my_rank, "oversample", oversample_percents[my_rank])
+            # self.print_to_log_file("worker", my_rank, "batch_size", batch_sizes[my_rank])
+
+            self.batch_size = batch_sizes[my_rank]
+
+    def do_split(self):
+        """
+        The default split is a 5 fold CV on all available training cases. nnU-Net will create a split (it is seeded,
+        so always the same) and save it as splits_final.pkl file in the preprocessed data directory.
+        Sometimes you may want to create your own split for various reasons. For this you will need to create your own
+        splits_final.pkl file. If this file is present, nnU-Net is going to use it and whatever splits are defined in
+        it. You can create as many splits in this file as you want. Note that if you define only 4 splits (fold 0-3)
+        and then set fold=4 when training (that would be the fifth split), nnU-Net will print a warning and proceed to
+        use a random 80:20 data split.
+        :return:
+        """
+        # if self.fold == "all":
+        # if fold==all then we use all images for training and validation
+        # There used to be a if/else for the case that we don't use all samples, but we only do self-supervised thingies,
+        #   so we use all samples for training and validation
+        case_identifiers = get_case_identifiers(self.preprocessed_dataset_folder)
+        tr_keys = case_identifiers
+        val_keys = tr_keys
+        return tr_keys, val_keys

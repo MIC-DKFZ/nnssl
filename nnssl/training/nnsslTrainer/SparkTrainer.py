@@ -1,12 +1,12 @@
 from nnssl.architectures.build_architecture import build_network_architecture
 from nnssl.architectures.convert_to_spark import convert_to_spark_cnn
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan
-from nnssl.training.nnsslTrainer.nnsslAbstractMAETrainer import nnAbstractMAETrainer
+from nnssl.training.nnsslTrainer.AbstractMAETrainer import AbstractMAETrainer
 from nnssl.training.loss.spark_loss import SparkLoss
 from torch import nn
 
 
-class nnSSLSparkTrainer(nnAbstractMAETrainer):
+class SparkMAETrainer(AbstractMAETrainer):
     def _build_loss(self):
         """
         This is where you build your loss function. You can use anything from torch.nn here

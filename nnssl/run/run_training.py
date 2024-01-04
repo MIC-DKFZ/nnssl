@@ -10,7 +10,7 @@ from batchgenerators.utilities.file_and_folder_operations import join, isfile, l
 from nnssl.experiment_planning.experiment_planners.plan import Plan
 from nnssl.paths import nnssl_preprocessed
 from nnssl.run.load_pretrained_weights import load_pretrained_weights
-from nnssl.training.nnsslTrainer.nnsslTrainer import AbstractnnsslTrainer
+from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
 from nnssl.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
 from nnssl.utilities.find_class_by_name import recursive_find_python_class
 from torch.backends import cudnn
@@ -39,7 +39,7 @@ def get_trainer_from_args(
     device: torch.device = torch.device("cuda"),
 ):
     # load nnunet class and do sanity checks
-    nnssl_trainer_cls: Type[AbstractnnsslTrainer] = recursive_find_python_class(
+    nnssl_trainer_cls: Type[AbstractBaseTrainer] = recursive_find_python_class(
         join(nnssl.__path__[0], "training", "nnsslTrainer"), trainer_name, "nnssl.training.nnsslTrainer"
     )
     if nnssl_trainer_cls is None:
@@ -49,7 +49,7 @@ def get_trainer_from_args(
             f'{join(nnssl.__path__[0], "training", "nnsslTrainer")}). If it is located somewhere '
             f"else, please move it there."
         )
-    assert issubclass(nnssl_trainer_cls, AbstractnnsslTrainer), (
+    assert issubclass(nnssl_trainer_cls, AbstractBaseTrainer), (
         "The requested nnunet trainer class must inherit from " "nnsslTrainer"
     )
 
@@ -71,7 +71,7 @@ def get_trainer_from_args(
     plans_file = join(preprocessed_dataset_folder_base, plans_identifier + ".json")
     plans: Plan = Plan.load_from_file(plans_file)
     dataset_json = load_json(join(preprocessed_dataset_folder_base, "dataset.json"))
-    nnssl_trainer: AbstractnnsslTrainer = nnssl_trainer_cls(
+    nnssl_trainer: AbstractBaseTrainer = nnssl_trainer_cls(
         plan=plans,
         configuration_name=configuration,
         fold=fold,
@@ -83,7 +83,7 @@ def get_trainer_from_args(
 
 
 def maybe_load_checkpoint(
-    nnunet_trainer: AbstractnnsslTrainer,
+    nnunet_trainer: AbstractBaseTrainer,
     continue_training: bool,
     validation_only: bool,
     pretrained_weights_file: str = None,
