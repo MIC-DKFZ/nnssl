@@ -57,17 +57,11 @@ homepage = "https://git.dkfz.de/mic/personal/group2/tassilow/nnssl"
 repository = "https://git.dkfz.de/mic/personal/group2/tassilow/nnssl"
 
 [project.scripts]
-nnSSL_plan_and_preprocess = "nnssl.experiment_planning.plan_and_preprocess_entrypoints:plan_and_preprocess_entry"
-nnSSL_extract_fingerprint = "nnssl.experiment_planning.plan_and_preprocess_entrypoints:extract_fingerprint_entry"
-nnSSL_plan_experiment = "nnssl.experiment_planning.plan_and_preprocess_entrypoints:plan_experiment_entry"
-nnSSL_preprocess = "nnssl.experiment_planning.plan_and_preprocess_entrypoints:preprocess_entry"
-nnSSL_train = "nnssl.run.run_training:run_training_entry"
-nnSSL_plot_overlay_pngs = "nnssl.utilities.overlay_plots:entry_point_generate_overlay"
-nnSSL_download_pretrained_model_by_url = "nnssl.model_sharing.entry_points:download_by_url"
-nnSSL_install_pretrained_model_from_zip = "nnssl.model_sharing.entry_points:install_from_zip_entry_point"
-nnSSL_export_model_to_zip = "nnssl.model_sharing.entry_points:export_pretrained_model_entry"
-nnSSL_move_plans_between_datasets = "nnssl.experiment_planning.plans_for_pretraining.move_plans_between_datasets:entry_point_move_plans_between_datasets"
-nnSSL_convert_MSD_dataset = "nnssl.dataset_conversion.convert_MSD_dataset:entry_point"
+nnssl_plan_and_preprocess = "nnssl.experiment_planning.plan_and_preprocess_entrypoints:plan_and_preprocess_entry"
+nnssl_extract_fingerprint = "nnssl.experiment_planning.plan_and_preprocess_entrypoints:extract_fingerprint_entry"
+nnssl_plan_experiment = "nnssl.experiment_planning.plan_and_preprocess_entrypoints:plan_experiment_entry"
+nnssl_preprocess = "nnssl.experiment_planning.plan_and_preprocess_entrypoints:preprocess_entry"
+nnssl_train = "nnssl.run.run_training:run_training_entry"
 
 [project.optional-dependencies]
 dev = [
