@@ -82,7 +82,7 @@ def plan_experiment_entry():
     )
     parser.add_argument(
         "-gpu_memory_target",
-        default=8,
+        default=11,
         type=float,
         required=False,
         help="[OPTIONAL] DANGER ZONE! Sets a custom GPU memory target. Default: 8 [GB]. Changing this will "
@@ -257,7 +257,7 @@ def plan_and_preprocess_entry():
     )
     parser.add_argument(
         "-gpu_memory_target",
-        default=8,
+        default=11,
         type=int,
         required=False,
         help="[OPTIONAL] DANGER ZONE! Sets a custom GPU memory target. Default: 8 [GB]. Changing this will "

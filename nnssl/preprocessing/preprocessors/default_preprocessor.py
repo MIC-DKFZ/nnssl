@@ -143,7 +143,8 @@ def default_preprocess(
 
     dataset_json_file = join(nnssl_preprocessed, dataset_name, "dataset.json")
     dataset_json = load_json(dataset_json_file)
-    dataset_json.pop("labels")  # Remove the labels from the dataset.json
+    if "labels" in dataset_json.keys():
+        dataset_json.pop("labels")  # Remove the labels from the dataset.json
 
     output_directory = join(nnssl_preprocessed, dataset_name, config_plan.data_identifier)
 
