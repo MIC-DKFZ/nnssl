@@ -1,7 +1,10 @@
 import os
 import re
 import shutil
+import SimpleITK as sitk
 from pathlib import Path
+
+from tqdm import tqdm
 
 from nnssl.paths import nnUNet_raw
 from batchgenerators.utilities.file_and_folder_operations import save_json
@@ -13,31 +16,30 @@ def convert(src_data_folder: Path, target_data_folder: Path):
     patient_pattern = r"^[a-z0-9]*$"
     image_pattern = r"^[a-z0-9].*\.nii\.gz$"
     output_pattern = "pat_{:05d}__mri_{:05d}__0000.nii.gz"
-    overall_samples = 0
-    # -------------------------- Iterate once and count -------------------------- #
-    for pat_cnt, pat_id in enumerate(
-        [sdf for sdf in src_data_folder.iterdir() if re.match(patient_pattern, sdf.name)]
-    ):
-        for mri_cnt, mri_id in enumerate([mri for mri in pat_id.iterdir() if re.match(image_pattern, mri.name)]):
-            overall_samples += 1
-    print(f"Found {overall_samples} samples.")
+
     # -------------------------- Iterate again and copy -------------------------- #
+    overall_samples = 0
     pat_json = {}
-    for pat_cnt, pat_id in enumerate(
-        [sdf for sdf in src_data_folder.iterdir() if re.match(patient_pattern, sdf.name)]
+    for pat_cnt, pat_id in tqdm(
+        enumerate([sdf for sdf in src_data_folder.iterdir() if re.match(patient_pattern, sdf.name)])
     ):
         pat_json[f"{pat_cnt:05d}"] = {"name": pat_id.name, "images": dict()}
         for mri_cnt, mri_id in enumerate([mri for mri in pat_id.iterdir() if re.match(image_pattern, mri.name)]):
             output_target = images_tr_dir / (output_pattern.format(pat_cnt, mri_cnt))
             pat_json[f"{pat_cnt:05d}"]["images"].update({f"{mri_cnt:05d}": mri_id.name})
-            shutil.copy(mri_id, output_target)
+            im = sitk.ReadImage(mri_id)
+            dims = im.GetDimension()
+            if dims == 3:
+                shutil.copy(mri_id, output_target)
+                overall_samples += 1
+    print(f"Found {overall_samples} samples.")
     save_json(pat_json, target_data_folder / "patient_id_mapping.json", sort_keys=False)
     dataset_json = {
         "channel_names": {
             0: "someMRI",
         },
         "file_ending": ".nii.gz",
-        "num_training_cases": overall_samples,
+        "numTraining": overall_samples,
         "name": "150 cases of Floys initial Dataset",
         "release": "0.0",
         "licence": "Proprietary -- do not touch without permission",
