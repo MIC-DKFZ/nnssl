@@ -1,5 +1,5 @@
 import shutil
-from typing import List, Type, Optional, Tuple, Union, TYPE_CHECKING
+from typing import List, Sequence, Type, Optional, Tuple, Union, TYPE_CHECKING
 
 import nnssl
 from batchgenerators.utilities.file_and_folder_operations import join
@@ -126,7 +126,7 @@ def preprocess_dataset(
     dataset_id: int,
     plans_identifier: str = "nnsslPlans",
     configurations: Union[Tuple[str], List[str]] = ("3d_fullres"),
-    num_processes: Union[int, Tuple[int, ...], List[int]] = (8, 4, 8),
+    num_processes: Sequence[int] = (4,),
     verbose: bool = False,
 ) -> None:
     if not isinstance(num_processes, list):
