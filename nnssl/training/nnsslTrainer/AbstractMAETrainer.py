@@ -7,6 +7,7 @@ from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan
 from nnssl.ssl_data.configure_basic_dummyDA import configure_rotation_dummyDA_mirroring_and_inital_patch_size
 from nnssl.ssl_data.data_augmentation.transforms_for_dummy_2d import Convert2DTo3DTransform, Convert3DTo2DTransform
 from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
+from nnssl.training.loss.mse_loss import MSELoss
 from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
 from torch import nn
 from batchgenerators.transforms.spatial_transforms import SpatialTransform, MirrorTransform
@@ -50,10 +51,12 @@ class AbstractMAETrainer(AbstractBaseTrainer, ABC):
 
     def _build_loss(self):
         """
-        This is where you build your loss function. You can use anything from torch.nn here
+        This is where you build your loss function. You can use anything from torch.nn here.
+        In general the MAE losses are only applied on regions where the mask is 0.
+
         :return:
         """
-        return nn.MSELoss()
+        return MSELoss()
 
     def build_architecture(
         self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
@@ -138,7 +141,7 @@ class AbstractMAETrainer(AbstractBaseTrainer, ABC):
         with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
             output = self.network(masked_data)
             # del data
-            l = self.loss(output, target["target"])
+            l = self.loss(output, target)
 
         if self.grad_scaler is not None:
             self.grad_scaler.scale(l).backward()
@@ -169,7 +172,7 @@ class AbstractMAETrainer(AbstractBaseTrainer, ABC):
         with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
             output = self.network(masked_data)
             del data
-            l = self.loss(output, target["target"])
+            l = self.loss(output, target)
 
         return {"loss": l.detach().cpu().numpy()}
 
