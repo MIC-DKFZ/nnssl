@@ -6,7 +6,6 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from nnssl.paths import nnUNet_raw
 from batchgenerators.utilities.file_and_folder_operations import save_json
 
 
@@ -28,10 +27,16 @@ def convert(src_data_folder: Path, target_data_folder: Path):
             output_target = images_tr_dir / (output_pattern.format(pat_cnt, mri_cnt))
             pat_json[f"{pat_cnt:05d}"]["images"].update({f"{mri_cnt:05d}": mri_id.name})
             im = sitk.ReadImage(mri_id)
-            dims = im.GetDimension()
-            if dims == 3:
+            getarr = sitk.GetArrayFromImage(im)
+            if len(getarr.shape) == 3:
                 shutil.copy(mri_id, output_target)
                 overall_samples += 1
+            elif len(getarr.shape) == 4:
+                print("Four dimensions")
+                continue
+            else:
+                print("Neither 3 nor 4 images")
+
     print(f"Found {overall_samples} samples.")
     save_json(pat_json, target_data_folder / "patient_id_mapping.json", sort_keys=False)
     dataset_json = {
@@ -51,8 +56,9 @@ def convert(src_data_folder: Path, target_data_folder: Path):
 if __name__ == "__main__":
     import os
 
-    train_data_path = Path("/mnt/cluster-checkpoint-all/t006d/rohdaten/mr150")
-    out_data_path = Path("/mnt/cluster-data-all/t006d/nnunetv2/raw_data/Dataset737_FloyPrototype")
+    train_data_path = Path("/mnt/cluster-data-all/t006d/Datasets/mr150")
+    out_data_path = Path(os.environ["nnUNet_raw"]) / "Dataset737_FloyPrototype"
+    # out_data_path = Path("/mnt/cluster-data-all/t006d/nnunetv2/raw_data/Dataset737_FloyPrototype")
     assert train_data_path.exists(), f"Train data path {train_data_path} does not exist!"
     out_data_path.mkdir(parents=True, exist_ok=True)
     convert(train_data_path, out_data_path)
