@@ -5,7 +5,7 @@ from typing import Union
 import multiprocessing
 
 import numpy as np
-import tqdm
+from tqdm import tqdm
 
 from nnssl.imageio.reader_writer_registry import determine_reader_writer_from_dataset_json
 from nnssl.paths import nnUNet_raw, nnssl_preprocessed
@@ -96,7 +96,7 @@ def default_dataset_fingerprint_extraction(
         if num_processes > 1:
             with multiprocessing.get_context("spawn").Pool(num_processes) as p:
                 imgs = [dataset[k]["images"] for k in dataset.keys()]
-                results = p.map(analyze_case_partial, imgs)
+                results = list(tqdm(p.imap(analyze_case_partial, imgs)))
         else:
             results = [analyze_case(dataset[k]["images"], reader_writer_class) for k in tqdm(dataset.keys())]
 
