@@ -181,8 +181,8 @@ class ExperimentPlanner(object):
         spacings = self.dataset_fingerprint["spacings"]
         sizes = self.dataset_fingerprint["shapes_after_crop"]
 
-        target = np.percentile(np.vstack(spacings), 50, 0)
-
+        # target = np.percentile(np.vstack(spacings), 50, 0)
+        target = np.array((1.0, 1.0, 1.0))
         # todo sizes_after_resampling = [compute_new_shape(j, i, target) for i, j in zip(spacings, sizes)]
 
         target_size = np.percentile(np.vstack(sizes), 50, 0)
