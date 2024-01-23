@@ -9,6 +9,8 @@ from datetime import datetime
 from time import time, sleep
 from typing import Union, Tuple, List
 
+import valohai
+
 import numpy as np
 import torch
 from batchgenerators.dataloading.single_threaded_augmenter import SingleThreadedAugmenter
@@ -474,6 +476,9 @@ class AbstractBaseTrainer(ABC):
             loss_here = np.mean(outputs["loss"])
 
         self.logger.log("train_losses", loss_here, self.current_epoch)
+        with valohai.logger() as logger:
+            logger.log("train_loss", float(loss_here))
+            logger.log("epoch", int(self.current_epoch))
 
     def on_validation_epoch_end(self, val_outputs: List[dict]):
         outputs_collated = collate_outputs(val_outputs)
@@ -487,6 +492,8 @@ class AbstractBaseTrainer(ABC):
             loss_here = np.mean(outputs_collated["loss"])
 
         self.logger.log("val_losses", loss_here, self.current_epoch)
+        with valohai.logger() as logger:
+            logger.log("val_loss", float(loss_here))
 
     def on_train_epoch_start(self):
         self.network.train()

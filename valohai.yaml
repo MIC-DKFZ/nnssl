@@ -1,0 +1,125 @@
+---
+- step:
+    name: hello_world
+    image: python:3.10
+    command:
+      - python ./fiona/nnssl/valohai_tester.py
+
+
+- step:
+    name: create_nnssl_dataset_from_niftis
+    image: python:3.10
+    command:
+      - pip install ./fiona
+      - python ./fiona/nnssl/dataset_conversion/Dataset737_FloyPrototyping.py
+    inputs:
+      - name: dataset
+        default: https://valohaidemo.blob.core.windows.net/mnist/mnist.npz
+
+
+- step:
+    name: filter_niftis
+    image: pytorch/pytorch:latest
+    command:
+      - pip install ./fiona
+      - <TBD>
+    parameters:
+      - name: DatasetName
+        default: 737
+        type: string
+        pass-as: "-d {v}"
+      - name: FingerPrintExtractor
+        default: DatasetFingerprintExtractor
+        type: string
+        pass-as: "-fpe {v}"
+      - name: NumProcesses
+        default: BaseMAE
+        type: string
+        pass-as: "--tr {v}"
+        description: Trainer to use
+      - name: VerifyDatasetIntegrity
+        default: True
+        type: flag
+        pass-true-as: "--verify_dataset_integrity"
+        pass-false-as: ""
+    inputs:
+      - name: dataset
+        default: s3://floy-data/clean-data/external/fiona/mr-head-full/
+
+
+
+- step:
+    name: preprocess-dataset
+    image: pytorch/pytorch:latest
+    command:
+      - pip install ./fiona
+      - python ./fiona/nnssl/experiment_planning/plan_and_preprocess_entrypoints.py
+    parameters:
+      - name: DatasetName
+        default: 737
+        type: string
+        pass-as: "-d {v}"
+      - name: FingerPrintExtractor
+        default: DatasetFingerprintExtractor
+        type: string
+        pass-as: "-fpe {v}"
+      - name: NumProcesses
+        default: BaseMAE
+        type: string
+        pass-as: "--tr {v}"
+        description: Trainer to use
+      - name: VerifyDatasetIntegrity
+        default: True
+        type: flag
+        pass-true-as: "--verify_dataset_integrity"
+        pass-false-as: ""
+    inputs:
+      - name: dataset
+        default: https://valohaidemo.blob.core.windows.net/mnist/mnist.npz
+
+- step:
+    name: train-model
+    image: pytorch/pytorch:latest
+    command:
+      - pip install -e .
+      - python ./train_model.py {parameters}
+    parameters:
+      - name: Dataset Name
+        default: 737
+        type: string
+        pass-as: "{v}"
+      - name: Configuration
+        default: 3d_fullres  # Should not be changed for now
+        type: string
+        pass-as: "{v}"
+      - name: nnsslTrainer
+        default: BaseMAE
+        type: string
+        pass-as: --tr={v}
+        description: Trainer to use
+      - name: num Gpus
+        default: 1
+        type: int
+        pass-as: -num_gpus={v}
+    inputs:
+      - name: dataset
+        default: https://valohaidemo.blob.core.windows.net/mnist/preprocessed_mnist.npz
+
+- pipeline:
+    name: training-pipeline
+    nodes:
+      - name: preprocess
+        type: execution
+        step: preprocess-dataset
+      - name: train
+        type: execution
+        step: train-model
+        override:
+          inputs:
+            - name: dataset
+      - name: evaluate
+        type: execution
+        step: batch-inference
+    edges:
+      - [preprocess.output.preprocessed_mnist.npz, train.input.dataset]
+      - [train.output.model*, evaluate.input.model]
