@@ -61,7 +61,7 @@
         pass-as: "-d {v}"
       - name: FingerPrintExtractor
         default: DatasetFingerprintExtractor
-        type: strg
+        type: string
         pass-as: "-fpe {v}"
       - name: NumProcesses
         default: BaseMAE
