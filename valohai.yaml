@@ -61,7 +61,7 @@
         pass-as: "-d {v}"
       - name: FingerPrintExtractor
         default: DatasetFingerprintExtractor
-        type: string
+        type: strg
         pass-as: "-fpe {v}"
       - name: NumProcesses
         default: BaseMAE
@@ -99,7 +99,7 @@
         description: Trainer to use
       - name: num Gpus
         default: 1
-        type: int
+        type: integer
         pass-as: -num_gpus={v}
     inputs:
       - name: dataset
