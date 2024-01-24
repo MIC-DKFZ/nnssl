@@ -3,7 +3,11 @@
     name: hello_world
     image: python:3.10
     command:
-      - python ./fiona/nnssl/valohai_tester.py
+      - ls
+      - pwd
+      - cd fiona/nnssl
+      - python ./valohai_tester.py
+      # - python ./fiona/nnssl/valohai_tester.py
 
 
 - step:
