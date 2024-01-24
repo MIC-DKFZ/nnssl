@@ -3,7 +3,7 @@
     name: hello_world
     image: python:3.10
     command:
-      - python ./valohai_tester.py
+      - python ./nnssl/valohai_tester.py
       # - python ./fiona/nnssl/valohai_tester.py
 
 
