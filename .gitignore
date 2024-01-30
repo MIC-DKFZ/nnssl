@@ -113,3 +113,5 @@ ENV/
 
 *.model
 
+*._.DS_Store
+*.DS_Store
