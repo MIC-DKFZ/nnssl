@@ -23,7 +23,7 @@ def main():
     sample_filenames = choose_first_n_files_from_meta_data(meta_data_path, 300)
 
     s3_path = Path("s3://floy-data/clean-data/external/fiona/mr-head-full/")
-    s3_filenames = [str(s3_path / f) for f in sample_filenames]
+    s3_filenames = [str(s3_path / (f + ".nii.gz")) for f in sample_filenames]
 
     post_url = "https://app.valohai.com/api/v0/dataset-versions/"
 
