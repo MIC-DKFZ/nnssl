@@ -31,6 +31,7 @@ from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
 
 from nnssl.training.logging.nnssl_logger import nnSSLLogger
 from nnssl.training.lr_scheduler.polylr import PolyLRScheduler
+from nnssl.utilities import make_serializable
 from nnssl.utilities.collate_outputs import collate_outputs
 from nnssl.utilities.default_n_proc_DA import get_allowed_n_proc_DA
 from nnssl.utilities.helpers import empty_cache
@@ -91,7 +92,7 @@ class AbstractBaseTrainer(ABC):
         self.my_init_kwargs = {}
         for k in inspect.signature(self.__init__).parameters.keys():
             self.my_init_kwargs[k] = locals()[k]
-
+        self.my_init_kwargs = make_serializable(self.my_init_kwargs)
         # ------ Saving all the init args into class variables for later access ------ #
         self.plan: Plan = plan
         self.config_plan: ConfigurationPlan = plan.configurations[configuration_name]
@@ -577,6 +578,7 @@ class AbstractBaseTrainer(ABC):
             new_state_dict[key] = value
 
         self.my_init_kwargs = checkpoint["init_args"]
+
         self.current_epoch = checkpoint["current_epoch"]
         self.logger.load_checkpoint(checkpoint["logging"])
         self._best_ema = checkpoint["_best_ema"]
