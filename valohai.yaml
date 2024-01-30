@@ -6,6 +6,13 @@
       - python ./nnssl/valohai_tester.py
       # - python ./fiona/nnssl/valohai_tester.py
 
+- step:
+    name: create_dev_dataset
+    image: python:3.10
+    command:
+      - python ./nnssl/scripts/create_valohai_inputs.py
+      # - python ./fiona/nnssl/valohai_tester.py
+
 
 - step:
     name: create_nnssl_dataset_from_niftis
