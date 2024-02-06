@@ -16,4 +16,66 @@
     inputs:
     - name: raw-data
       description: Dataset that will be preprocessed
-      default: dataset://fiona-300-dev
+      default: dataset://fiona-300-dev/v1
+
+
+- step:
+    name: plan_and_preprocess_dataset
+    image: python:3.10
+    command:
+      - pip install .
+      - python ./nnssl/experiment_planners/plan_and_preprocess_entrypoints.py {parameter:}
+      # - python ./fiona/nnssl/valohai_tester.py
+    parameters:
+    - name: fingerprint_type
+      description: Type of fingerprint to use
+      default: DatasetFingerprintExtractor
+      pass-as: -fpe {}
+      type: string
+    - name: num_processes_fingerprinting
+      description: Number of processes to use for fingerprinting
+      default: 8
+      pass-as: -npfp {}
+      type: integer
+    - name: verify_dataset_integrity
+      default: True
+      type: flag
+      pass-true-as: "--verify_dataset_integrity"
+      pass-false-as: ""
+    - name: No Preprocessing
+      default: False
+      type: flag
+      pass-true-as: "--no_pp"
+      pass-false-as: ""
+    - name: Clean
+      default: False
+      type: flag
+      pass-true-as: "--clean"
+      pass-false-as: ""
+    - name: Planner
+      default: ExperimentPlanner
+      type: string
+      pass-as: -pl {}
+    - name: gpu_memory_target
+      default: 11
+      type: string
+      pass-as: -gpu_memory_target {}
+    - name: preprocessor_name
+      default: DefaultPreprocessor
+      pass-as: -preprocessor_name {}
+    - name: overwrite_plans_name
+      default: nnsslPlans
+      pass-as: -overwrite_target_spacing {}
+      required: False
+      type: list
+    - name: configuration
+      default: 3d_fullres
+      pass-as: -c {}
+      required: False
+    - name: target_spacing
+
+    inputs:
+    - name: raw-data
+      description: Dataset that will be preprocessed
+      default: dataset://fiona-300-dev/v2
+
