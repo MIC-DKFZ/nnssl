@@ -20,7 +20,7 @@ if __name__ == "__main__":
     for sdf in train_data_path.iterdir():
         sdf_name = sdf.name
         if sdf_name.endswith("nii.gz"):
-            shutil.copy(sdf, Path("/valohai/outputs" / sdf_name))
-            save_json(meta_data_json, Path("/valohai/outputs" / (sdf_name + ".metadata.json")))
+            shutil.copy(sdf, Path("/valohai/outputs") / sdf_name)
+            save_json(meta_data_json, Path("/valohai/outputs") / (sdf_name + ".metadata.json"))
 
     print("Done!")
