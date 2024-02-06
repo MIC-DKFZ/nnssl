@@ -10,7 +10,7 @@
     name: create_dev_dataset
     image: python:3.10
     command:
-      - pip install ./fiona
+      - pip install .
       - python ./nnssl/dataset_conversion/fiona_dev_300_v2.py
       # - python ./fiona/nnssl/valohai_tester.py
     inputs:
