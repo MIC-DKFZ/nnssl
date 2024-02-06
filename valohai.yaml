@@ -10,20 +10,24 @@
     name: create_dev_dataset
     image: python:3.10
     command:
-      - python ./nnssl/scripts/create_valohai_inputs.py
+      - python ./nnssl/dataset_conversion/fiona_dev_300_v2.py
       # - python ./fiona/nnssl/valohai_tester.py
 
 
 - step:
-    name: create_nnssl_dataset_from_niftis
+    name: create_nnunet_style_dataset
     image: python:3.10
     command:
       - pip install ./fiona
       - python ./fiona/nnssl/dataset_conversion/Dataset737_FloyPrototyping.py
     inputs:
-      - name: dataset
-        default: https://valohaidemo.blob.core.windows.net/mnist/mnist.npz
-
+      - name: raw-data
+        description: Dataset that will be preprocessed
+        default: dataset://fiona-300-dev
+    outputs:
+      - name: preprocessed_data
+        description: Preprocessed dataset
+        default: dataset://pp-fiona-300-dev
 
 - step:
     name: filter_niftis
@@ -83,7 +87,10 @@
         pass-false-as: ""
     inputs:
       - name: dataset
-        default: https://valohaidemo.blob.core.windows.net/mnist/mnist.npz
+        description: Dataset that will be preprocessed
+        default: dataset://fiona-300-dev
+
+
 
 - step:
     name: train-model
