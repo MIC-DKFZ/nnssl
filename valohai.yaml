@@ -63,11 +63,11 @@
     - name: preprocessor_name
       default: DefaultPreprocessor
       pass-as: -preprocessor_name {}
-    - name: overwrite_plans_name
-      default: nnsslPlans
-      pass-as: -overwrite_target_spacing {}
-      required: False
-      type: list
+    # - name: overwrite_plans_name
+    #   default: nnsslPlans
+    #   pass-as: -overwrite_target_spacing {}
+    #   required: False
+    #   type: list
     - name: configuration
       default: 3d_fullres
       pass-as: -c {}
