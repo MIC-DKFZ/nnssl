@@ -10,9 +10,13 @@
     name: create_dev_dataset
     image: python:3.10
     command:
+      - pip install ./fiona
       - python ./nnssl/dataset_conversion/fiona_dev_300_v2.py
       # - python ./fiona/nnssl/valohai_tester.py
-
+    inputs:
+    - name: raw-data
+      description: Dataset that will be preprocessed
+      default: dataset://fiona-300-dev
 
 - step:
     name: create_nnunet_style_dataset
