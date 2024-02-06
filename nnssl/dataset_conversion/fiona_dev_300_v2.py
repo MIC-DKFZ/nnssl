@@ -5,7 +5,7 @@ from batchgenerators.utilities.file_and_folder_operations import save_json
 
 
 if __name__ == "__main__":
-    train_data_path = Path(valohai.inputs("raw-data"))
+    train_data_path = Path(valohai.inputs("raw-data").path())
 
     dataset_json = {
         "channel_names": {"0": "someMRI"},
