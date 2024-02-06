@@ -50,7 +50,7 @@ dependencies = [
     "seaborn",
     "imagecodecs",
     "yacs",
-    "valohai"
+    "valohai_utils"
 ]
 
 [project.urls]
