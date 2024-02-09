@@ -24,7 +24,7 @@
     image: python:3.10
     command:
       - pip install .
-      - python ./nnssl/experiment_planners/plan_and_preprocess_entrypoints.py {parameter:}
+      - python ./nnssl/experiment_planning/plan_and_preprocess_entrypoints.py {parameters}
       # - python ./fiona/nnssl/valohai_tester.py
     parameters:
     - name: dataset_id
@@ -80,5 +80,5 @@
     inputs:
     - name: raw-data
       description: Dataset that will be preprocessed
-      default: dataset://fiona-300-dev/v2
+      default: dataset://fiona-300-dev/v3
 
