@@ -26,7 +26,7 @@ def prepare_preprocessing_paths_on_valohai(dataset_id: int | None):
         dataset_json = load_json(dataset_json_filepath)
 
         if "identifier" in dataset_json.keys():
-            dataset_name = f"Dataset{int(dataset_json["identifier"]):03d}_XYZ".format()
+            dataset_name = f"Dataset{int(dataset_json['identifier']):03d}_XYZ".format()
         else:
             dataset_name = f"Dataset{int(dataset_id):03d}_XYZ".format(dataset_id)
 
