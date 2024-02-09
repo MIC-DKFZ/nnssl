@@ -9,17 +9,17 @@ from tqdm import tqdm
 
 def prepare_preprocessing_paths_on_valohai(dataset_id: int | None):
     if is_running_in_valohai():
+        print("Preparing paths for preprocessing on Valohai.")
         INPUT_ROOT = get_inputs_path()
         nnunet_raw = os.path.join(INPUT_ROOT, "nnunet_raw")
-
         nnunet_pp = os.path.join(INPUT_ROOT, "nnunet_preprocessed")
         nnunet_results = os.path.join(INPUT_ROOT, "nnunet_results")
         Path(nnunet_raw).mkdir(exist_ok=True)  # create the folder
         Path(nnunet_pp).mkdir(exist_ok=True)
         Path(nnunet_results).mkdir(exist_ok=True)
         os.environ["nnUNet_raw"] = nnunet_raw
-        os.environ["nnUNet_preprocessed"] = nnunet_pp
-        os.environ["nnUNet_results"] = nnunet_results
+        os.environ["nnssl_preprocessed"] = nnunet_pp
+        os.environ["nnssl_results"] = nnunet_results
 
         flat_inputs = os.path.join(INPUT_ROOT, "raw-data")
         dataset_json_filepath = os.path.join(flat_inputs, "dataset.json")
@@ -30,13 +30,15 @@ def prepare_preprocessing_paths_on_valohai(dataset_id: int | None):
         else:
             dataset_name = f"Dataset{int(dataset_id):03d}_XYZ".format(dataset_id)
 
+        print("Dataset name:", dataset_name)
         nnunet_raw_dataset = os.path.join(nnunet_raw, dataset_name)
+        print(f"Creating folder {nnunet_raw_dataset}.")
         Path(nnunet_raw_dataset).mkdir(exist_ok=True)
         nnunet_raw_dataset_imgs = os.path.join(nnunet_raw, dataset_name, "imagesTr")
         Path(nnunet_raw_dataset_imgs).mkdir(exist_ok=True)
 
         files = [f for f in os.listdir(flat_inputs) if f.endswith(dataset_json["file_ending"])]
-
+        print(f"Found {dataset_json["file_ending"]} files ... Copying them to {nnunet_raw_dataset_imgs}.")
         # Move raw-data files over.
         for f in files:
             shutil.copy(os.path.join(flat_inputs, f), os.path.join(nnunet_raw_dataset_imgs, f))
@@ -101,8 +103,8 @@ if __name__ == "__main__":
     os.environ["VH_INPUTS_DIR"] = "/home/tassilowald/Data/pseudo_valohai/inputs"
     os.environ["VH_OUTPUTS_DIR"] = "/home/tassilowald/Data/pseudo_valohai/outputs"
     os.environ["nnUNet_raw"] = "/home/tassilowald/Data/pseudo_valohai/pseudo_raw"
-    os.environ["nnUNet_preprocessed"] = "/home/tassilowald/Data/pseudo_valohai/pseudo_pp"
-    os.environ["nnUNet_results"] = "/home/tassilowald/Data/pseudo_valohai/pseudo_res"
+    os.environ["nnssl_preprocessed"] = "/home/tassilowald/Data/pseudo_valohai/pseudo_pp"
+    os.environ["nnssl_results"] = "/home/tassilowald/Data/pseudo_valohai/pseudo_res"
     prepare_preprocessing_paths_on_valohai(1)
     save_files_on_valohai(os.environ["nnUNet_raw"], {"some": "meta_data"})
     print("Done")
