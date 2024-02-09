@@ -5,7 +5,10 @@ from nnssl.experiment_planning.dataset_fingerprint.abstract_fingerprint_extracti
     DatasetFingerprintExtractor,
     fingerprint_type,
 )
-from nnssl.valohai_compatibility.prepare_valohai_paths import prepare_preprocessing_paths_on_valohai, save_files_on_valohai
+from nnssl.valohai_compatibility.prepare_valohai_paths import (
+    prepare_preprocessing_paths_on_valohai,
+    save_files_on_valohai,
+)
 
 
 def extract_fingerprint_entry():
@@ -14,7 +17,6 @@ def extract_fingerprint_entry():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-d",
-        nargs="+",
         type=int,
         help="[REQUIRED] List of dataset IDs. Example: 2 4 5. This will run fingerprint extraction, experiment "
         "planning and preprocessing for these datasets. Can of course also be just one dataset",
@@ -202,7 +204,6 @@ def plan_and_preprocess_entry():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-d",
-        nargs="+",
         type=int,
         help="[REQUIRED] List of dataset IDs. Example: 2 4 5. This will run fingerprint extraction, experiment "
         "planning and preprocessing for these datasets. Can of course also be just one dataset",
@@ -336,7 +337,7 @@ def plan_and_preprocess_entry():
         "Recommended for cluster environments",
     )
     args = parser.parse_args()
-    prepare_preprocessing_paths_on_valohai(args.d)
+    prepare_preprocessing_paths_on_valohai(int(args.d))
 
     # fingerprint extraction
     print("Fingerprint extraction...")
@@ -366,6 +367,7 @@ def plan_and_preprocess_entry():
 
     meta_data_json = {"valohai.dataset-versions": [f"dataset://pp-fiona-Dataset{args.d:03d}/v0"]}
     save_files_on_valohai(os.environ["nnUNet_preprocessed"], meta_data_json)
+
 
 if __name__ == "__main__":
     plan_and_preprocess_entry()
