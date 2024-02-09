@@ -39,8 +39,8 @@ def prepare_preprocessing_paths_on_valohai(dataset_id: int | None):
 
         # Move raw-data files over.
         for f in files:
-            shutil.move(os.path.join(flat_inputs, f), os.path.join(nnunet_raw_dataset_imgs, f))
-        shutil.move(dataset_json_filepath, os.path.join(nnunet_raw_dataset, "dataset.json"))
+            shutil.copy(os.path.join(flat_inputs, f), os.path.join(nnunet_raw_dataset_imgs, f))
+        shutil.copy(dataset_json_filepath, os.path.join(nnunet_raw_dataset, "dataset.json"))
     else:
         # Local paths are fine, no need to change anything.
         pass
