@@ -76,7 +76,6 @@
     - name: configuration
       default: 3d_fullres
       pass-as: -c {}
-    - name: target_spacing
 
     inputs:
     - name: raw-data
