@@ -26,13 +26,13 @@ def prepare_preprocessing_paths_on_valohai(dataset_id: int | None):
         dataset_json = load_json(dataset_json_filepath)
 
         if "identifier" in dataset_json.keys():
-            dataset_id = "Dataset{:03d}_XYZ".format(dataset_json["identifier"])
+            dataset_name = f"Dataset{int(dataset_json["identifier"]):03d}_XYZ".format()
         else:
-            dataset_id = "Dataset{:03d}_XYZ".format(dataset_id)
+            dataset_name = f"Dataset{int(dataset_id):03d}_XYZ".format(dataset_id)
 
-        nnunet_raw_dataset = os.path.join(nnunet_raw, dataset_id)
+        nnunet_raw_dataset = os.path.join(nnunet_raw, dataset_name)
         Path(nnunet_raw_dataset).mkdir(exist_ok=True)
-        nnunet_raw_dataset_imgs = os.path.join(nnunet_raw, dataset_id, "imagesTr")
+        nnunet_raw_dataset_imgs = os.path.join(nnunet_raw, dataset_name, "imagesTr")
         Path(nnunet_raw_dataset_imgs).mkdir(exist_ok=True)
 
         files = [f for f in os.listdir(flat_inputs) if f.endswith(dataset_json["file_ending"])]
