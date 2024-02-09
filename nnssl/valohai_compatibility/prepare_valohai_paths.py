@@ -5,10 +5,12 @@ import os
 from pathlib import Path
 import shutil
 from tqdm import tqdm
+from nnssl.paths import nnUNet_raw, nnssl_preprocessed
 
 
 def prepare_preprocessing_paths_on_valohai(dataset_id: int | None):
     if is_running_in_valohai():
+
         print("Preparing paths for preprocessing on Valohai.")
         INPUT_ROOT = get_inputs_path()
         nnunet_raw = os.path.join(INPUT_ROOT, "nnunet_raw")
@@ -43,7 +45,9 @@ def prepare_preprocessing_paths_on_valohai(dataset_id: int | None):
         for f in files:
             shutil.copy(os.path.join(flat_inputs, f), os.path.join(nnunet_raw_dataset_imgs, f))
         shutil.copy(dataset_json_filepath, os.path.join(nnunet_raw_dataset, "dataset.json"))
+
     else:
+        print("Not on valohai.")
         # Local paths are fine, no need to change anything.
         pass
 
@@ -107,4 +111,6 @@ if __name__ == "__main__":
     os.environ["nnssl_results"] = "/home/tassilowald/Data/pseudo_valohai/pseudo_res"
     prepare_preprocessing_paths_on_valohai(1)
     save_files_on_valohai(os.environ["nnUNet_raw"], {"some": "meta_data"})
+    print(nnUNet_raw)  # Make sure this is actually overwritten!
+    print(nnssl_preprocessed)
     print("Done")
