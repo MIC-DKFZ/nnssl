@@ -75,7 +75,7 @@
     #   type: list
     - name: configuration
       default: 3d_fullres
-      pass-as: -c {}
+      pass-as: -c {v}
 
     inputs:
     - name: raw-data
