@@ -204,6 +204,7 @@ def plan_and_preprocess_entry():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-d",
+        nargs="+",
         type=int,
         help="[REQUIRED] List of dataset IDs. Example: 2 4 5. This will run fingerprint extraction, experiment "
         "planning and preprocessing for these datasets. Can of course also be just one dataset",
@@ -337,7 +338,8 @@ def plan_and_preprocess_entry():
         "Recommended for cluster environments",
     )
     args = parser.parse_args()
-    prepare_preprocessing_paths_on_valohai(int(args.d))
+    for d in args.d:
+        prepare_preprocessing_paths_on_valohai(int(d))  # Would need adaptation for multi-datasets.
 
     # fingerprint extraction
     print("Fingerprint extraction...")
