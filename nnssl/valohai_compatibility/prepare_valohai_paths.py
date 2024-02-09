@@ -8,9 +8,8 @@ from tqdm import tqdm
 from nnssl.paths import nnUNet_raw, nnssl_preprocessed
 
 
-def prepare_preprocessing_paths_on_valohai(dataset_id: int | None):
+def prepare_preprocessing_paths_on_valohai(dataset_id: int):
     if is_running_in_valohai():
-
         print("Preparing paths for preprocessing on Valohai.")
         INPUT_ROOT = get_inputs_path()
         nnunet_raw = os.path.join(INPUT_ROOT, "nnunet_raw")
@@ -26,11 +25,10 @@ def prepare_preprocessing_paths_on_valohai(dataset_id: int | None):
         flat_inputs = os.path.join(INPUT_ROOT, "raw-data")
         dataset_json_filepath = os.path.join(flat_inputs, "dataset.json")
         dataset_json = load_json(dataset_json_filepath)
+        print(f"Looking for files ending on {dataset_json['file_ending']} in {flat_inputs}.")
+        print(f"Found {len(os.listdir(flat_inputs))}")
 
-        if "identifier" in dataset_json.keys():
-            dataset_name = f"Dataset{int(dataset_json['identifier']):03d}_XYZ".format()
-        else:
-            dataset_name = f"Dataset{int(dataset_id):03d}_XYZ".format(dataset_id)
+        dataset_name = f"Dataset{int(dataset_id):03d}_XYZ".format(dataset_id)
 
         print("Dataset name:", dataset_name)
         nnunet_raw_dataset = os.path.join(nnunet_raw, dataset_name)
@@ -40,7 +38,7 @@ def prepare_preprocessing_paths_on_valohai(dataset_id: int | None):
         Path(nnunet_raw_dataset_imgs).mkdir(exist_ok=True)
 
         files = [f for f in os.listdir(flat_inputs) if f.endswith(dataset_json["file_ending"])]
-        print(f"Found {dataset_json['file_ending']} files ... Copying them to {nnunet_raw_dataset_imgs}.")
+        print(f"Found {len(dataset_json['file_ending'])} files ... Copying them to {nnunet_raw_dataset_imgs}.")
         # Move raw-data files over.
         for f in files:
             shutil.copy(os.path.join(flat_inputs, f), os.path.join(nnunet_raw_dataset_imgs, f))
