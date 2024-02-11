@@ -104,6 +104,7 @@ class Plan:
 
     def save_to_file(self, overwrite=False):
         save_dir = self._expected_save_directory()
+        print(f"Saving plan to {save_dir}...")
         if os.path.isfile(save_dir) and not overwrite:
             return
         os.makedirs(os.path.dirname(save_dir), exist_ok=True)
