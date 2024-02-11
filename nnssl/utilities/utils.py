@@ -29,6 +29,7 @@ def get_filenames_of_train_images(raw_dataset_folder: str, dataset_json: dict = 
     """
     if dataset_json is None:
         dataset_json = load_json(join(raw_dataset_folder, "dataset.json"))
+    raw_image_folder = join(raw_dataset_folder, "imagesTr")
 
     if "dataset" in dataset_json.keys():
         dataset = dataset_json["dataset"]
@@ -39,10 +40,8 @@ def get_filenames_of_train_images(raw_dataset_folder: str, dataset_json: dict = 
             ]
     else:
         len_ext = len(dataset_json["file_ending"])
-        identifiers = [
-            f[:-len_ext] for f in os.listdir(raw_dataset_folder) if f.endswith(dataset_json["file_ending"])
-        ]
-        images = [join(raw_dataset_folder, i + dataset_json["file_ending"]) for i in identifiers]
+        identifiers = [f[:-len_ext] for f in os.listdir(raw_image_folder) if f.endswith(dataset_json["file_ending"])]
+        images = [join(raw_image_folder, i + dataset_json["file_ending"]) for i in identifiers]
         segs = [None for _ in range(len(images))]
         dataset = {i: {"images": [im], "label": se} for i, im, se in zip(identifiers, images, segs)}
         print("First four dataset keys:", list(dataset.keys())[:4])
