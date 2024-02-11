@@ -83,7 +83,7 @@ def verify_dataset_without_labels_integrity(folder: str, num_processes: int = 8)
 
     # make sure all required keys are there
     dataset_keys = list(dataset_json.keys())
-    required_keys = ["labels", "channel_names", "numTraining", "file_ending"]
+    required_keys = ["channel_names", "numTraining", "file_ending"]
     assert all([i in dataset_keys for i in required_keys]), (
         "not all required keys are present in dataset.json."
         "\n\nRequired: \n%s\n\nPresent: \n%s\n\nMissing: "
