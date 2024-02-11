@@ -51,7 +51,7 @@ def prepare_preprocessing_paths_on_valohai(dataset_id: int):
         not_3d_files = []
         for f in files:
             if not file_is_3d(os.path.join(flat_inputs, f)):
-                not_3d_files.appned(f)
+                not_3d_files.append(f)
                 continue
             shutil.copy(os.path.join(flat_inputs, f), os.path.join(nnunet_raw_dataset_imgs, f))
         print("Found", len(not_3d_files), "files that are not 3D. Ignoring them.")
