@@ -6,6 +6,14 @@ from pathlib import Path
 import shutil
 from tqdm import tqdm
 from nnssl.paths import nnUNet_raw, nnssl_preprocessed
+import SimpleITK as sitk
+
+
+def file_is_3d(file: str) -> bool:
+    """Check if the file is not a 4D file."""
+    im = sitk.ReadImage(file)
+    dim = sitk.GetArrayFromImage(im).ndim
+    return dim == 3
 
 
 def prepare_preprocessing_paths_on_valohai(dataset_id: int):
@@ -40,8 +48,13 @@ def prepare_preprocessing_paths_on_valohai(dataset_id: int):
         files = [f for f in os.listdir(flat_inputs) if f.endswith(dataset_json["file_ending"])]
         print(f"Found {len(files)} files ... Copying them to {nnunet_raw_dataset_imgs}.")
         # Move raw-data files over.
+        not_3d_files = []
         for f in files:
+            if not file_is_3d(os.path.join(flat_inputs, f)):
+                not_3d_files.appned(f)
+                continue
             shutil.copy(os.path.join(flat_inputs, f), os.path.join(nnunet_raw_dataset_imgs, f))
+        print("Found", len(not_3d_files), "files that are not 3D. Ignoring them.")
         print(f"Moved {len(os.listdir(nnunet_raw_dataset_imgs))} files to {nnunet_raw_dataset_imgs}")
         shutil.copy(dataset_json_filepath, os.path.join(nnunet_raw_dataset, "dataset.json"))
 
