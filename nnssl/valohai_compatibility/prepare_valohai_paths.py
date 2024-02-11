@@ -21,8 +21,8 @@ def prepare_preprocessing_paths_on_valohai(dataset_id: int):
         print("Preparing paths for preprocessing on Valohai.")
         INPUT_ROOT = get_inputs_path()
         nnunet_raw = os.path.join(INPUT_ROOT, "nnunet_raw")
-        nnunet_pp = os.path.join(INPUT_ROOT, "nnunet_preprocessed")
-        nnunet_results = os.path.join(INPUT_ROOT, "nnunet_results")
+        nnunet_pp = os.path.join(INPUT_ROOT, "nnssl_preprocessed")
+        nnunet_results = os.path.join(INPUT_ROOT, "nnssl_results")
         Path(nnunet_raw).mkdir(exist_ok=True)  # create the folder
         Path(nnunet_pp).mkdir(exist_ok=True)
         Path(nnunet_results).mkdir(exist_ok=True)
@@ -98,7 +98,7 @@ def get_all_file_in_dir(dir_path: str) -> list[str]:
 
 def save_files_on_valohai(path_to_copy: str, meta_data_dict: dict | None = None):
     """
-    Takes all files that were written into the nnUNet_preprocessed folder
+    Takes all files that were written into the nnssl_preprocessed folder
     and serializes them to the valohai output folder (if running in valohai).
     """
     if is_running_in_valohai():
