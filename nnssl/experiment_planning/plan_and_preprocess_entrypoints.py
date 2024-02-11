@@ -368,7 +368,7 @@ def plan_and_preprocess_entry():
         preprocess(args.d, args.overwrite_plans_name, args.c, np, args.verbose)
 
     meta_data_json = {"valohai.dataset-versions": [f"dataset://pp-fiona-Dataset{args.d[0]:03d}/v0"]}
-    save_files_on_valohai(os.environ["nnUNet_preprocessed"], meta_data_json)
+    save_files_on_valohai(os.environ["nnssl_preprocessed"], meta_data_json)
 
 
 if __name__ == "__main__":
