@@ -23,8 +23,10 @@ import re
 from nnssl.paths import nnUNet_raw
 
 
-
 def get_filenames_of_train_images(raw_dataset_folder: str, dataset_json: dict = None):
+    """
+    Returns a dataset, containing the images.
+    """
     if dataset_json is None:
         dataset_json = load_json(join(raw_dataset_folder, "dataset.json"))
 
@@ -42,7 +44,8 @@ def get_filenames_of_train_images(raw_dataset_folder: str, dataset_json: dict = 
         ]
         images = [join(raw_dataset_folder, i + dataset_json["file_ending"]) for i in identifiers]
         segs = [None for _ in range(len(images))]
-        dataset = {i: {"images": im, "label": se} for i, im, se in zip(identifiers, images, segs)}
+        dataset = {i: {"images": [im], "label": se} for i, im, se in zip(identifiers, images, segs)}
+        print("First four dataset keys:", list(dataset.keys())[:4])
     return dataset
 
 

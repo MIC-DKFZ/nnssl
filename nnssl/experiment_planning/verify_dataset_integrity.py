@@ -70,9 +70,7 @@ def verify_dataset_without_labels_integrity(folder: str, num_processes: int = 8)
     dataset_json = load_json(join(folder, "dataset.json"))
     dataset = get_filenames_of_train_images(folder, dataset_json)
     image_files = [v["images"] for v in dataset.values()]
-    reader_writer_class = determine_reader_writer_from_dataset_json(
-        dataset_json, dataset[dataset.keys().__iter__().__next__()]["images"][0]
-    )
+    reader_writer_class = determine_reader_writer_from_dataset_json(dataset_json, image_files[0])
 
     num_modalities = len(
         dataset_json["channel_names"].keys()

@@ -338,8 +338,8 @@ def plan_and_preprocess_entry():
         "Recommended for cluster environments",
     )
     args = parser.parse_args()
-    for d in args.d:
-        prepare_preprocessing_paths_on_valohai(int(d))  # Would need adaptation for multi-datasets.
+
+    prepare_preprocessing_paths_on_valohai(int(args.d[0]))  # Would need adaptation for multi-datasets.
 
     # fingerprint extraction
     print("Fingerprint extraction...")

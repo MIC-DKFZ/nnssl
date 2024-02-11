@@ -38,10 +38,11 @@ def prepare_preprocessing_paths_on_valohai(dataset_id: int):
         Path(nnunet_raw_dataset_imgs).mkdir(exist_ok=True)
 
         files = [f for f in os.listdir(flat_inputs) if f.endswith(dataset_json["file_ending"])]
-        print(f"Found {len(dataset_json['file_ending'])} files ... Copying them to {nnunet_raw_dataset_imgs}.")
+        print(f"Found {len(files)} files ... Copying them to {nnunet_raw_dataset_imgs}.")
         # Move raw-data files over.
         for f in files:
             shutil.copy(os.path.join(flat_inputs, f), os.path.join(nnunet_raw_dataset_imgs, f))
+        print(f"Moved {len(os.listdir(nnunet_raw_dataset_imgs))} files to {nnunet_raw_dataset_imgs}")
         shutil.copy(dataset_json_filepath, os.path.join(nnunet_raw_dataset, "dataset.json"))
 
     else:
