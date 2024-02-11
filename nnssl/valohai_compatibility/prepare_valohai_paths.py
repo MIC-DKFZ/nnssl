@@ -56,7 +56,9 @@ def prepare_preprocessing_paths_on_valohai(dataset_id: int):
             shutil.copy(os.path.join(flat_inputs, f), os.path.join(nnunet_raw_dataset_imgs, f))
         print("Found", len(not_3d_files), "files that are not 3D. Ignoring them.")
         print(f"Moved {len(os.listdir(nnunet_raw_dataset_imgs))} files to {nnunet_raw_dataset_imgs}")
-        shutil.copy(dataset_json_filepath, os.path.join(nnunet_raw_dataset, "dataset.json"))
+        dataset_json["numTraining"] = dataset_json["numTraining"] - len(not_3d_files)
+        # Adapt number of training cases accordingly.
+        save_json(dataset_json, os.path.join(nnunet_raw_dataset, "dataset.json"))
 
     else:
         print("Not on valohai.")
