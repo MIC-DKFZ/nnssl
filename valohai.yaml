@@ -21,7 +21,7 @@
 
 - step:
     name: plan_and_preprocess_dataset
-    image: python:3.10
+    image: pytorch/pytorch:2.2.0-cuda12.1-cudnn8-runtime
     command:
       - pip install .
       - python ./nnssl/experiment_planning/plan_and_preprocess_entrypoints.py {parameters}
