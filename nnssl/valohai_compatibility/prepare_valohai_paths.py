@@ -48,7 +48,7 @@ def prepare_training_paths_on_valohai():
         flat_inputs = os.path.join(INPUT_ROOT, "pp-data")
 
         broken_files = get_broken_pp_identifiers(flat_inputs)
-        print("Found", len(broken_files), "broken files. Ignoring them.")
+        print("Found", len(broken_files) / 2, "broken files. Ignoring them.")
 
         print(f"Copying over data from {flat_inputs} to {nnunet_pp}")
         for file in os.listdir(flat_inputs):
