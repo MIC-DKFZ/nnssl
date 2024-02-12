@@ -24,7 +24,10 @@ def get_broken_pp_identifiers(flat_path: str) -> list[str]:
     broken_identifiers = []
     for npz in npzs:
         try:
-            np.load(os.path.join(flat_path, npz), "r")
+            file = np.load(os.path.join(flat_path, npz), "r")
+            for k in file.keys():
+                _ = file[k]  # This will raise an error if the file is broken
+
         except zipfile.BadZipFile:
             broken_identifiers.append(os.path.join(flat_path, npz))
             broken_identifiers.append(os.path.join(flat_path, (npz[:-4] + ".pkl")))
