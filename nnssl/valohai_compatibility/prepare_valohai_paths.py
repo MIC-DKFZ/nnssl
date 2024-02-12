@@ -30,7 +30,7 @@ def prepare_training_paths_on_valohai():
         flat_inputs = os.path.join(INPUT_ROOT, "pp-data")
         print(f"Copying over data from {flat_inputs} to {nnunet_pp}")
         for file in os.listdir(flat_inputs):
-            cur_path = os.path.join(flat_inputs, cur_path)
+            cur_path = os.path.join(flat_inputs, file)
             pp_file_path = file.split("__")
             new_path = os.path.join(INPUT_ROOT, *pp_file_path)
             Path(new_path).parent.mkdir(exist_ok=True)
