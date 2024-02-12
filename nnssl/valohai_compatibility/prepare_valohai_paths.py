@@ -1,6 +1,8 @@
+import zipfile
+import numpy as np
 from valohai.config import is_running_in_valohai
 from valohai.paths import get_inputs_path, get_outputs_path
-from batchgenerators.utilities.file_and_folder_operations import load_json, save_json
+from batchgenerators.utilities.file_and_folder_operations import load_json, save_json,
 import os
 from pathlib import Path
 import shutil
@@ -15,6 +17,19 @@ def file_is_3d(file: str) -> bool:
     dim = sitk.GetArrayFromImage(im).ndim
     return dim == 3
 
+def get_broken_pp_identifiers(flat_path: str) -> list[str]:
+    """Get all identifiers that are used for preprocessing."""
+    npzs = [f for f in os.listdir(flat_path) if f.endswith(".npz")]
+    broken_identifiers = []
+    for npz in npzs:
+        try:
+            np.load(os.path.join(flat_path, npz), "r")
+        except zipfile.BadZipFile:
+            broken_identifiers.append(os.path.join(flat_path, npz))
+            broken_identifiers.append(os.path.join(flat_path, (npz[:-4]+".pkl")))
+    return broken_identifiers
+
+
 
 def prepare_training_paths_on_valohai():
     if is_running_in_valohai():
@@ -28,6 +43,13 @@ def prepare_training_paths_on_valohai():
         os.environ["nnssl_results"] = nnunet_results
 
         flat_inputs = os.path.join(INPUT_ROOT, "pp-data")
+
+        broken_files = get_broken_pp_identifiers(flat_inputs)
+        print(f"Found {len(broken_files)} broken files!")
+        for broken_file in broken_files:
+            print(f"Removing broken file {broken_file}.")
+            os.remove(broken_file)
+
         print(f"Copying over data from {flat_inputs} to {nnunet_pp}")
         for file in os.listdir(flat_inputs):
             cur_path = os.path.join(flat_inputs, file)
