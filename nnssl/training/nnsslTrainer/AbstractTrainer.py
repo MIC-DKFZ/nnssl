@@ -31,7 +31,7 @@ from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
 
 from nnssl.training.logging.nnssl_logger import nnSSLLogger
 from nnssl.training.lr_scheduler.polylr import PolyLRScheduler
-from nnssl.utilities import make_serializable
+from nnssl.utilities.serialization import make_serializable
 from nnssl.utilities.collate_outputs import collate_outputs
 from nnssl.utilities.default_n_proc_DA import get_allowed_n_proc_DA
 from nnssl.utilities.helpers import empty_cache
