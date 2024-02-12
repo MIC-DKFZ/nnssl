@@ -2,7 +2,7 @@ import zipfile
 import numpy as np
 from valohai.config import is_running_in_valohai
 from valohai.paths import get_inputs_path, get_outputs_path
-from batchgenerators.utilities.file_and_folder_operations import load_json, save_json,
+from batchgenerators.utilities.file_and_folder_operations import load_json, save_json
 import os
 from pathlib import Path
 import shutil
@@ -17,6 +17,7 @@ def file_is_3d(file: str) -> bool:
     dim = sitk.GetArrayFromImage(im).ndim
     return dim == 3
 
+
 def get_broken_pp_identifiers(flat_path: str) -> list[str]:
     """Get all identifiers that are used for preprocessing."""
     npzs = [f for f in os.listdir(flat_path) if f.endswith(".npz")]
@@ -26,9 +27,8 @@ def get_broken_pp_identifiers(flat_path: str) -> list[str]:
             np.load(os.path.join(flat_path, npz), "r")
         except zipfile.BadZipFile:
             broken_identifiers.append(os.path.join(flat_path, npz))
-            broken_identifiers.append(os.path.join(flat_path, (npz[:-4]+".pkl")))
+            broken_identifiers.append(os.path.join(flat_path, (npz[:-4] + ".pkl")))
     return broken_identifiers
-
 
 
 def prepare_training_paths_on_valohai():
