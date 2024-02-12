@@ -32,7 +32,7 @@ def prepare_training_paths_on_valohai():
         for file in os.listdir(flat_inputs):
             cur_path = os.path.join(flat_inputs, cur_path)
             pp_file_path = file.split("__")
-            new_path = os.path.join(nnunet_pp, *pp_file_path)
+            new_path = os.path.join(INPUT_ROOT, *pp_file_path)
             Path(new_path).parent.mkdir(exist_ok=True)
             shutil.copy(cur_path, new_path)
 
