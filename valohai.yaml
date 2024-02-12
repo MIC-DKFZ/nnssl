@@ -85,7 +85,7 @@
       pass-as: "{v}"
     - name: trainer_class
       description: Trainer class
-      default: nnsslTrainer
+      default: BaseMAETrainer
       pass-as: -tr {v}
       type: string
     - name: plans
