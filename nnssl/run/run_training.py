@@ -15,6 +15,8 @@ from nnssl.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_
 from nnssl.utilities.find_class_by_name import recursive_find_python_class
 from torch.backends import cudnn
 
+from nnssl.valohai_compatibility.prepare_valohai_paths import prepare_training_paths_on_valohai, save_files_on_valohai, serialize_files_and_move_to_valohai_outputs
+
 
 def find_free_network_port() -> int:
     """Finds a free port on localhost.
@@ -351,6 +353,9 @@ def run_training_entry():
         "cuda",
         "mps",
     ], f"-device must be either cpu, mps or cuda. Other devices are not tested/supported. Got: {args.device}."
+
+    prepare_training_paths_on_valohai()
+
     if args.device == "cpu":
         # let's allow torch to use hella threads
         import multiprocessing
@@ -381,6 +386,8 @@ def run_training_entry():
         args.val_best,
         device=device,
     )
+
+    save_files_on_valohai(os.environ("nnssl_preprocessed"))
 
 
 if __name__ == "__main__":

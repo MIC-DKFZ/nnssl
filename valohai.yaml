@@ -1,23 +1,4 @@
 ---
-- step:
-    name: hello_world
-    image: python:3.10
-    command:
-      - python ./nnssl/valohai_tester.py
-      # - python ./fiona/nnssl/valohai_tester.py
-
-- step:
-    name: create_dev_dataset
-    image: python:3.10
-    command:
-      - pip install .
-      - python ./nnssl/dataset_conversion/fiona_dev_300_v2.py
-      # - python ./fiona/nnssl/valohai_tester.py
-    inputs:
-    - name: raw-data
-      description: Dataset that will be preprocessed
-      default: dataset://fiona-300-dev/v1
-
 
 - step:
     name: plan_and_preprocess_dataset
@@ -81,4 +62,42 @@
     - name: raw-data
       description: Dataset that will be preprocessed
       default: dataset://fiona-300-dev/v3
+
+
+
+- step:
+    name: train_ssl
+    image: pytorch/pytorch:2.2.0-cuda12.1-cudnn8-runtime
+    command:
+      - pip install .
+      - python ./nnssl/run/run_training.py {parameters}
+      # - python ./fiona/nnssl/valohai_tester.py
+    parameters:
+    - name: dataset_id
+      description: Dataset that will will be preprocessed
+      default: 737
+      type: string
+    - name: configuration
+      description: Configuration to train
+      default: 3d_fullres
+      type: string
+    - name: trainer_class
+      description: Trainer class
+      default: nnsslTrainer
+      pass-as: -tr {v}
+      type: string
+    - name: plans
+      description: Plans name
+      default: nnsslPlans
+      pass-as: -p {v}
+      type: string
+    - name: num_gpus
+      default: Number of GPUs to use for training
+      pass-as: -num_gpus {v}
+      type: integer
+
+    inputs:
+    - name: pp-data
+      description: Dataset that will be preprocessed
+      default: dataset://pp-fiona-300-dev/v0
 

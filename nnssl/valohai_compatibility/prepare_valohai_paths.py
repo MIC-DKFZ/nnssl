@@ -16,6 +16,32 @@ def file_is_3d(file: str) -> bool:
     return dim == 3
 
 
+def prepare_training_paths_on_valohai():
+    if is_running_in_valohai():
+        print("Preparing paths for preprocessing on Valohai.")
+        INPUT_ROOT = get_inputs_path()
+        nnunet_pp = os.path.join(INPUT_ROOT, "nnssl_preprocessed")
+        nnunet_results = os.path.join(INPUT_ROOT, "nnssl_results")
+        Path(nnunet_pp).mkdir(exist_ok=True)
+        Path(nnunet_results).mkdir(exist_ok=True)
+        os.environ["nnssl_preprocessed"] = nnunet_pp
+        os.environ["nnssl_results"] = nnunet_results
+
+        flat_inputs = os.path.join(INPUT_ROOT, "pp-data")
+        print(f"Copying over data from {flat_inputs} to {nnunet_pp}")
+        for file in os.listdir(flat_inputs):
+            cur_path = os.path.join(flat_inputs, cur_path)
+            pp_file_path = file.split("__")
+            new_path = os.path.join(nnunet_pp, *pp_file_path)
+            Path(new_path).parent.mkdir(exist_ok=True)
+            shutil.copy(cur_path, new_path)
+
+    else:
+        print("Not on valohai.")
+        # Local paths are fine, no need to change anything.
+        pass
+
+
 def prepare_preprocessing_paths_on_valohai(dataset_id: int):
     if is_running_in_valohai():
         print("Preparing paths for preprocessing on Valohai.")
