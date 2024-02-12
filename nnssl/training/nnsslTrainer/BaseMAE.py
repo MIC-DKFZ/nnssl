@@ -31,6 +31,19 @@ def create_blocky_mask(tensor_size, block_size, sparsity_factor: float = 0.75) -
 
 
 class BaseMAETrainer(AbstractMAETrainer):
+
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        self.mask_percentage: float = 0.5
+
     @staticmethod
     def mask_creation(batch_size: int, patch_size: tuple[int, int, int], mask_percentage: float) -> torch.Tensor:
         """
@@ -48,8 +61,6 @@ class BaseMAETrainer(AbstractMAETrainer):
         mask = [create_blocky_mask(patch_size, block_size, sparsity_factor) for _ in range(batch_size)]
         mask = torch.stack(mask)[:, None, ...]  # Add channel dimension
         return mask
-    
-    
 
 
 class DummyMAETrainer(BaseMAETrainer):
