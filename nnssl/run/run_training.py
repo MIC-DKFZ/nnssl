@@ -15,7 +15,10 @@ from nnssl.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_
 from nnssl.utilities.find_class_by_name import recursive_find_python_class
 from torch.backends import cudnn
 
-from nnssl.valohai_compatibility.prepare_valohai_paths import prepare_training_paths_on_valohai, save_files_on_valohai, serialize_files_and_move_to_valohai_outputs
+from nnssl.valohai_compatibility.prepare_valohai_paths import (
+    prepare_training_paths_on_valohai,
+    save_files_on_valohai,
+)
 
 
 def find_free_network_port() -> int:
@@ -355,6 +358,9 @@ def run_training_entry():
     ], f"-device must be either cpu, mps or cuda. Other devices are not tested/supported. Got: {args.device}."
 
     prepare_training_paths_on_valohai()
+    assert (
+        os.environ.get("nnssl_results") is not None
+    ), "nnssl_results not set. Stopping as no outputs would be written otherwise."
 
     if args.device == "cpu":
         # let's allow torch to use hella threads
@@ -387,7 +393,7 @@ def run_training_entry():
         device=device,
     )
 
-    save_files_on_valohai(os.environ("nnssl_preprocessed"))
+    save_files_on_valohai(os.environ.get("nnssl_results"))
 
 
 if __name__ == "__main__":
