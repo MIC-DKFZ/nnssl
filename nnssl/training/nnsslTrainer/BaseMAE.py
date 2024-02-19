@@ -8,9 +8,9 @@ from nnssl.training.nnsslTrainer.AbstractMAETrainer import AbstractMAETrainer
 from torch import device, nn
 
 
-def create_blocky_mask(tensor_size, block_size, sparsity_factor: float = 0.75) -> torch.Tensor:
+def create_blocky_mask(tensor_size, block_size, sparsity_factor = 0.75) -> torch.Tensor:
     """
-    Create a binary mask for a tensor by creating a smaller mask and repeating it.
+    Create the smallest binary mask for the encoder by choosing a percentage of pixels at that resolution..
 
     :param tensor_size: Tuple of the dimensions of the tensor (height, width, depth).
     :param block_size: Size of the block to be masked (set to 0) in the smaller mask.
@@ -25,9 +25,7 @@ def create_blocky_mask(tensor_size, block_size, sparsity_factor: float = 0.75) -
     mask_indices = torch.randperm(flat_mask.shape[0])[:n_masked]
     flat_mask[mask_indices] = 0
     small_mask = torch.reshape(flat_mask, small_mask_size)
-    large_mask = torch.repeat_interleave(small_mask, 4, dim=0).repeat_interleave(4, dim=1).repeat_interleave(4, dim=2)
-
-    return large_mask
+    return small_mask
 
 
 class BaseMAETrainer(AbstractMAETrainer):
@@ -42,7 +40,7 @@ class BaseMAETrainer(AbstractMAETrainer):
         device: torch.device = torch.device("cuda"),
     ):
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
-        self.mask_percentage: float = 0.5
+        self.mask_percentage: float = 0.75
 
     @staticmethod
     def mask_creation(batch_size: int, patch_size: tuple[int, int, int], mask_percentage: float) -> torch.Tensor:
@@ -56,8 +54,8 @@ class BaseMAETrainer(AbstractMAETrainer):
         :return:
         """
 
-        block_size = 4
-        sparsity_factor = 0.75
+        block_size = 16
+        sparsity_factor = mask_percentage
         mask = [create_blocky_mask(patch_size, block_size, sparsity_factor) for _ in range(batch_size)]
         mask = torch.stack(mask)[:, None, ...]  # Add channel dimension
         return mask
