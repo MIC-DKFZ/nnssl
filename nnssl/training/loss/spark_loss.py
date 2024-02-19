@@ -20,6 +20,7 @@ class SparkLoss(AbstractLoss):
             .repeat_interleave(h_repeat, dim=3)
             .repeat_interleave(w_repeat, dim=4)
         )
+        loss_mask = 1 - loss_mask  # We want to only penalize where the mask is NOT active!
         # Mask = 1 represents not masked points
         diff = (groundtruth - prediction) ** 2  # (B, 1, D, H, W) (same as mask (B, 1, D, H, W))
         reconstruction_loss = torch.mean(diff[loss_mask.nonzero(as_tuple=True)])
