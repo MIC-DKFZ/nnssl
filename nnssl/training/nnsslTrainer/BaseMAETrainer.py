@@ -233,12 +233,14 @@ class BaseMAETrainer(AbstractBaseTrainer, ABC):
     def log_image_and_reco(self, img, reco, mask, loss, index) -> None:
         filename = f"epoch_{self.current_epoch}_{index}.png"
         ax: list[plt.Axes]
-        _, ax = plt.subplots(nrows=1, ncols=3)
+        _, ax = plt.subplots(nrows=1, ncols=4, figsize=(12, 4))
         ax[0].imshow(img, cmap="gray")
-        ax[1].imshow(reco, cmap="gray")
-        ax[2].imshow(mask, cmap="gray")
+        ax[1].imshow(mask, cmap="gray")
+        ax[2].imshow(reco, cmap="gray")
+        ax[3].imshow(np.abs(img - reco), cmap="gray", vmin=0, vmax=255)
         plt.title(f"Loss: {float(loss):.05f}")
         plt.savefig(os.path.join(self.im_output_folder, filename))
+        plt.close()
         if is_running_in_valohai():
             pass
 
@@ -261,6 +263,7 @@ class BaseMAETrainer(AbstractBaseTrainer, ABC):
             img, rec = self.rescale_images(img[slice_of_choice], rec[slice_of_choice])
             img = img.detach().cpu().numpy().astype(np.uint8)
             rec = rec.detach().cpu().numpy().astype(np.uint8)
+
             msk = (msk[slice_of_choice].detach().cpu().numpy() * 255).astype(np.uint8)
             self.log_image_and_reco(img, rec, msk, loss, offset + i)
 
