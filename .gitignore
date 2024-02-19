@@ -24,6 +24,7 @@ var/
 .installed.cfg
 *.egg
 apitoken.py
+data_exploration/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
