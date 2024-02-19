@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import asdict
 import inspect
 import os
-from random import choice
+from random import sample
 import shutil
 import sys
 from copy import deepcopy
@@ -699,9 +699,9 @@ class AbstractBaseTrainer(ABC):
         if not isfile(splits_file):
             self.print_to_log_file("Creating new 5-fold cross-validation split...")
             case_identifiers = get_case_identifiers(self.preprocessed_dataset_folder)
-            all_keys_sorted = set(list(np.sort(case_identifiers)))
-            val_keys = choice(all_keys_sorted, int(20), replace=False)
-            train_keys = list(all_keys_sorted - set(val_keys))
+            all_keys_sorted = sorted(list(np.sort(case_identifiers)))
+            val_keys = sample(all_keys_sorted, int(50))
+            train_keys = list(set(all_keys_sorted) - set(val_keys))
             splits = {"train": list(train_keys), "val": list(val_keys)}
             save_json(splits, splits_file)
         else:

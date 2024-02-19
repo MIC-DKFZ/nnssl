@@ -1,11 +1,16 @@
 from abc import ABC, abstractmethod
+import os
 from typing import List, Tuple, Union
+import matplotlib.pyplot as plt
+from valohai.config import is_running_in_valohai
 
 import torch
 from nnssl.architectures.build_architecture import build_network_architecture
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.ssl_data.configure_basic_dummyDA import configure_rotation_dummyDA_mirroring_and_inital_patch_size
 from nnssl.ssl_data.data_augmentation.transforms_for_dummy_2d import Convert2DTo3DTransform, Convert3DTo2DTransform
+from nnssl.ssl_data.dataloading.data_loader_3d import nnsslCenterCropDataLoader3D
+from nnssl.ssl_data.dataloading.indexable_dataloader import IndexableSingleThreadedAugmenter
 from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
 from nnssl.training.loss.mse_loss import MSELoss
 from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
@@ -21,7 +26,7 @@ from nnssl.utilities.default_n_proc_DA import get_allowed_n_proc_DA
 import numpy as np
 
 
-def create_blocky_mask(tensor_size, block_size, sparsity_factor=0.75) -> torch.Tensor:
+def create_blocky_mask(tensor_size, block_size, sparsity_factor=0.75, rng_seed: None | int = None) -> torch.Tensor:
     """
     Create the smallest binary mask for the encoder by choosing a percentage of pixels at that resolution..
 
@@ -35,7 +40,11 @@ def create_blocky_mask(tensor_size, block_size, sparsity_factor=0.75) -> torch.T
     # Create the smaller mask
     flat_mask = torch.ones(np.prod(small_mask_size))
     n_masked = int(sparsity_factor * flat_mask.shape[0])
-    mask_indices = torch.randperm(flat_mask.shape[0])[:n_masked]
+    if rng_seed is None:
+        mask_indices = torch.randperm(flat_mask.shape[0])[:n_masked]
+    else:
+        gen = torch.Generator.manual_seed(rng_seed)
+        mask_indices = torch.randperm(flat_mask.shape[0], generator=gen)[:n_masked]
     flat_mask[mask_indices] = 0
     small_mask = torch.reshape(flat_mask, small_mask_size)
     return small_mask
@@ -54,9 +63,17 @@ class BaseMAETrainer(AbstractBaseTrainer, ABC):
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
         self.mask_percentage: float = 0.75
         self.batch_size: int = 1
+        self.im_output_folder = os.path.join(self.output_folder, "img_log")
+        os.makedirs(self.im_output_folder, exist_ok=True)
+
+    def initialize(self):
+        super().initialize()
+        self.recon_dataloader = self.get_qual_recon_dataloader()
 
     @staticmethod
-    def mask_creation(batch_size: int, patch_size: tuple[int, int, int], mask_percentage: float) -> torch.Tensor:
+    def mask_creation(
+        batch_size: int, patch_size: tuple[int, int, int], mask_percentage: float, rng_seed: int | None = None
+    ) -> torch.Tensor:
         """
         Creates a masking tensor with 1s (indicating no masking) and 0s (indicating masking).
         The mask has to be of same size like the input data (batch_size, 1, x, y, z).
@@ -212,6 +229,129 @@ class BaseMAETrainer(AbstractBaseTrainer, ABC):
             l = self.loss(output, data, mask)
 
         return {"loss": l.detach().cpu().numpy()}
+
+    def log_image_and_reco(self, img, reco, mask, loss, index) -> None:
+        filename = f"epoch_{self.current_epoch}_{index}.png"
+        ax: list[plt.Axes]
+        _, ax = plt.subplots(nrows=1, ncols=3)
+        ax[0].imshow(img, cmap="gray")
+        ax[1].imshow(reco, cmap="gray")
+        ax[2].imshow(mask, cmap="gray")
+        plt.title(f"Loss: {float(loss):.05f}")
+        plt.savefig(os.path.join(self.im_output_folder, filename))
+        if is_running_in_valohai():
+            pass
+
+    @staticmethod
+    def rescale_images(img_arr: torch.Tensor, recon_arr: torch.Tensor) -> np.ndarray:
+        img_arr_min = torch.min(img_arr)
+        img_arr_max = torch.max(img_arr)
+        img_arr = ((img_arr - img_arr_min) / (img_arr_max - img_arr_min)) * 255.0
+        rec_arr = ((recon_arr - img_arr_min) / (img_arr_max - img_arr_min)) * 255.0
+        return img_arr, rec_arr
+
+    def log_img_slices(self, imgs, recos, masks, losses, batch_id: int):
+        offset = batch_id * self.batch_size
+        for i in range(recos.shape[0]):
+            img = torch.squeeze(imgs[i])
+            rec = torch.squeeze(recos[i])
+            msk = torch.squeeze(masks[i])
+            loss = torch.squeeze(losses[i])
+            slice_of_choice = int(msk.shape[0] // 2)
+            img, rec = self.rescale_images(img[slice_of_choice], rec[slice_of_choice])
+            img = img.detach().cpu().numpy().astype(np.uint8)
+            rec = rec.detach().cpu().numpy().astype(np.uint8)
+            msk = (msk[slice_of_choice].detach().cpu().numpy() * 255).astype(np.uint8)
+            self.log_image_and_reco(img, rec, msk, loss, offset + i)
+
+    def log_qualitative_reconstruction_step(
+        self,
+    ):
+        """For each sample in the validation dataloader,"""
+        with torch.no_grad():
+            for batch_id in range(len(self.recon_dataloader)):
+                data = self.recon_dataloader[batch_id]["data"]
+                data = data.to(self.device, non_blocking=True)
+
+                mask = self.mask_creation(
+                    self.batch_size, self.config_plan.patch_size, self.mask_percentage, rng_seed=123 + batch_id
+                ).to(self.device, non_blocking=True)
+                # Make the mask the same size as the data
+                rep_D, rep_H, rep_W = (
+                    data.shape[2] // mask.shape[2],
+                    data.shape[3] // mask.shape[3],
+                    data.shape[4] // mask.shape[4],
+                )
+                mask = (
+                    mask.repeat_interleave(rep_D, dim=2)
+                    .repeat_interleave(rep_H, dim=3)
+                    .repeat_interleave(rep_W, dim=4)
+                )
+                masked_data = data * mask
+
+                with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+                    reconstruction = self.network(masked_data)
+
+                    l = [
+                        self.loss(reconstruction[i : i + 1], data[i : i + 1], mask[i : i + 1])
+                        for i in range(reconstruction.shape[0])
+                    ]
+                    self.log_img_slices(data, reconstruction, mask, l, batch_id)
+
+        return {"loss": l.detach().cpu().numpy()}
+
+    def get_qual_recon_dataloader(self):
+        # we use the patch size to determine whether we need 2D or 3D dataloaders. We also use it to determine whether
+        # we need to use dummy 2D augmentation (in case of 3D training) and what our initial patch size should be
+
+        # ----------------------- Validation data augmentations ---------------------- #
+        val_transforms = self.get_validation_transforms()
+        dl_val = self.get_centercrop_val_dataloader()
+
+        mt_gen_val = IndexableSingleThreadedAugmenter(dl_val, val_transforms)
+        return mt_gen_val
+
+    def get_centercrop_val_dataloader(self):
+        """Returns a centercropped dataloader."""
+        _, dataset_val = self.get_tr_and_val_datasets()
+
+        dl_val = nnsslCenterCropDataLoader3D(
+            dataset_val,
+            self.batch_size,
+            self.config_plan.patch_size,
+            self.config_plan.patch_size,
+            sampling_probabilities=None,
+            pad_sides=None,
+        )
+        return dl_val
+
+    def run_training(self):
+        self.on_train_start()
+        self.log_qualitative_reconstruction_step()  # Do a quick test everything works.
+        for epoch in range(self.current_epoch, self.num_epochs):
+            self.on_epoch_start()
+
+            self.on_train_epoch_start()
+            train_outputs = []
+            for batch_id in range(self.num_iterations_per_epoch):
+                train_outputs.append(self.train_step(next(self.dataloader_train)))
+            self.on_train_epoch_end(train_outputs)
+
+            with torch.no_grad():
+                self.on_validation_epoch_start()
+                val_outputs = []
+                for batch_id in range(self.num_val_iterations_per_epoch):
+                    val_batch = next(self.dataloader_val)
+                    val_outputs.append(self.validation_step(val_batch))
+                self.on_validation_epoch_end(val_outputs)
+
+                # ------------------------ Maybe Log qualitative recon ----------------------- #
+                if (self.current_epoch + 1) % 10 == 0:
+                    self.log_qualitative_reconstruction_step()
+
+            self.on_epoch_end()
+
+        self.on_train_end()
 
     @staticmethod
     def get_training_transforms(
