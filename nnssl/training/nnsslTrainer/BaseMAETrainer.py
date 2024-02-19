@@ -21,7 +21,27 @@ from nnssl.utilities.default_n_proc_DA import get_allowed_n_proc_DA
 import numpy as np
 
 
-class AbstractMAETrainer(AbstractBaseTrainer, ABC):
+def create_blocky_mask(tensor_size, block_size, sparsity_factor=0.75) -> torch.Tensor:
+    """
+    Create the smallest binary mask for the encoder by choosing a percentage of pixels at that resolution..
+
+    :param tensor_size: Tuple of the dimensions of the tensor (height, width, depth).
+    :param block_size: Size of the block to be masked (set to 0) in the smaller mask.
+    :return: A binary mask tensor.
+    """
+    # Calculate the size of the smaller mask
+    small_mask_size = tuple(size // block_size for size in tensor_size)
+
+    # Create the smaller mask
+    flat_mask = torch.ones(np.prod(small_mask_size))
+    n_masked = int(sparsity_factor * flat_mask.shape[0])
+    mask_indices = torch.randperm(flat_mask.shape[0])[:n_masked]
+    flat_mask[mask_indices] = 0
+    small_mask = torch.reshape(flat_mask, small_mask_size)
+    return small_mask
+
+
+class BaseMAETrainer(AbstractBaseTrainer, ABC):
     def __init__(
         self,
         plan: Plan,
@@ -32,22 +52,26 @@ class AbstractMAETrainer(AbstractBaseTrainer, ABC):
         device: torch.device = torch.device("cuda"),
     ):
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
-        self.mask_percentage: float = ...
+        self.mask_percentage: float = 0.75
+        self.batch_size: int = 1
 
     @staticmethod
-    @abstractmethod
     def mask_creation(batch_size: int, patch_size: tuple[int, int, int], mask_percentage: float) -> torch.Tensor:
         """
         Creates a masking tensor with 1s (indicating no masking) and 0s (indicating masking).
         The mask has to be of same size like the input data (batch_size, 1, x, y, z).
-
 
         :param patch_shape: The 3D shape information for the masking patch.
         :param mask_percentage: percentage of the patch that should be masked
         :param min_mask_block_size: minimum size of the blocks that should be masked
         :return:
         """
-        pass
+
+        block_size = 16
+        sparsity_factor = mask_percentage
+        mask = [create_blocky_mask(patch_size, block_size, sparsity_factor) for _ in range(batch_size)]
+        mask = torch.stack(mask)[:, None, ...]  # Add channel dimension
+        return mask
 
     def _build_loss(self):
         """
@@ -130,7 +154,14 @@ class AbstractMAETrainer(AbstractBaseTrainer, ABC):
         mask = self.mask_creation(self.batch_size, self.config_plan.patch_size, self.mask_percentage).to(
             self.device, non_blocking=True
         )
-        target = {"target": data, "mask": mask}
+        # Make the mask the same size as the data
+        rep_D, rep_H, rep_W = (
+            data.shape[2] // mask.shape[2],
+            data.shape[3] // mask.shape[3],
+            data.shape[4] // mask.shape[4],
+        )
+        mask = mask.repeat_interleave(rep_D, dim=2).repeat_interleave(rep_H, dim=3).repeat_interleave(rep_W, dim=4)
+
         masked_data = data * mask
 
         self.optimizer.zero_grad(set_to_none=True)
@@ -141,7 +172,7 @@ class AbstractMAETrainer(AbstractBaseTrainer, ABC):
         with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
             output = self.network(masked_data)
             # del data
-            l = self.loss(output, target)
+            l = self.loss(output, data, mask)
 
         if self.grad_scaler is not None:
             self.grad_scaler.scale(l).backward()
@@ -162,7 +193,14 @@ class AbstractMAETrainer(AbstractBaseTrainer, ABC):
         mask = self.mask_creation(self.batch_size, self.config_plan.patch_size, self.mask_percentage).to(
             self.device, non_blocking=True
         )
-        target = {"target": data, "mask": mask}
+        # Make the mask the same size as the data
+        rep_D, rep_H, rep_W = (
+            data.shape[2] // mask.shape[2],
+            data.shape[3] // mask.shape[3],
+            data.shape[4] // mask.shape[4],
+        )
+        mask = mask.repeat_interleave(rep_D, dim=2).repeat_interleave(rep_H, dim=3).repeat_interleave(rep_W, dim=4)
+
         masked_data = data * mask
 
         # Autocast is a little bitch.
@@ -171,8 +209,7 @@ class AbstractMAETrainer(AbstractBaseTrainer, ABC):
         # So autocast will only be active if we have a cuda device.
         with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
             output = self.network(masked_data)
-            del data
-            l = self.loss(output, target)
+            l = self.loss(output, data, mask)
 
         return {"loss": l.detach().cpu().numpy()}
 

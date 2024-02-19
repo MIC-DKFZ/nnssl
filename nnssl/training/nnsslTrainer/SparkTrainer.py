@@ -3,10 +3,9 @@ from nnssl.architectures.spark_utils import convert_to_spark_cnn
 
 from nnssl.experiment_planning.experiment_planners.plan import Plan
 from nnssl.training.loss.spark_loss import SparkLoss
-from nnssl.training.nnsslTrainer.AbstractMAETrainer import AbstractMAETrainer
+from nnssl.training.nnsslTrainer.BaseMAETrainer import BaseMAETrainer
 from torch import nn
 
-from nnssl.training.nnsslTrainer.BaseMAE import create_blocky_mask
 from torch import nn
 import torch
 from torch import autocast
@@ -15,7 +14,7 @@ from dynamic_network_architectures.architectures.unet import ResidualEncoderUNet
 from nnssl.architectures import spark_utils
 
 
-class SparkMAETrainer(AbstractMAETrainer):
+class SparkMAETrainer(BaseMAETrainer):
     def __init__(
         self,
         plan: Plan,
@@ -36,24 +35,6 @@ class SparkMAETrainer(AbstractMAETrainer):
         """
 
         return SparkLoss()
-
-    @staticmethod
-    def mask_creation(batch_size: int, patch_size: tuple[int, int, int], mask_percentage: float) -> torch.Tensor:
-        """
-        Creates a masking tensor with 1s (indicating no masking) and 0s (indicating masking).
-        The mask has to be of same size like the input data (batch_size, 1, x, y, z).
-
-        :param patch_shape: The 3D shape information for the masking patch.
-        :param mask_percentage: percentage of the patch that should be masked
-        :param min_mask_block_size: minimum size of the blocks that should be masked
-        :return:
-        """
-
-        block_size = 16
-        sparsity_factor = mask_percentage
-        mask = [create_blocky_mask(patch_size, block_size, sparsity_factor) for _ in range(batch_size)]
-        mask = torch.stack(mask)[:, None, ...]  # Add channel dimension
-        return mask
 
     def build_architecture(self, *args, **kwargs) -> nn.Module:
         n_stages = 6
