@@ -23,8 +23,6 @@ from nnssl.imageio.base_reader_writer import BaseReaderWriter
 from nnssl.imageio.reader_writer_registry import determine_reader_writer_from_dataset_json
 from nnssl.paths import nnUNet_raw, nnssl_preprocessed
 from nnssl.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
-from nnssl.utilities.utils import get_identifiers_from_splitted_dataset_folder, \
-    get_filenames_of_train_images_and_targets
 
 color_cycle = (
     "000000",
