@@ -109,3 +109,40 @@ class SparkMAETrainer(BaseMAETrainer):
                 # del data
                 l = self.loss(prediction=output, groundtruth=target, mask=mask)
             return {"loss": l.detach().cpu().numpy()}
+
+    def log_qualitative_reconstruction_step(
+        self,
+    ):
+        """For each sample in the validation dataloader,"""
+        with torch.no_grad():
+            for batch_id in range(len(self.recon_dataloader)):
+                data = self.recon_dataloader[batch_id]["data"]
+                data = data.to(self.device, non_blocking=True)
+
+                mask = self.mask_creation(
+                    self.batch_size, self.config_plan.patch_size, self.mask_percentage, rng_seed=123 + batch_id
+                ).to(self.device, non_blocking=True)
+                spark_utils._cur_active = mask
+
+                # Make the mask the same size as the data
+                rep_D, rep_H, rep_W = (
+                    data.shape[2] // mask.shape[2],
+                    data.shape[3] // mask.shape[3],
+                    data.shape[4] // mask.shape[4],
+                )
+                full_mask = (
+                    mask.repeat_interleave(rep_D, dim=2)
+                    .repeat_interleave(rep_H, dim=3)
+                    .repeat_interleave(rep_W, dim=4)
+                )
+
+                with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+                    reconstruction = self.network(data)  # Doesn't need to be masked as it happens inside.
+
+                    l = [
+                        self.loss(reconstruction[i : i + 1], data[i : i + 1], mask[i : i + 1])
+                        for i in range(reconstruction.shape[0])
+                    ]
+                    self.log_img_slices(data, reconstruction, full_mask, l, batch_id)
+
+        return
