@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import asdict
 import inspect
 import os
+from random import choice
 import shutil
 import sys
 from copy import deepcopy
@@ -17,7 +18,7 @@ from batchgenerators.dataloading.single_threaded_augmenter import SingleThreaded
 from batchgenerators.transforms.abstract_transforms import AbstractTransform, Compose
 
 from batchgenerators.transforms.utility_transforms import NumpyToTensor
-from batchgenerators.utilities.file_and_folder_operations import join, isfile, save_json, maybe_mkdir_p
+from batchgenerators.utilities.file_and_folder_operations import join, isfile, save_json, maybe_mkdir_p, load_json
 from torch._dynamo import OptimizedModule
 
 
@@ -694,7 +695,18 @@ class AbstractBaseTrainer(ABC):
         # if fold==all then we use all images for training and validation
         # There used to be a if/else for the case that we don't use all samples, but we only do self-supervised thingies,
         #   so we use all samples for training and validation
-        case_identifiers = get_case_identifiers(self.preprocessed_dataset_folder)
-        tr_keys = case_identifiers
-        val_keys = tr_keys
+        splits_file = join(self.preprocessed_dataset_folder_base, "splits_final.json")
+        if not isfile(splits_file):
+            self.print_to_log_file("Creating new 5-fold cross-validation split...")
+            case_identifiers = get_case_identifiers(self.preprocessed_dataset_folder)
+            all_keys_sorted = set(list(np.sort(case_identifiers)))
+            val_keys = choice(all_keys_sorted, int(20), replace=False)
+            train_keys = list(all_keys_sorted - set(val_keys))
+            splits = {"train": list(train_keys), "val": list(val_keys)}
+            save_json(splits, splits_file)
+        else:
+            splits = load_json(splits_file)
+
+        tr_keys = splits["train"]
+        val_keys = splits["val"]
         return tr_keys, val_keys
