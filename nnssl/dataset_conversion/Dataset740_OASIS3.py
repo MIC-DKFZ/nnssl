@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+import shutil
 from batchgenerators.utilities.file_and_folder_operations import save_json
 from tqdm import tqdm
 
@@ -28,8 +29,8 @@ def main():
 
     os.makedirs(dataset_dir, exist_ok=True)
     os.makedirs(out_train_dir, exist_ok=True)
-    for image in tqdm(images):
-        os.symlink(os.path.join(path_to_raw_dataset, image), os.path.join(out_train_dir, image))
+    for image in tqdm(images, desc="Copying images"):
+        shutil.copy(os.path.join(path_to_raw_dataset, image), os.path.join(out_train_dir, image))
     save_json(dataset_json, dataset_dir / "dataset.json")
 
 
