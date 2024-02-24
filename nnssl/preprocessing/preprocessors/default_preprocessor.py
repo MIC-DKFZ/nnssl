@@ -45,7 +45,7 @@ def normalize(
         data[c] = apply_normalization(
             scheme=normalization_schemes[c],
             image=data[c],
-            target_dtype=non_zero_mask[0].dtype,
+            target_dtype=data.dtype,
             use_mask_for_norm=use_mask_for_norm[c],
             non_zero_mask=non_zero_mask[c],
         )
