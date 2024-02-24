@@ -13,23 +13,21 @@ def main():
     out_train_dir = dataset_dir / "imagesTr"
 
     content = os.listdir(path_to_raw_dataset)
-    images = [f for f in content if f.endswith(".nii.gz")]
-
-    numTrain = len(images)
+    all_images = [f for f in content if f.endswith(".nii.gz")]
 
     dataset_json = {
         "name": dataset_name,
         "description": "Anatomical MRIs of the OASIS3 dataset without labels. The dataset is used for pre-text task pretraining.",
         "channel_names": {"0": "someMRI"},
         "file_ending": ".nii.gz",
-        "numTraining": numTrain,
+        "numTraining": len(all_images),
         "release": "0.0",
         "licence": "Proprietary -- do not touch without permission",
     }
 
     os.makedirs(dataset_dir, exist_ok=True)
     os.makedirs(out_train_dir, exist_ok=True)
-    for image in tqdm(images, desc="Copying images"):
+    for image in tqdm(all_images, desc="Copying images"):
         shutil.copy(os.path.join(path_to_raw_dataset, image), os.path.join(out_train_dir, image))
     save_json(dataset_json, dataset_dir / "dataset.json")
 
