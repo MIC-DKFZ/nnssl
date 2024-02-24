@@ -234,10 +234,14 @@ class BaseMAETrainer(AbstractBaseTrainer, ABC):
         filename = f"epoch_{self.current_epoch}_{index}.png"
         ax: list[plt.Axes]
         _, ax = plt.subplots(nrows=1, ncols=4, figsize=(12, 4))
-        ax[0].imshow(img, cmap="gray")
-        ax[1].imshow(mask, cmap="gray")
-        ax[2].imshow(reco, cmap="gray")
-        ax[3].imshow(np.abs(img - reco), cmap="gray", vmin=0, vmax=255)
+        img_uint8 = (img * 255.0).astype(np.uint8)
+        mask_unint8 = (mask * 255.0).astype(np.uint8)
+        reco_uint8 = (reco * 255.0).astype(np.uint8)
+        ax[0].imshow(img_uint8, cmap="gray")
+        ax[1].imshow(mask_unint8, cmap="gray")
+        ax[2].imshow(reco_uint8, cmap="gray")
+        ax[3].imshow((np.abs(img - reco) * 255.0).astype(np.uint8), cmap="gray")
+
         plt.title(f"Loss: {float(loss):.05f}")
         plt.savefig(os.path.join(self.im_output_folder, filename))
         plt.close()
@@ -245,11 +249,11 @@ class BaseMAETrainer(AbstractBaseTrainer, ABC):
             pass
 
     @staticmethod
-    def rescale_images(img_arr: torch.Tensor, recon_arr: torch.Tensor) -> np.ndarray:
-        img_arr_min = torch.min(img_arr)
-        img_arr_max = torch.max(img_arr)
-        img_arr = ((img_arr - img_arr_min) / (img_arr_max - img_arr_min)) * 255.0
-        rec_arr = ((recon_arr - img_arr_min) / (img_arr_max - img_arr_min)) * 255.0
+    def rescale_images(
+        img_arr: torch.Tensor, recon_arr: torch.Tensor, full_img_min: float, full_img_max: float
+    ) -> np.ndarray:
+        img_arr = (img_arr - full_img_min) / (full_img_max - full_img_min)
+        rec_arr = (recon_arr - full_img_min) / (full_img_max - full_img_min)
         return img_arr, rec_arr
 
     def log_img_slices(self, imgs, recos, masks, losses, batch_id: int):
@@ -260,11 +264,13 @@ class BaseMAETrainer(AbstractBaseTrainer, ABC):
             msk = torch.squeeze(masks[i])
             loss = torch.squeeze(losses[i])
             slice_of_choice = int(msk.shape[0] // 2)
-            img, rec = self.rescale_images(img[slice_of_choice], rec[slice_of_choice])
-            img = img.detach().cpu().numpy().astype(np.uint8)
-            rec = rec.detach().cpu().numpy().astype(np.uint8)
+            img, rec = self.rescale_images(
+                img[slice_of_choice], rec[slice_of_choice], float(img.min()), float(img.max())
+            )
+            img = img.detach().cpu().numpy()
+            rec = rec.detach().cpu().numpy()
 
-            msk = (msk[slice_of_choice].detach().cpu().numpy() * 255).astype(np.uint8)
+            msk = msk[slice_of_choice].detach().cpu().numpy()
             self.log_image_and_reco(img, rec, msk, loss, offset + i)
 
     def log_qualitative_reconstruction_step(
@@ -393,6 +399,7 @@ class BaseMAETrainer(AbstractBaseTrainer, ABC):
                 border_mode_data="constant",
                 border_cval_data=0,
                 order_data=order_resampling_data,
+                # ToDo: Why do we even do scale transforms and do specifically preprocess data? This largely makes no sense, right?
                 border_mode_seg="constant",
                 border_cval_seg=border_val_seg,
                 order_seg=order_resampling_seg,
@@ -406,26 +413,6 @@ class BaseMAETrainer(AbstractBaseTrainer, ABC):
 
         if do_dummy_2d_data_aug:
             tr_transforms.append(Convert2DTo3DTransform())
-
-        # tr_transforms.append(GaussianNoiseTransform(p_per_sample=0.1))
-        # tr_transforms.append(
-        #     GaussianBlurTransform((0.5, 1.0), different_sigma_per_channel=True, p_per_sample=0.2, p_per_channel=0.5)
-        # )
-        # tr_transforms.append(BrightnessMultiplicativeTransform(multiplier_range=(0.75, 1.25), p_per_sample=0.15))
-        # tr_transforms.append(ContrastAugmentationTransform(p_per_sample=0.15))
-        # tr_transforms.append(
-        #     SimulateLowResolutionTransform(
-        #         zoom_range=(0.5, 1),
-        #         per_channel=True,
-        #         p_per_channel=0.5,
-        #         order_downsample=0,
-        #         order_upsample=3,
-        #         p_per_sample=0.25,
-        #         ignore_axes=ignore_axes,
-        #     )
-        # )
-        # tr_transforms.append(GammaTransform((0.7, 1.5), True, True, retain_stats=True, p_per_sample=0.1))
-        # tr_transforms.append(GammaTransform((0.7, 1.5), False, True, retain_stats=True, p_per_sample=0.3))
 
         if mirror_axes is not None and len(mirror_axes) > 0:
             tr_transforms.append(MirrorTransform(mirror_axes))
