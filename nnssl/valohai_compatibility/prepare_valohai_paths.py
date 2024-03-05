@@ -77,9 +77,6 @@ def prepare_preprocessing_paths_on_valohai(dataset_id: int):
         Path(nnunet_raw).mkdir(exist_ok=True)  # create the folder
         Path(nnunet_pp).mkdir(exist_ok=True)
         Path(nnunet_results).mkdir(exist_ok=True)
-        os.environ["nnUNet_raw"] = nnunet_raw
-        os.environ["nnssl_preprocessed"] = nnunet_pp
-        os.environ["nnssl_results"] = nnunet_results
 
         flat_inputs = os.path.join(INPUT_ROOT, "raw-data")
         dataset_json_filepath = os.path.join(flat_inputs, "dataset.json")
