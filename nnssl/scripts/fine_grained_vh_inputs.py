@@ -8,7 +8,9 @@ from valohai.config import is_running_in_valohai
 import SimpleITK as sitk
 import requests
 import glob
-from batchgenerators.utilities.file_and_folder_operations import save_json
+from batchgenerators.utilities.file_and_folder_operations import save_json, load_json
+from loguru import logger
+import json
 
 MIN_FOV = (100, 100, 100)  # At least 10cm in each direction
 MAX_SPACING = 5  # At most 3mm in any direction
@@ -89,54 +91,113 @@ def get_meta_data_df() -> pd.DataFrame:
     return pd.read_csv(meta_dict_path)
 
 
-def get_series_dict() -> dict[str, str]:
+def get_mr150_data_df() -> pd.DataFrame:
+    meta_dict_path: str
     if is_running_in_valohai():
-        all_series_ids = os.listdir("/valohai/inputs/all-data")
-        series_dict = {p: os.path.join("/valohai/inputs/all-data", p) for p in all_series_ids}
+        meta_dict_path = "/valohai/inputs/meta-data/full_meta.csv"
     else:
-        series_dict = {}
-        for pat in Path("/home/tassilowald/Data/Datasets/mr-head-150").iterdir():
-            if not pat.is_dir():
-                continue
-            for s in pat.iterdir():
-                if s.name.endswith(".nii.gz"):
-                    series_dict[s.name] = str(s)
-    series_id_dict = {}
-    for k, v in series_dict.items():
-        if k.endswith(".nii.gz"):
-            series_id_dict[k.split(".")[0]] = v
-        else:
-            series_id_dict[k] = v
-    return series_id_dict
+        meta_dict_path = "/home/tassilowald/Projects/FLOY/mr_150_meta.csv"
+    return pd.read_csv(meta_dict_path)
+
+
+def create_local_series_dict() -> dict[str, dict]:
+    local_file_dict = {}
+    for pat in Path("/home/tassilowald/Data/Datasets/mr-head-150").iterdir():
+        if not pat.is_dir():
+            continue
+        for s in pat.iterdir():
+            if s.name.endswith(".nii.gz"):
+                local_file_dict[s.name.split(".")[0]] = {"path": str(s), "datum_id": None, "name": s.name}
+    return local_file_dict
+
+
+def get_valohai_series_dict() -> dict[str, dict]:
+    inputs_json = load_json("/valohai/config/inputs.json")
+    print(inputs_json)  # Just for logging purposes.
+    data_of_choice: list[dict] = inputs_json["dataset"]["files"]
+    local_file_id_dict = {}
+    for data in data_of_choice:
+        name = data["name"]
+        if name.endswith(".nii.gz"):  # Only if it's a file of iterest.
+            local_file_id_dict[data["name"].split(".")[0]] = data  # All meta infos.
+    return local_file_id_dict
 
 
 def main():
-
     # Series Dict contains series_UID to path to file.
-    series_dict: dict[str, str] = get_series_dict()
+    logger.info("Starting to create Valohai inputs.")
+    if is_running_in_valohai():
+        data_id_to_info_json: dict[str, dict] = get_valohai_series_dict()
+    else:
+        data_id_to_info_json = create_local_series_dict()
 
-    all_pats = get_meta_data_df()
+    # all_pats: pd.DataFrame = get_meta_data_df()
+    all_pats: pd.DataFrame = get_mr150_data_df()
+
+    if False: # not is_running_in_valohai():
+        logger.info("Checking for differences between the 150 patients and the full dataset.")
+        pats_150_series = set(pats_150["seriesinstanceuid"].tolist())
+        all_pats_series = set(all_pats["seriesinstanceuid"].tolist())
+        set_diff = pats_150_series - all_pats_series
+        set_inter = pats_150_series & all_pats_series
+        logger.info(f"Set diff: {len(set_diff)}")
+        logger.info(f"Set inter: {len(set_inter)}")
+
     strong_magnet_pats = get_strong_magnet_patients(all_pats)
     valohai_dataset = get_subsets_of_interest(strong_magnet_pats)
-    for key, dataset in valohai_dataset.__dict__.items():
-        meta_data_json = {"valohai.dataset-versions": [f"dataset://fiona_preraw_{key}/v0"]}
 
-        print(f"{key}: {len(dataset)}")
-        pats = get_patients_from_df(dataset)
-        rem_pats = [v for k, v in series_dict.items() if k in pats]
-        print(f"Found {len(rem_pats)} of {len(pats)}")
-        # Verify the MRI fullfills our spacing and FOV criteria.
-        filtered_rem_pats = [
-            rem_pat
-            for rem_pat in tqdm(rem_pats, desc="Filtering MRIs by Spacing and FOV")
-            if filter_mri_case(rem_pat) is not None
-        ]
+    n_total_used = 0
+    n_total = len(data_id_to_info_json)
+    for key, val in valohai_dataset.__dict__.items():
+        logger.info(f"Working on {key}")
+        pats = get_patients_from_df(val)
+        all_files = []
+        all_names = []
+        dataset_uuids_of_ids = {"name": key, "dataset": "SomeID", "files": all_files, "file_names": all_names}
+        names_for_local_running = {
+            "name": key,
+            "dataset": "SomeID",
+            "files": all_names,
+        }
+
+        n_diff = 0
+        n_in_both_sets = 0
+        n_neither = 0
+        # For all pats read from the csv file, check if they are in the valohai dataset.
+        for pat in tqdm(pats, desc=f"{key}: Checking if cases are present and fulfill criteria."):
+            if pat in data_id_to_info_json:
+                # If the MRI is in the present dataset, check if it fulfills our criteria.
+                if False: # not is_running_in_valohai():
+                    cur_name = data_id_to_info_json[pat]["name"].split(".")[0]
+                    if cur_name in set_diff:
+                        # logger.info(f"{cur_name} is only in the 150 dataset, not in the full on")
+                        n_diff += 1
+                    elif cur_name in set_inter:
+                        # logger.info(f"{cur_name} is in both.")
+                        n_in_both_sets += 1
+                    else:
+                        # logger.info(f"{cur_name} is not in either set.")
+                        n_neither += 1
+
+                if filter_mri_case(data_id_to_info_json[pat]["path"]) is not None:
+                    all_files.append({"datum": data_id_to_info_json[pat]["datum_id"]})
+                    all_names.append(data_id_to_info_json[pat]["name"])
+
+        logger.info(f"{len(all_files)/(len(pats)+1e-9):.2%} of the cases fulfill the criteria.")
+        #logger.info(f"Cases diff: {n_diff}")
+        #logger.info(f"Cases inter: {n_in_both_sets}")
+        #logger.info(f"Cases neither: {n_neither}")
+        logger.info(f"Using {len(all_files)} cases for {key} of {len(pats)}.")
+        n_total_used += len(all_files)
         if is_running_in_valohai():
-            for frp in tqdm(filtered_rem_pats, desc="Copying over MRIs to output and tagging with metadata.json"):
-                shutil.copy(frp, Path(f"/valohai/outputs/{frp.name}"))
-                save_json(meta_data_json, frp.name + ".metadata.json")
+            save_json(dataset_uuids_of_ids, f"/valohai/outputs/{key}.json")
         else:
-            print("Just testing. Not running in Valohai.")
+            # print(json.dumps(dataset_uuids_of_ids, indent=4))
+            # print(json.dumps(names_for_local_running, indent=4))
+            pass
+    logger.info(f"Used {n_total_used / n_total:.2%} of all data. {n_total_used} of {n_total} cases.")
+
+    return
 
 
 if __name__ == "__main__":
