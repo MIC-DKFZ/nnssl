@@ -1,6 +1,23 @@
 ---
 
 - step:
+    name: filter_all_mri_to_datasets
+    image: pytorch/pytorch:2.2.0-cuda12.1-cudnn8-runtime
+    command:
+      - pip install .
+      - python ./nnssl/scrips/fine_grained_vh_inputs.py
+      # - python ./fiona/nnssl/valohai_tester.py
+    inputs:
+    - name: all-data
+      description: Dataset containing all raw data we want to use.
+      default: s3://floy-data/clean-data/external/fiona/mr-head-full/*.nii.gz
+    - name: meta-data
+      description: Meta data csv input
+      default: dataset://fiona_full_meta/v0
+
+
+
+- step:
     name: plan_and_preprocess_dataset
     image: pytorch/pytorch:2.2.0-cuda12.1-cudnn8-runtime
     command:
