@@ -8,7 +8,7 @@ import pandas as pd
 from batchgenerators.utilities.file_and_folder_operations import load_json, save_json
 import numpy as np
 
-MIN_FOV = (100, 100, 100)  # At least 10cm in each direction
+MIN_FOV = (70, 70, 70)  # At least 7cm in each direction
 MAX_SPACING = 5  # At most 3mm in any direction
 
 
