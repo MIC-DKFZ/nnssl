@@ -1,4 +1,4 @@
-from nnssl.apitoken import get_valohai_api_token()
+from nnssl.apitoken import get_valohai_api_token
 import requests
 
 
