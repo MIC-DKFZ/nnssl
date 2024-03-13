@@ -115,6 +115,8 @@ def prepare_preprocessing_paths_on_valohai(dataset_id: int):
                 continue
             if "/" in f:
                 f_target = f.split("/")[-1]
+            else:
+                f_target = f
             shutil.copy(os.path.join(flat_inputs, f), os.path.join(nnunet_raw_dataset_imgs, f_target))
         print("Found", len(not_3d_files), "files that are not 3D. Ignoring them.")
         print(f"Moved {len(os.listdir(nnunet_raw_dataset_imgs))} files to {nnunet_raw_dataset_imgs}")
