@@ -14,7 +14,7 @@ def filter_mri_case(
 ):
     """Filter MRI by field of view and spacing."""
     MIN_FOV = (50, 50, 50)  # At least 5cm in each direction
-    MAX_SPACING = 5.5  # At most 3mm in any direction
+    MAX_SPACING = 6.5  # At most 6.5mm in any direction
     try:
         im = sitk.ReadImage(mri)
         file_size_kb = Path(mri).stat().st_size / 1024
