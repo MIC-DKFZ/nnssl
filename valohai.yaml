@@ -31,6 +31,13 @@
       description: Type of fingerprint to use
       pass-as: --version {v}
       type: string
+    - name: save_cut
+      decription: Save the not-selected data as well
+      default: False
+      type: flag
+      pass-true-as: "--save_cut"
+      pass-false-as: ""
+
 
     inputs:
     - name: raw-data
