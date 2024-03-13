@@ -1,4 +1,4 @@
-from nnssl.apitoken import valohai_api_token
+from nnssl.apitoken import get_valohai_api_token()
 import requests
 
 
@@ -27,7 +27,7 @@ def get_andrei_adopt_output():
 
 
 def get_auth_header() -> dict[str, str]:
-    return {"Authorization": "Token %s" % valohai_api_token}
+    return {"Authorization": "Token %s" % get_valohai_api_token()}
 
 
 def get_execution_output(execution_id):
@@ -46,7 +46,7 @@ def get_andrei_adopt_output():
 def check_for_datum_uuid(query: dict) -> str | None:
     """Takes some infos about a file and checks if it's already in the Valohai dataset."""
     header = {
-        "Authorization": "Token %s" % valohai_api_token,
+        "Authorization": "Token %s" % get_valohai_api_token(),
     }
     apendix = ""
     for cnt, (k, v) in enumerate(query.items()):
