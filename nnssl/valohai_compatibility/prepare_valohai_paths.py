@@ -80,7 +80,18 @@ def prepare_preprocessing_paths_on_valohai(dataset_id: int):
 
         flat_inputs = os.path.join(INPUT_ROOT, "raw-data")
         dataset_json_filepath = os.path.join(flat_inputs, "dataset.json")
-        dataset_json = load_json(dataset_json_filepath)
+        if os.path.exists(dataset_json_filepath):
+            dataset_json = load_json(dataset_json_filepath)
+        else:
+            dataset_json = {
+                "channel_names": {"0": "someMRI"},
+                "description": "Unlabeled set of datapoints that are used for pre-text task pretraining",
+                "file_ending": ".nii.gz",
+                "licence": "Proprietary -- do not touch without permission",
+                "name": "Somem Floy Images",
+                "numTraining": 0,
+                "release": "0.0",
+            }
         print(f"Looking for files ending on {dataset_json['file_ending']} in {flat_inputs}.")
         print(f"Found {len(os.listdir(flat_inputs))}")
 
@@ -104,7 +115,7 @@ def prepare_preprocessing_paths_on_valohai(dataset_id: int):
             shutil.copy(os.path.join(flat_inputs, f), os.path.join(nnunet_raw_dataset_imgs, f))
         print("Found", len(not_3d_files), "files that are not 3D. Ignoring them.")
         print(f"Moved {len(os.listdir(nnunet_raw_dataset_imgs))} files to {nnunet_raw_dataset_imgs}")
-        dataset_json["numTraining"] = dataset_json["numTraining"] - len(not_3d_files)
+        dataset_json["numTraining"] = len(os.listdir(nnunet_raw_dataset_imgs))
         # Adapt number of training cases accordingly.
         save_json(dataset_json, os.path.join(nnunet_raw_dataset, "dataset.json"))
 
