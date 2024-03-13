@@ -188,7 +188,7 @@ def save_files_on_valohai(path_to_copy: str, meta_data_dict: dict | None = None,
                     root_dir=path_containing_outputs,
                 )
                 print(f"Removing {n_samples_in_path} samples from {path_containing_outputs}.")
-                [shutil.rmtree(os.path.join(path_containing_outputs, f)) for f in samples_to_compress]
+                [os.remove(os.path.join(path_containing_outputs, f)) for f in samples_to_compress]
                 save_json(
                     meta_data_dict, os.path.join(path_containing_outputs, filename + f".{format}" + ".metadata.json")
                 )
