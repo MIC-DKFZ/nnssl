@@ -52,11 +52,6 @@
       - python ./nnssl/experiment_planning/plan_and_preprocess_entrypoints.py {parameters}
       # - python ./fiona/nnssl/valohai_tester.py
     parameters:
-    - name: dataset_id
-      description: Dataset that will will be preprocessed
-      default: 737
-      pass-as: -d {v}
-      type: string
     - name: fingerprint_type
       description: Type of fingerprint to use
       default: DatasetFingerprintExtractor
@@ -71,6 +66,16 @@
       default: True
       type: flag
       pass-true-as: "--verify_dataset_integrity"
+      pass-false-as: ""
+    - name: start_fresh
+      default: True
+      type: flag
+      pass-true-as: "--start_fresh"
+      pass-false-as: ""
+    - name: compress_output
+      default: True
+      type: flag
+      pass-true-as: "--compress_output"
       pass-false-as: ""
     - name: No Preprocessing
       default: False
