@@ -20,7 +20,7 @@ def filter_mri_case(
         file_size_kb = Path(mri).stat().st_size / 1024
         # If the file is smaller than 200kb, it is probably broken
         if file_size_kb < 200:
-            return None
+            return "File too small"
 
         spacing = im.GetSpacing()
         if len(spacing) != 3:
