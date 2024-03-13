@@ -18,6 +18,11 @@ def filter_mri_case(
     """Filter MRI by field of view and spacing."""
     try:
         im = sitk.ReadImage(mri)
+        file_size_kb = Path(mri).stat().st_size / 1024
+        # If the file is smaller than 200kb, it is probably broken
+        if file_size_kb < 200:
+            return None
+
         spacing = im.GetSpacing()
         if len(spacing) != 3:
             return None
