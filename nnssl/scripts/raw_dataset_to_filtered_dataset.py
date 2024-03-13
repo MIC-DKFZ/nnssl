@@ -1,6 +1,7 @@
 from pathlib import Path
 import argparse
 
+import numpy as np
 from tqdm import tqdm
 
 
@@ -22,12 +23,17 @@ def main():
 
     cases_fullfilling_citeria: list[Path] = []
     datum_uids: list[str] = []
+    filter_reasons = []
     for scan in tqdm(dataset_Path.iterdir(), desc="Filtering scans", total=len(list(dataset_Path.iterdir()))):
         if scan.name.endswith(".nii.gz"):
-            if filter_mri_case(scan) is None:
+            ret = filter_mri_case(scan)
+            if isinstance(ret, str):
+                filter_reasons.append(ret)
                 continue
             cases_fullfilling_citeria.append(scan)
             datum_uids.append({"datum": ingested_files_json[scan.name.split(".")[0]]["datum_id"]})
+    print("Filter reasons: ")
+    print(np.unique(filter_reasons, return_counts=True))
 
     dataset_name = f"fiona_filtered_{ds_name}"
     print(f"Data in new dataset: {len(cases_fullfilling_citeria)} of {len(ingested_files_json)}")

@@ -24,22 +24,22 @@ def filter_mri_case(
 
         spacing = im.GetSpacing()
         if len(spacing) != 3:
-            return None
+            return "Spacing not 3D"
         fov = im.GetWidth() * spacing[0], im.GetHeight() * spacing[1], im.GetDepth() * spacing[2]
         if by_fov and any(f < MIN_FOV[i] for i, f in enumerate(fov)):
-            return None
+            return "FOV too small"
         if by_spacing and any(s >= MAX_SPACING for s in spacing):
-            return None
+            return "Spacing too large"
         if by_meta_info and (meta_info is not None):
             series_description_exclusions = ["adc", "pha", "dwi"]
             if not pd.isna(meta_info["weighting"]):
                 if "SWI" in str(meta_info["weighting"]):
-                    return None
+                    return "Weighted SWI"
             if not pd.isna(meta_info["seriesdescription"]):
                 if any([sde in meta_info["seriesdescription"] for sde in series_description_exclusions]):
-                    return None
+                    return "Series description exclusion"
 
-        return mri
+        return Path(mri)
     except:
         return None
 
@@ -80,7 +80,7 @@ def filter_mris(
     else:
         with ProcessPoolExecutor(max_workers=n_proc) as executor:
             rem_mris = list(tqdm(executor.map(helper(partial_filter), mris), total=len(mris)))
-    rem_mris = [mri for mri in rem_mris if mri is not None]
+    rem_mris = [mri for mri in rem_mris if isinstance(mri, Path)]
     return rem_mris
 
 
