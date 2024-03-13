@@ -8,14 +8,13 @@ import pandas as pd
 from batchgenerators.utilities.file_and_folder_operations import load_json, save_json
 import numpy as np
 
-MIN_FOV = (70, 70, 70)  # At least 7cm in each direction
-MAX_SPACING = 5  # At most 3mm in any direction
-
 
 def filter_mri_case(
     mri: Path, meta_info: dict | None = None, by_fov: bool = True, by_spacing: bool = True, by_meta_info: bool = True
 ):
     """Filter MRI by field of view and spacing."""
+    MIN_FOV = (50, 50, 50)  # At least 5cm in each direction
+    MAX_SPACING = 5  # At most 3mm in any direction
     try:
         im = sitk.ReadImage(mri)
         file_size_kb = Path(mri).stat().st_size / 1024
