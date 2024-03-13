@@ -7,36 +7,10 @@ from concurrent.futures import ProcessPoolExecutor
 import pandas as pd
 from batchgenerators.utilities.file_and_folder_operations import load_json, save_json
 
+from nnssl.dataset_conversion.filter_mris_all import filter_mri_case
+
 MIN_FOV = (100, 100, 100)  # At least 10cm in each direction
 MAX_SPACING = 3  # At most 3mm in any direction
-
-
-def filter_mri_case(
-    mri: Path, meta_info: dict, by_fov: bool = True, by_spacing: bool = True, by_meta_info: bool = True
-):
-    """Filter MRI by field of view and spacing."""
-    try:
-        im = sitk.ReadImage(mri)
-        spacing = im.GetSpacing()
-        if len(spacing) != 3:
-            return None
-        fov = im.GetWidth() * spacing[0], im.GetHeight() * spacing[1], im.GetDepth() * spacing[2]
-        if by_fov and any(f < MIN_FOV[i] for i, f in enumerate(fov)):
-            return None
-        if by_spacing and any(s > MAX_SPACING for s in spacing):
-            return None
-        if by_meta_info:
-            series_description_exclusions = ["adc", "pha", "dwi"]
-            if not pd.isna(meta_info["weighting"]):
-                if "SWI" in str(meta_info["weighting"]):
-                    return None
-            if not pd.isna(meta_info["seriesdescription"]):
-                if any([sde in meta_info["seriesdescription"] for sde in series_description_exclusions]):
-                    return None
-
-        return mri
-    except:
-        return None
 
 
 def get_meta_data_of_pat(mri_name: str, meta_data_df: pd.DataFrame, pat_map: dict) -> dict:

@@ -86,8 +86,6 @@ def save_mris(mris: list[Path], out_dir: Path):
         shutil.copy(mri, out_dir / mri.name)
 
 
-
-
 if __name__ == "__main__":
     meta_data_df: pd.DataFrame = pd.read_csv("/home/tassilowald/Projects/FLOY/full_meta.csv")
     strong_magnet_df = meta_data_df[meta_data_df["magneticfieldstrength"] >= 1.5]
@@ -108,7 +106,8 @@ if __name__ == "__main__":
         (pd.isna(strong_magnet_df["weighting"])) & (strong_magnet_df["inversion_recovery"] == "FLAIR")
     ]
     mr_angio = strong_magnet_df[
-        strong_magnet_df["weighting"].isin(["MRA", "MR Angiography"]) & (strong_magnet_df["inversion_recovery"].isna())
+        strong_magnet_df["weighting"].isin(["MRA", "MR Angiography"])
+        & (strong_magnet_df["inversion_recovery"].isna())
     ]
     pat_map: dict = load_json(
         "/home/tassilowald/Data/Datasets/nnunetv2/nnUNet_raw/Dataset737_FloyPrototype/patient_id_mapping.json"
