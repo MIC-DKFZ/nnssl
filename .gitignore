@@ -23,7 +23,7 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
-apitoken.py
+secret_token.py
 data_exploration/
 
 # PyInstaller
