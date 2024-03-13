@@ -1,4 +1,5 @@
 import os
+from valohai.config import is_running_in_valohai
 from nnssl.configuration import default_num_processes
 from nnssl.experiment_planning.plan_and_preprocess_api import extract_fingerprints, plan_experiments, preprocess
 from nnssl.experiment_planning.dataset_fingerprint.abstract_fingerprint_extraction import (
@@ -202,13 +203,14 @@ def plan_and_preprocess_entry():
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-d",
-        nargs="+",
-        type=int,
-        help="[REQUIRED] List of dataset IDs. Example: 2 4 5. This will run fingerprint extraction, experiment "
-        "planning and preprocessing for these datasets. Can of course also be just one dataset",
-    )
+    if not is_running_in_valohai():
+        parser.add_argument(
+            "-d",
+            nargs="+",
+            type=int,
+            help="[REQUIRED] List of dataset IDs. Example: 2 4 5. This will run fingerprint extraction, experiment "
+            "planning and preprocessing for these datasets. Can of course also be just one dataset",
+        )
     parser.add_argument(
         "-fpe",
         type=fingerprint_type,
@@ -337,9 +339,39 @@ def plan_and_preprocess_entry():
         help="Set this to print a lot of stuff. Useful for debugging. Will disable progress bar! "
         "Recommended for cluster environments",
     )
+    parser.add_argument(
+        "--start_fresh",
+        required=False,
+        default=True,
+        action="store_true",
+        help="Set this to False to append the outputs of this preprocessing with previous dataset versions.",
+    )
+    parser.add_argument(
+        "--compress_output",
+        required=False,
+        default=True,
+        action="store_true",
+        help="Set to true to zip files.",
+    )
+    parser.add_argument(
+        "--valohai_version_name",
+        required=True if is_running_in_valohai() else False,
+        help="Name of the dataset version.",
+    )
+    parser.add_argument(
+        "--valohai_dataset_name",
+        required=True if is_running_in_valohai() else False,
+        help="Name of the valohai dataset. Default: v0",
+    )
     args = parser.parse_args()
 
-    prepare_preprocessing_paths_on_valohai(int(args.d[0]))  # Would need adaptation for multi-datasets.
+    if is_running_in_valohai():
+        version_name = args.valohai_version_name
+        dataset_name = args.valohai_dataset_name
+        compress_output = args.compress_output
+        start_fresh = args.start_fresh
+        dataset_id = 737  # Always the same ID for valohai datasets!
+        prepare_preprocessing_paths_on_valohai(dataset_id)  # Would need adaptation for multi-datasets.
 
     # fingerprint extraction
     print("Fingerprint extraction...")
@@ -367,8 +399,12 @@ def plan_and_preprocess_entry():
         print("Preprocessing...")
         preprocess(args.d, args.overwrite_plans_name, args.c, np, args.verbose)
 
-    meta_data_json = {"valohai.dataset-versions": [f"dataset://pp-fiona-Dataset{args.d[0]:03d}/v1"]}
-    save_files_on_valohai(os.environ["nnssl_preprocessed"], meta_data_json)
+    if is_running_in_valohai():
+        meta_data_json = {
+            "valohai.dataset-versions": [f"dataset://{dataset_name}/{version_name}"],
+            "start_fresh": start_fresh,
+        }
+        save_files_on_valohai(os.environ["nnssl_preprocessed"], meta_data_json, compress_output=compress_output)
 
 
 if __name__ == "__main__":

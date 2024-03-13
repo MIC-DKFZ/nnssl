@@ -9,6 +9,7 @@ import shutil
 from tqdm import tqdm
 from nnssl.paths import nnUNet_raw, nnssl_preprocessed
 import SimpleITK as sitk
+import datetime
 
 
 def file_is_3d(file: str) -> bool:
@@ -155,7 +156,7 @@ def get_all_file_in_dir(dir_path: str) -> list[str]:
     return files
 
 
-def save_files_on_valohai(path_to_copy: str, meta_data_dict: dict | None = None):
+def save_files_on_valohai(path_to_copy: str, meta_data_dict: dict | None = None, compress_output: bool = False):
     """
     Takes all files that were written into the nnssl_preprocessed folder
     and serializes them to the valohai output folder (if running in valohai).
@@ -163,8 +164,31 @@ def save_files_on_valohai(path_to_copy: str, meta_data_dict: dict | None = None)
     if is_running_in_valohai():
         pp_path = path_to_copy
         all_files = get_all_file_in_dir(pp_path)
-        for f in tqdm(all_files):
-            serialize_files_and_move_to_valohai_outputs(f, meta_data_dict)
+        if not compress_output:
+            for f in tqdm(all_files):
+                serialize_files_and_move_to_valohai_outputs(f, meta_data_dict)
+        else:
+            for f in tqdm(all_files):
+                serialize_files_and_move_to_valohai_outputs(f)
+                path_containing_outputs = get_outputs_path()
+                samples_to_compress = os.listdir(path_containing_outputs)
+                n_samples_in_path = len(samples_to_compress)
+                timestamp = datetime.datetime.now().strftime("%d,%H,%M,%S")
+                filename = f"nnssl_preprocessed_{n_samples_in_path}_{timestamp}"
+                format = "gztar"
+                print(f"Compressing {n_samples_in_path} samples to {filename}.{format}")
+                shutil.make_archive(
+                    base_name=filename,
+                    format=format,
+                    base_dir=path_containing_outputs,
+                    root_dir=path_containing_outputs,
+                )
+                print(f"Removing {n_samples_in_path} samples from {path_containing_outputs}.")
+                [shutil.rmtree(os.path.join(path_containing_outputs, f)) for f in samples_to_compress]
+                save_json(
+                    meta_data_dict, os.path.join(path_containing_outputs, filename + f".{format}" + ".metadata.json")
+                )
+
     else:
         # Do nothing
         return
