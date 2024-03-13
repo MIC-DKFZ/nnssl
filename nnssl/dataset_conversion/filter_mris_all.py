@@ -13,7 +13,7 @@ MAX_SPACING = 5  # At most 3mm in any direction
 
 
 def filter_mri_case(
-    mri: Path, meta_info: dict, by_fov: bool = True, by_spacing: bool = True, by_meta_info: bool = True
+    mri: Path, meta_info: dict | None = None, by_fov: bool = True, by_spacing: bool = True, by_meta_info: bool = True
 ):
     """Filter MRI by field of view and spacing."""
     try:
@@ -26,7 +26,7 @@ def filter_mri_case(
             return None
         if by_spacing and any(s >= MAX_SPACING for s in spacing):
             return None
-        if by_meta_info:
+        if by_meta_info and (meta_info is not None):
             series_description_exclusions = ["adc", "pha", "dwi"]
             if not pd.isna(meta_info["weighting"]):
                 if "SWI" in str(meta_info["weighting"]):
