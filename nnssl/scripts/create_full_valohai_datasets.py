@@ -30,10 +30,22 @@ def main():
             if p in lookup_for_pats:
                 files.append({"datum": lookup_for_pats[p]["id"]})
         dataset_name = f"fiona_full_{k}"
-        version = "v0"
+        version = "v1"
         owner = 5425  # Floys org id
-        req_resp = maybe_create_new_dataset_version(dataset_name, version=version, files=files, owner=owner)
 
+        n_files = len(files)
+        n_batches = ((n_files // 1000) + 1) if (n_files % 1000) != 0 else n_files // 1000
+        for i in range(n_batches):
+            start = i * 1000
+            end = (i + 1) * 1000 if (i != (n_batches - 1)) else -1
+            req_resp = maybe_create_new_dataset_version(
+                dataset_name, version=version + f"_part_{i}", files=files[start:end], owner=owner
+            )
+            try:
+                response_message = req_resp.json()
+            except AttributeError:
+                response_message = "No message in response"
+            logger.info(f"Response message: {response_message}")
     return
 
 
