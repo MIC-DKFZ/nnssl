@@ -1,6 +1,8 @@
 from pathlib import Path
 import argparse
 
+from tqdm import tqdm
+
 
 from nnssl.dataset_conversion.filter_mris_all import filter_mri_case
 from nnssl.scripts.fine_grained_vh_inputs import get_valohai_series_dict
@@ -20,7 +22,7 @@ def main():
 
     cases_fullfilling_citeria: list[Path] = []
     datum_uids: list[str] = []
-    for scan in dataset_Path.iterdir():
+    for scan in tqdm(dataset_Path.iterdir(), desc="Filtering scans"):
         if scan.name.endswith(".nii.gz"):
             if filter_mri_case(scan) is None:
                 continue
