@@ -22,7 +22,7 @@ def main():
 
     cases_fullfilling_citeria: list[Path] = []
     datum_uids: list[str] = []
-    for scan in tqdm(dataset_Path.iterdir(), desc="Filtering scans"):
+    for scan in tqdm(dataset_Path.iterdir(), desc="Filtering scans", n_total=len(list(dataset_Path.iterdir()))):
         if scan.name.endswith(".nii.gz"):
             if filter_mri_case(scan) is None:
                 continue
