@@ -28,6 +28,7 @@ def main():
             datum_uids.append(ingested_files_json[scan.name.split(".")[0]]["datum_id"])
 
     dataset_name = f"fiona_filtered_{ds_name}"
+    print(f"Data in new dataset: {len(cases_fullfilling_citeria)} of {len(ingested_files_json)}")
     owner = 5425
     req_resp = maybe_create_new_dataset_version(dataset_name, version=ver, files=datum_uids, owner=owner)
 
