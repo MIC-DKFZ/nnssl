@@ -5,14 +5,13 @@ import argparse
 from nnssl.dataset_conversion.filter_mris_all import filter_mri_case
 from nnssl.scripts.fine_grained_vh_inputs import get_valohai_series_dict
 from nnssl.scripts.valohai_requests import maybe_create_new_dataset_version
-from batchgenerators.utilities.file_and_folder_operations import load_json
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--version", type=str, required=True)
     parser.add_argument("--dataset_name", type=str, required=True)
-    args = parser.args()
+    args = parser.parse_args()
     ver = args.version
     ds_name = args.dataset_name
 
