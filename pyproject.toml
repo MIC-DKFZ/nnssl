@@ -51,7 +51,8 @@ dependencies = [
     "imagecodecs",
     "yacs",
     "valohai_utils",
-    "einops"
+    "einops",
+    "loguru"
 ]
 
 [project.urls]

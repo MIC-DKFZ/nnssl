@@ -12,26 +12,7 @@ from batchgenerators.utilities.file_and_folder_operations import save_json, load
 from loguru import logger
 import json
 
-MIN_FOV = (100, 100, 100)  # At least 10cm in each direction
-MAX_SPACING = 5  # At most 3mm in any direction
-
-
-def filter_mri_case(mri: Path, by_fov: bool = True, by_spacing: bool = True):
-    """Filter MRI by field of view and spacing."""
-    try:
-        im = sitk.ReadImage(mri)
-        spacing = im.GetSpacing()
-        if len(spacing) != 3:
-            return None
-        fov = im.GetWidth() * spacing[0], im.GetHeight() * spacing[1], im.GetDepth() * spacing[2]
-        if by_fov and any(f < MIN_FOV[i] for i, f in enumerate(fov)):
-            return None
-        if by_spacing and any(s >= MAX_SPACING for s in spacing):
-            return None
-
-        return mri
-    except:
-        return None
+from nnssl.dataset_conversion.filter_mris_all import filter_mri_case
 
 
 @dataclass
@@ -111,10 +92,41 @@ def create_local_series_dict() -> dict[str, dict]:
     return local_file_dict
 
 
-def get_valohai_series_dict() -> dict[str, dict]:
+# def find_all_files_recursively(meta_json: dict)-> dict[str, dict]:
+#     """
+#     Find all files recursively in the dataset. This is used to create the valohai dataset.
+#     """
+#     all_files = {}
+#     keys = meta_json.keys()
+#     if "files" in keys:
+#         for f in meta_json["files"]:
+#             filename = f["name"].split(".")[0]
+#             if filename.endswith(".nii.gz"):
+#                 all_files[filename] = f  # All meta infos.
+#     else:
+#         if isinstance(meta_json, dict):
+#             find_all_files_recursively(meta_json)
+
+#     for k, v in meta_json.items():
+#         if isinstance(v, dict):
+#             all_files += find_all_files_recursively(v)
+#         elif isinstance(v, list):
+#             for i in v:
+#                 all_files += find_all_files_recursively(i)
+#         else:
+#             if k == "path":
+#                 all_files.append(v)
+#     return all_files
+
+
+def get_valohai_series_dict(dataset_name: str = "dataset") -> dict[str, dict]:
+    """
+    Returns a mapping of valohai file names to all meta information as provided in System configuration inputs.json
+    https://docs.valohai.com/hc/en-us/articles/18704309491473-System-Configuration-Files
+    """
     inputs_json = load_json("/valohai/config/inputs.json")
     print(inputs_json)  # Just for logging purposes.
-    data_of_choice: list[dict] = inputs_json["dataset"]["files"]
+    data_of_choice: list[dict] = inputs_json[dataset_name]["files"]
     local_file_id_dict = {}
     for data in data_of_choice:
         name = data["name"]
@@ -131,15 +143,15 @@ def main():
     else:
         data_id_to_info_json = create_local_series_dict()
 
-    # all_pats: pd.DataFrame = get_meta_data_df()
-    all_pats: pd.DataFrame = get_mr150_data_df()
+    all_pats: pd.DataFrame = get_meta_data_df()
+    pats_150: pd.DataFrame = get_mr150_data_df()
 
-    if False: # not is_running_in_valohai():
+    if not is_running_in_valohai():
         logger.info("Checking for differences between the 150 patients and the full dataset.")
         pats_150_series = set(pats_150["seriesinstanceuid"].tolist())
         all_pats_series = set(all_pats["seriesinstanceuid"].tolist())
-        set_diff = pats_150_series - all_pats_series
-        set_inter = pats_150_series & all_pats_series
+        set_diff = pats_150_series.difference(all_pats_series)
+        set_inter = pats_150_series.intersection(all_pats_series)
         logger.info(f"Set diff: {len(set_diff)}")
         logger.info(f"Set inter: {len(set_inter)}")
 
@@ -167,7 +179,7 @@ def main():
         for pat in tqdm(pats, desc=f"{key}: Checking if cases are present and fulfill criteria."):
             if pat in data_id_to_info_json:
                 # If the MRI is in the present dataset, check if it fulfills our criteria.
-                if False: # not is_running_in_valohai():
+                if False:  # not is_running_in_valohai():
                     cur_name = data_id_to_info_json[pat]["name"].split(".")[0]
                     if cur_name in set_diff:
                         # logger.info(f"{cur_name} is only in the 150 dataset, not in the full on")
@@ -184,9 +196,9 @@ def main():
                     all_names.append(data_id_to_info_json[pat]["name"])
 
         logger.info(f"{len(all_files)/(len(pats)+1e-9):.2%} of the cases fulfill the criteria.")
-        #logger.info(f"Cases diff: {n_diff}")
-        #logger.info(f"Cases inter: {n_in_both_sets}")
-        #logger.info(f"Cases neither: {n_neither}")
+        # logger.info(f"Cases diff: {n_diff}")
+        # logger.info(f"Cases inter: {n_in_both_sets}")
+        # logger.info(f"Cases neither: {n_neither}")
         logger.info(f"Using {len(all_files)} cases for {key} of {len(pats)}.")
         n_total_used += len(all_files)
         if is_running_in_valohai():

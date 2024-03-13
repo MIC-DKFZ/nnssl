@@ -106,6 +106,10 @@ def maybe_create_new_dataset_version(
 ) -> dict:
     """
     Creates a new version of a dataset.
+
+    :arg dataset_name: The name of the dataset.
+    :arg version: The version of the dataset.
+    :arg files: `datum_id` of the files to be added to the dataset.
     """
     ds_id = maybe_create_new_valohai_dataset(dataset_name, owner)
 
