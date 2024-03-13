@@ -31,6 +31,7 @@ def main():
     print(f"Data in new dataset: {len(cases_fullfilling_citeria)} of {len(ingested_files_json)}")
     owner = 5425
     req_resp = maybe_create_new_dataset_version(dataset_name, version=ver, files=datum_uids, owner=owner)
+    print(req_resp.json())
 
 
 if __name__ == "__main__":
