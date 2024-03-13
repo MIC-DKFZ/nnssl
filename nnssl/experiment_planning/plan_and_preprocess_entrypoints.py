@@ -370,17 +370,19 @@ def plan_and_preprocess_entry():
         dataset_name = args.valohai_dataset_name
         compress_output = args.compress_output
         start_fresh = args.start_fresh
-        dataset_id = 737  # Always the same ID for valohai datasets!
-        prepare_preprocessing_paths_on_valohai(dataset_id)  # Would need adaptation for multi-datasets.
-
+        dataset_id_plain = 737  # Always the same ID for valohai datasets!
+        prepare_preprocessing_paths_on_valohai(dataset_id_plain)  # Would need adaptation for multi-datasets.
+        dataset_id = [dataset_id_plain]
+    else:
+        dataset_id = args.d
     # fingerprint extraction
     print("Fingerprint extraction...")
-    extract_fingerprints(args.d, args.fpe, args.npfp, args.verify_dataset_integrity, args.clean, args.verbose)
+    extract_fingerprints(dataset_id, args.fpe, args.npfp, args.verify_dataset_integrity, args.clean, args.verbose)
 
     # experiment planning
     print("Experiment planning...")
     plan_experiments(
-        args.d,
+        dataset_id,
         args.pl,
         args.gpu_memory_target,
         args.preprocessor_name,
@@ -397,7 +399,7 @@ def plan_and_preprocess_entry():
     # preprocessing
     if not args.no_pp:
         print("Preprocessing...")
-        preprocess(args.d, args.overwrite_plans_name, args.c, np, args.verbose)
+        preprocess(dataset_id, args.overwrite_plans_name, args.c, np, args.verbose)
 
     if is_running_in_valohai():
         meta_data_json = {
