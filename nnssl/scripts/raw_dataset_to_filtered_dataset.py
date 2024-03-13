@@ -25,7 +25,7 @@ def main():
             if filter_mri_case(scan) is None:
                 continue
             cases_fullfilling_citeria.append(scan)
-            datum_uids.append(ingested_files_json[scan.name])
+            datum_uids.append(ingested_files_json[scan.name.split(".")[0]]["datum_id"])
 
     dataset_name = f"fiona_filtered_{ds_name}"
     owner = 5425
