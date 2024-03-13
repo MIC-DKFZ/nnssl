@@ -16,6 +16,27 @@
       default: dataset://fiona_full_meta/v0
 
 
+- step:
+    name: filter_raw_dataset_to_clean_dataset
+    image: pytorch/pytorch:2.2.0-cuda12.1-cudnn8-runtime
+    command:
+      - pip install .
+      - python ./nnssl/scripts/raw_dataset_to_filtered_dataset.py {parameters}
+    parameters:
+    - name: dataset_name
+      description: Dataset that will will be preprocessed
+      pass-as: --dataset_name {v}
+      type: string
+    - name: dataset_version
+      description: Type of fingerprint to use
+      pass-as: --version {v}
+      type: string
+
+    inputs:
+    - name: raw-data
+      description: Dataset that will be preprocessed
+
+
 
 - step:
     name: plan_and_preprocess_dataset
