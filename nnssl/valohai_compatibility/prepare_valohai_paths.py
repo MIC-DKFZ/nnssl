@@ -41,7 +41,7 @@ def copy_to_target_and_maybe_decompress_files(path_to_content: str, target_path:
 
     # ----------------------- Decompress files to temp path ---------------------- #
     files_to_extract = [f for f in os.listdir(path_to_content) if f.endswith(".tar.gz")]
-    for file in tqdm(files_to_extract):
+    for file in tqdm(files_to_extract, desc="Decompressing files"):
         file_path = os.path.join(path_to_content, file)
         with tarfile.open(file_path, "r:gz") as tar:
             tar.extractall(target_path)
