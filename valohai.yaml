@@ -96,7 +96,7 @@
       pass-true-as: "--clean"
       pass-false-as: ""
     - name: Planner
-      default: ExperimentPlanner
+      default: FixedResEncUNetPlanner
       type: string
       pass-as: -pl {v}
     - name: gpu_memory_target
