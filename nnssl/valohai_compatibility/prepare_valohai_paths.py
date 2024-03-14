@@ -36,7 +36,7 @@ def get_broken_pp_identifiers(flat_path: str) -> list[str]:
     return broken_identifiers
 
 
-def move_to_target_and_maybe_decompress_files(path_to_content: str, target_path: str) -> None:
+def copy_to_target_and_maybe_decompress_files(path_to_content: str, target_path: str) -> None:
     """Decompress all files in the folder."""
 
     # ----------------------- Decompress files to temp path ---------------------- #
@@ -74,9 +74,12 @@ def prepare_training_paths_on_valohai():
         os.environ["nnssl_results"] = nnunet_results
 
         input_paths = os.path.join(INPUT_ROOT, "pp-data")
+        print(f"Copying/decompressing files from {input_paths} to {temp_pp_path}.")
         move_to_target_and_maybe_decompress_files(input_paths, temp_pp_path)
+        print(f"Removing broken files in {temp_pp_path}.")
         remove_broken_files_in_folder(temp_pp_path)
 
+        print(f"Moving files from {temp_pp_path} to {nnunet_pp}.")
         for file in os.listdir(temp_pp_path):
             cur_path = os.path.join(temp_pp_path, file)
             pp_file_path = file.split("__")
