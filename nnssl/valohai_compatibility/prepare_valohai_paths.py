@@ -41,14 +41,17 @@ def copy_to_target_and_maybe_decompress_files(path_to_content: str, target_path:
 
     # ----------------------- Decompress files to temp path ---------------------- #
     files_to_extract = [f for f in os.listdir(path_to_content) if f.endswith(".tar.gz")]
-    for file in files_to_extract:
+    for file in tqdm(files_to_extract):
         file_path = os.path.join(path_to_content, file)
         with tarfile.open(file_path, "r:gz") as tar:
             tar.extractall(target_path)
     # ------------------ Copy over files that are not compressed ----------------- #
     other_files = [f for f in os.listdir(path_to_content) if not f.endswith(".tar.gz")]
     for file in other_files:
-        shutil.copy(os.path.join(path_to_content, file), target_path)
+        try:
+            shutil.copy(os.path.join(path_to_content, file), target_path)
+        except shutil.SameFileError:
+            print(f"File {file} already exists in {target_path}. Skipping.")
 
     return target_path
 
@@ -75,7 +78,7 @@ def prepare_training_paths_on_valohai():
 
         input_paths = os.path.join(INPUT_ROOT, "pp-data")
         print(f"Copying/decompressing files from {input_paths} to {temp_pp_path}.")
-        move_to_target_and_maybe_decompress_files(input_paths, temp_pp_path)
+        copy_to_target_and_maybe_decompress_files(input_paths, temp_pp_path)
         print(f"Removing broken files in {temp_pp_path}.")
         remove_broken_files_in_folder(temp_pp_path)
 
