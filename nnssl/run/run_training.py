@@ -14,6 +14,7 @@ from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
 from nnssl.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
 from nnssl.utilities.find_class_by_name import recursive_find_python_class
 from torch.backends import cudnn
+from valohai.config import is_running_in_valohai
 
 from nnssl.valohai_compatibility.prepare_valohai_paths import (
     prepare_training_paths_on_valohai,
@@ -272,8 +273,9 @@ def run_training_entry():
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("dataset_name_or_id", type=str, help="Dataset name or ID to train with")
-    parser.add_argument("configuration", type=str, help="Configuration that should be trained")
+    if not is_running_in_valohai():
+        parser.add_argument("dataset_name_or_id", type=str, help="Dataset name or ID to train with")
+        parser.add_argument("configuration", type=str, help="Configuration that should be trained")
     parser.add_argument(
         "-tr",
         type=str,
@@ -357,7 +359,15 @@ def run_training_entry():
         "mps",
     ], f"-device must be either cpu, mps or cuda. Other devices are not tested/supported. Got: {args.device}."
 
-    prepare_training_paths_on_valohai()
+    # ------------------------------- Post Parsers ------------------------------- #
+    if is_running_in_valohai():
+        dataset_name = 737  # This is always the ID for all datasets. No differentiattion at all.
+        config = "3d_fullres"
+        prepare_training_paths_on_valohai()
+    else:
+        dataset_name = args.dataset_name_or_id
+        config = args.configuration
+
     assert (
         os.environ.get("nnssl_results") is not None
     ), "nnssl_results not set. Stopping as no outputs would be written otherwise."
@@ -377,8 +387,8 @@ def run_training_entry():
         device = torch.device("mps")
 
     run_training(
-        args.dataset_name_or_id,
-        args.configuration,
+        dataset_name,
+        config,
         "all",
         args.tr,
         args.p,
@@ -392,8 +402,8 @@ def run_training_entry():
         args.val_best,
         device=device,
     )
-
-    save_files_on_valohai(os.environ.get("nnssl_results"))
+    if is_running_in_valohai():
+        save_files_on_valohai(os.environ.get("nnssl_results"))
 
 
 if __name__ == "__main__":

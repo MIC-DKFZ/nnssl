@@ -1,3 +1,4 @@
+import tarfile
 import zipfile
 import numpy as np
 from valohai.config import is_running_in_valohai
@@ -35,33 +36,53 @@ def get_broken_pp_identifiers(flat_path: str) -> list[str]:
     return broken_identifiers
 
 
+def move_to_target_and_maybe_decompress_files(path_to_content: str, target_path: str) -> None:
+    """Decompress all files in the folder."""
+
+    # ----------------------- Decompress files to temp path ---------------------- #
+    files_to_extract = [f for f in os.listdir(path_to_content) if f.endswith(".tar.gz")]
+    for file in files_to_extract:
+        file_path = os.path.join(path_to_content, file)
+        with tarfile.open(file_path, "r:gz") as tar:
+            tar.extractall(target_path)
+    # ------------------ Copy over files that are not compressed ----------------- #
+    other_files = [f for f in os.listdir(path_to_content) if not f.endswith(".tar.gz")]
+    for file in other_files:
+        shutil.copy(os.path.join(path_to_content, file), target_path)
+
+    return target_path
+
+
+def remove_broken_files_in_folder(data_folder: str):
+    broken_files = get_broken_pp_identifiers(data_folder)
+    for f in broken_files:
+        os.remove(os.path.join(data_folder, f))
+    return
+
+
 def prepare_training_paths_on_valohai():
     if is_running_in_valohai():
         print("Preparing paths for preprocessing on Valohai.")
         INPUT_ROOT = get_inputs_path()
         nnunet_pp = os.path.join(INPUT_ROOT, "nnssl_preprocessed")
         nnunet_results = os.path.join(INPUT_ROOT, "nnssl_results")
+        temp_pp_path = os.path.join(INPUT_ROOT, "temp_pp")
+        Path(nnunet_pp).mkdir(exist_ok=True)
         Path(nnunet_pp).mkdir(exist_ok=True)
         Path(nnunet_results).mkdir(exist_ok=True)
         os.environ["nnssl_preprocessed"] = nnunet_pp
         os.environ["nnssl_results"] = nnunet_results
 
-        flat_inputs = os.path.join(INPUT_ROOT, "pp-data")
+        input_paths = os.path.join(INPUT_ROOT, "pp-data")
+        move_to_target_and_maybe_decompress_files(input_paths, temp_pp_path)
+        remove_broken_files_in_folder(temp_pp_path)
 
-        broken_files = get_broken_pp_identifiers(flat_inputs)
-        print("Found", len(broken_files) / 2, "broken files. Ignoring them.")
-
-        print(f"Copying over data from {flat_inputs} to {nnunet_pp}")
-        for file in os.listdir(flat_inputs):
-            if file in broken_files:
-                print("Skipping", file, "because it is broken.")
-                continue
-            cur_path = os.path.join(flat_inputs, file)
+        for file in os.listdir(temp_pp_path):
+            cur_path = os.path.join(temp_pp_path, file)
             pp_file_path = file.split("__")
             new_path = os.path.join(INPUT_ROOT, *pp_file_path)
             Path(new_path).parent.mkdir(exist_ok=True, parents=True)
             shutil.copy(cur_path, new_path)
-
     else:
         print("Not on valohai.")
         # Local paths are fine, no need to change anything.
