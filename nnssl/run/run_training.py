@@ -361,7 +361,7 @@ def run_training_entry():
 
     # ------------------------------- Post Parsers ------------------------------- #
     if is_running_in_valohai():
-        dataset_name = 737  # This is always the ID for all datasets. No differentiattion at all.
+        dataset_name = "737"  # This is always the ID for all datasets. No differentiattion at all.
         config = "3d_fullres"
         prepare_training_paths_on_valohai()
     else:
