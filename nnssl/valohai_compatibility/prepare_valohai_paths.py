@@ -177,17 +177,16 @@ def save_files_on_valohai(path_to_copy: str, meta_data_dict: dict | None = None,
             path_containing_outputs = get_outputs_path()
             samples_to_compress = os.listdir(path_containing_outputs)
             n_samples_in_path = len(samples_to_compress)
-            timestamp = datetime.datetime.now().strftime("%d,%H,%M,%S")
+            timestamp = datetime.datetime.now().strftime("%d_%H_%M_%S")
             filename = f"nnssl_pp_{n_samples_in_path}_{timestamp}"
             format = "gztar"
             print(f"Compressing {n_samples_in_path} samples to {filename}.{format}")
             shutil.make_archive(
-                base_name=filename,
+                base_name=os.path.join(path_containing_outputs, filename),
                 format=format,
                 root_dir=path_containing_outputs,
                 base_dir=None,
             )
-            shutil.move(f"{filename}.{format}", path_containing_outputs)
             print(f"Removing {n_samples_in_path} samples from {path_containing_outputs}.")
             [os.remove(os.path.join(path_containing_outputs, f)) for f in samples_to_compress]
             save_json(
