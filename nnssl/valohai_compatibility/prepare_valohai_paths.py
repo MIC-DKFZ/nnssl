@@ -24,7 +24,7 @@ def get_broken_pp_identifiers(flat_path: str) -> list[str]:
     """Get all identifiers that are used for preprocessing."""
     npzs = [f for f in os.listdir(flat_path) if f.endswith(".npz")]
     broken_identifiers = []
-    for npz in npzs:
+    for npz in tqdm(npzs, desc="Checking for broken files"):
         try:
             file = np.load(os.path.join(flat_path, npz), "r")
             for k in file.keys():
