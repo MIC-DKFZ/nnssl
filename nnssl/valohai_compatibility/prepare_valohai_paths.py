@@ -174,24 +174,24 @@ def save_files_on_valohai(path_to_copy: str, meta_data_dict: dict | None = None,
         else:
             for f in tqdm(all_files):
                 serialize_files_and_move_to_valohai_outputs(f)
-                path_containing_outputs = get_outputs_path()
-                samples_to_compress = os.listdir(path_containing_outputs)
-                n_samples_in_path = len(samples_to_compress)
-                timestamp = datetime.datetime.now().strftime("%d,%H,%M,%S")
-                filename = f"nnssl_preprocessed_{n_samples_in_path}_{timestamp}"
-                format = "gztar"
-                print(f"Compressing {n_samples_in_path} samples to {filename}.{format}")
-                shutil.make_archive(
-                    base_name=filename,
-                    format=format,
-                    base_dir=path_containing_outputs,
-                    root_dir=path_containing_outputs,
-                )
-                print(f"Removing {n_samples_in_path} samples from {path_containing_outputs}.")
-                [os.remove(os.path.join(path_containing_outputs, f)) for f in samples_to_compress]
-                save_json(
-                    meta_data_dict, os.path.join(path_containing_outputs, filename + f".{format}" + ".metadata.json")
-                )
+            path_containing_outputs = get_outputs_path()
+            samples_to_compress = os.listdir(path_containing_outputs)
+            n_samples_in_path = len(samples_to_compress)
+            timestamp = datetime.datetime.now().strftime("%d,%H,%M,%S")
+            filename = f"nnssl_pp_{n_samples_in_path}_{timestamp}"
+            format = "gztar"
+            print(f"Compressing {n_samples_in_path} samples to {filename}.{format}")
+            shutil.make_archive(
+                base_name=filename,
+                format=format,
+                root_dir=path_containing_outputs,
+                base_dir=None,
+            )
+            print(f"Removing {n_samples_in_path} samples from {path_containing_outputs}.")
+            [os.remove(os.path.join(path_containing_outputs, f)) for f in samples_to_compress]
+            save_json(
+                meta_data_dict, os.path.join(path_containing_outputs, filename + f".{format}" + ".metadata.json")
+            )
 
     else:
         # Do nothing
