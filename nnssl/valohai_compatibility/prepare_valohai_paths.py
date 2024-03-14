@@ -37,10 +37,13 @@ def get_broken_pp_identifiers(flat_path: str) -> list[str]:
 
 
 def copy_to_target_and_maybe_decompress_files(path_to_content: str, target_path: str) -> None:
-    """Decompress all files in the folder."""
+    """Decompress all files in the folder.
+    Return if files were compressed. If compressed we skip checking for broken files
+    """
 
     # ----------------------- Decompress files to temp path ---------------------- #
     files_to_extract = [f for f in os.listdir(path_to_content) if f.endswith(".tar.gz")]
+
     for file in tqdm(files_to_extract, desc="Decompressing files"):
         file_path = os.path.join(path_to_content, file)
         with tarfile.open(file_path, "r:gz") as tar:
@@ -53,7 +56,7 @@ def copy_to_target_and_maybe_decompress_files(path_to_content: str, target_path:
         except shutil.SameFileError:
             print(f"File {file} already exists in {target_path}. Skipping.")
 
-    return target_path
+    return len(files_to_extract) > 0
 
 
 def remove_broken_files_in_folder(data_folder: str):
@@ -78,9 +81,10 @@ def prepare_training_paths_on_valohai():
 
         input_paths = os.path.join(INPUT_ROOT, "pp-data")
         print(f"Copying/decompressing files from {input_paths} to {temp_pp_path}.")
-        copy_to_target_and_maybe_decompress_files(input_paths, temp_pp_path)
-        print(f"Removing broken files in {temp_pp_path}.")
-        remove_broken_files_in_folder(temp_pp_path)
+        is_zipped = copy_to_target_and_maybe_decompress_files(input_paths, temp_pp_path)
+        if not is_zipped:
+            print(f"Removing broken files in {temp_pp_path}.")
+            remove_broken_files_in_folder(temp_pp_path)
 
         print(f"Moving files from {temp_pp_path} to {nnunet_pp}.")
         for file in os.listdir(temp_pp_path):
