@@ -130,16 +130,6 @@
       - python ./nnssl/run/run_training.py {parameters}
       # - python ./fiona/nnssl/valohai_tester.py
     parameters:
-    - name: dataset_id
-      description: Dataset that will will be preprocessed
-      default: 737
-      type: string
-      pass-as: "{v}"
-    - name: configuration
-      description: Configuration to train
-      default: 3d_fullres
-      type: string
-      pass-as: "{v}"
     - name: trainer_class
       description: Trainer class
       default: BaseMAETrainer
