@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import asdict
 import inspect
+import json
 import os
 from random import sample
 import shutil
@@ -29,6 +30,7 @@ from nnssl.ssl_data.dataloading.data_loader_3d import nnsslDataLoader3D
 from nnssl.ssl_data.dataloading.nnssl_dataset import nnsslDataset
 from nnssl.ssl_data.dataloading.utils import get_case_identifiers, unpack_dataset
 from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
+from valohai.config import is_running_in_valohai
 
 from nnssl.training.logging.nnssl_logger import nnSSLLogger
 from nnssl.training.lr_scheduler.polylr import PolyLRScheduler
@@ -101,6 +103,8 @@ class AbstractBaseTrainer(ABC):
         self.dataset_json = dataset_json
         self.fold = fold
         self.unpack_dataset = unpack_dataset
+        if self.is_running_in_valohai():
+            self.current_epoch_log = {}
 
         # ----------------------- Setting all the folder names. ---------------------- #
         ###  We need to make sure things don't crash in case we are just running
@@ -536,6 +540,19 @@ class AbstractBaseTrainer(ABC):
 
         if self.local_rank == 0:
             self.logger.plot_progress_png(self.output_folder)
+
+        if is_running_in_valohai():
+            self.current_epoch_log["epoch"] = self.current_epoch
+            self.current_epoch_log["train_loss"] = self.logger.my_fantastic_logging["train_losses"][-1]
+            self.current_epoch_log["val_loss"] = self.logger.my_fantastic_logging["val_losses"][-1]
+            self.current_epoch_log["learning_rate"] = self.logger.my_fantastic_logging["lrs"][-1]
+            self.current_epoch_log["epoch_time"] = np.round(
+                self.logger.my_fantastic_logging["epoch_end_timestamps"][-1]
+                - self.logger.my_fantastic_logging["epoch_start_timestamps"][-1],
+                decimals=2,
+            )
+            print(json.dumps(self.current_epoch_log))
+            self.current_epoch_log = {}
 
         self.current_epoch += 1
 
