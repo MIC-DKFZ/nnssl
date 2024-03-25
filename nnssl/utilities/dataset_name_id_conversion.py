@@ -13,7 +13,7 @@
 #    limitations under the License.
 from typing import Union
 
-from nnssl.paths import nnssl_preprocessed, nnUNet_raw, nnssl_results
+from nnssl.paths import nnssl_preprocessed, nnssl_raw, nnssl_results
 from batchgenerators.utilities.file_and_folder_operations import *
 import numpy as np
 
@@ -25,8 +25,8 @@ def find_candidate_datasets(dataset_id: int):
     else:
         candidates_preprocessed = []
 
-    if nnUNet_raw is not None and isdir(nnUNet_raw):
-        candidates_raw = subdirs(nnUNet_raw, prefix=startswith, join=False)
+    if nnssl_raw is not None and isdir(nnssl_raw):
+        candidates_raw = subdirs(nnssl_raw, prefix=startswith, join=False)
     else:
         candidates_raw = []
 
@@ -44,7 +44,7 @@ def convert_id_to_dataset_name(dataset_id: int):
     if len(unique_candidates) > 1:
         raise RuntimeError(
             "More than one dataset name found for dataset id %d. Please correct that. (I looked in the "
-            "following folders:\n%s\n%s\n%s" % (dataset_id, nnUNet_raw, nnssl_preprocessed, nnssl_results)
+            "following folders:\n%s\n%s\n%s" % (dataset_id, nnssl_raw, nnssl_preprocessed, nnssl_results)
         )
     if len(unique_candidates) == 0:
         raise RuntimeError(
@@ -53,7 +53,7 @@ def convert_id_to_dataset_name(dataset_id: int):
             f"(see Documentation - Installation). Here are your currently defined folders:\n"
             f"nnssl_preprocessed={os.environ.get('nnssl_preprocessed') if os.environ.get('nnssl_preprocessed') is not None else 'None'}\n"
             f"nnssl_results={os.environ.get('nnssl_results') if os.environ.get('nnssl_results') is not None else 'None'}\n"
-            f"nnUNet_raw={os.environ.get('nnUNet_raw') if os.environ.get('nnUNet_raw') is not None else 'None'}\n"
+            f"nnssl_raw={os.environ.get('nnssl_raw') if os.environ.get('nnssl_raw') is not None else 'None'}\n"
             f"If something is not right, adapt your environment variables."
         )
     return unique_candidates[0]

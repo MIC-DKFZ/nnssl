@@ -3,13 +3,13 @@ import shutil
 from pathlib import Path
 
 from nnssl.dataset_conversion.generate_dataset_json import generate_dataset_json
-from nnssl.paths import nnUNet_raw
+from nnssl.paths import nnssl_raw
 
 
 def make_out_dirs(dataset_id: int, task_name="ACDC"):
     dataset_name = f"Dataset{dataset_id:03d}_{task_name}"
 
-    out_dir = Path(nnUNet_raw.replace('"', "")) / dataset_name
+    out_dir = Path(nnssl_raw.replace('"', "")) / dataset_name
     out_train_dir = out_dir / "imagesTr"
     out_labels_dir = out_dir / "labelsTr"
     out_test_dir = out_dir / "imagesTs"

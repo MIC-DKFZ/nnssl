@@ -11,7 +11,7 @@ from nnssl.experiment_planning.dataset_fingerprint.abstract_fingerprint_extracti
 from nnssl.experiment_planning.experiment_planners.default_experiment_planner import ExperimentPlanner
 from nnssl.experiment_planning.experiment_planners.plan import Plan
 from nnssl.experiment_planning.verify_dataset_integrity import verify_dataset_integrity
-from nnssl.paths import nnUNet_raw, nnssl_preprocessed
+from nnssl.paths import nnssl_raw, nnssl_preprocessed
 from nnssl.preprocessing.preprocessors.abstract_preprocessor import get_preprocessor
 
 if TYPE_CHECKING:
@@ -36,7 +36,7 @@ def extract_fingerprint_dataset(
     print(dataset_name)
 
     if check_dataset_integrity:
-        verify_dataset_integrity(join(nnUNet_raw, dataset_name), num_processes)
+        verify_dataset_integrity(join(nnssl_raw, dataset_name), num_processes)
 
     fingerprint = fingerprint_extractor(dataset_id, num_processes, verbose=verbose, overwrite_existing=clean)
     return fingerprint

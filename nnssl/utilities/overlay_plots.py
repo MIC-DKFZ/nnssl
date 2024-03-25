@@ -22,7 +22,7 @@ from batchgenerators.utilities.file_and_folder_operations import *
 from nnssl.configuration import default_num_processes
 from nnssl.imageio.base_reader_writer import BaseReaderWriter
 from nnssl.imageio.reader_writer_registry import determine_reader_writer_from_dataset_json
-from nnssl.paths import nnUNet_raw, nnssl_preprocessed
+from nnssl.paths import nnssl_raw, nnssl_preprocessed
 from nnssl.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
 from nnssl.utilities.utils import get_filenames_of_train_images
 
@@ -163,7 +163,7 @@ def generate_overlays_from_raw(
     channel_idx: int = 0,
 ):
     dataset_name = maybe_convert_to_dataset_name(dataset_name_or_id)
-    folder = join(nnUNet_raw, dataset_name)
+    folder = join(nnssl_raw, dataset_name)
     dataset_json = load_json(join(folder, "dataset.json"))
     dataset = get_filenames_of_train_images(folder, dataset_json)
 

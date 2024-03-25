@@ -4,7 +4,7 @@ from typing import Union
 from batchgenerators.utilities.file_and_folder_operations import join, isdir, isfile, load_json, subfiles, save_json
 
 from nnssl.imageio.reader_writer_registry import determine_reader_writer_from_dataset_json
-from nnssl.paths import nnssl_preprocessed, nnUNet_raw
+from nnssl.paths import nnssl_preprocessed, nnssl_raw
 from nnssl.utilities.file_path_utilities import maybe_convert_to_dataset_name
 from nnssl.utilities.plans_handling.plans_handler import PlansManager
 from nnssl.utilities.utils import get_filenames_of_train_images_and_targets
@@ -49,7 +49,7 @@ def move_plans_between_datasets(
                 source_plans["configurations"][c]["data_identifier"] = new_identifier
 
     # we need to change the reader writer class!
-    target_raw_data_dir = join(nnUNet_raw, target_dataset_name)
+    target_raw_data_dir = join(nnssl_raw, target_dataset_name)
     target_dataset_json = load_json(join(target_raw_data_dir, "dataset.json"))
 
     # we may need to change the reader/writer

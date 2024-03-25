@@ -14,7 +14,7 @@ from nnssl.configuration import ANISO_THRESHOLD
 from nnssl.experiment_planning.experiment_planners.network_topology import get_pool_and_conv_props
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.imageio.reader_writer_registry import determine_reader_writer_from_dataset_json
-from nnssl.paths import nnUNet_raw, nnssl_preprocessed
+from nnssl.paths import nnssl_raw, nnssl_preprocessed
 from nnssl.preprocessing.normalization.map_channel_name_to_normalization import get_normalization_scheme
 from nnssl.preprocessing.resampling.default_resampling import resample_data_or_seg_to_shape, compute_new_shape
 from nnssl.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
@@ -39,7 +39,7 @@ class ExperimentPlanner(object):
 
         self.dataset_name = maybe_convert_to_dataset_name(dataset_name_or_id)
         self.suppress_transpose = suppress_transpose
-        self.raw_dataset_folder = join(nnUNet_raw, self.dataset_name)
+        self.raw_dataset_folder = join(nnssl_raw, self.dataset_name)
         preprocessed_folder = join(nnssl_preprocessed, self.dataset_name)
         self.dataset_json = load_json(join(self.raw_dataset_folder, "dataset.json"))
         self.dataset_json["labels"] = {"background": "0"}

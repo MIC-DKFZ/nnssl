@@ -20,7 +20,7 @@ from batchgenerators.utilities.file_and_folder_operations import *
 import numpy as np
 import re
 
-from nnssl.paths import nnUNet_raw
+from nnssl.paths import nnssl_raw
 
 
 def get_filenames_of_train_images(raw_dataset_folder: str, dataset_json: dict = None):
@@ -49,4 +49,4 @@ def get_filenames_of_train_images(raw_dataset_folder: str, dataset_json: dict = 
 
 
 if __name__ == "__main__":
-    print(get_filenames_of_train_images(join(nnUNet_raw, "Dataset002_Heart")))
+    print(get_filenames_of_train_images(join(nnssl_raw, "Dataset002_Heart")))

@@ -114,7 +114,7 @@ if __name__ == "__main__":
         & (strong_magnet_df["inversion_recovery"].isna())
     ]
     pat_map: dict = load_json(
-        "/home/tassilowald/Data/Datasets/nnunetv2/nnUNet_raw/Dataset737_FloyPrototype/patient_id_mapping.json"
+        "/home/tassilowald/Data/Datasets/nnunetv2/nnssl_raw/Dataset737_FloyPrototype/patient_id_mapping.json"
     )
 
     # filtered_mris = filter_mris(mris, pat_map, meta_data_df, n_proc=1)

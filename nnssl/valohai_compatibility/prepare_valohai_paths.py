@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 import shutil
 from tqdm import tqdm
-from nnssl.paths import nnUNet_raw, nnssl_preprocessed
+from nnssl.paths import nnssl_raw, nnssl_preprocessed
 import SimpleITK as sitk
 import datetime
 
@@ -103,12 +103,12 @@ def prepare_preprocessing_paths_on_valohai(dataset_id: int):
     if is_running_in_valohai():
         print("Preparing paths for preprocessing on Valohai.")
         INPUT_ROOT = get_inputs_path()
-        nnunet_raw = os.path.join(INPUT_ROOT, "nnunet_raw")
-        nnunet_pp = os.path.join(INPUT_ROOT, "nnssl_preprocessed")
-        nnunet_results = os.path.join(INPUT_ROOT, "nnssl_results")
-        Path(nnunet_raw).mkdir(exist_ok=True)  # create the folder
-        Path(nnunet_pp).mkdir(exist_ok=True)
-        Path(nnunet_results).mkdir(exist_ok=True)
+        nnssl_raw = os.path.join(INPUT_ROOT, "nnssl_raw")
+        nnssl_pp = os.path.join(INPUT_ROOT, "nnssl_preprocessed")
+        nnssl_results = os.path.join(INPUT_ROOT, "nnssl_results")
+        Path(nnssl_raw).mkdir(exist_ok=True)  # create the folder
+        Path(nnssl_pp).mkdir(exist_ok=True)
+        Path(nnssl_results).mkdir(exist_ok=True)
 
         flat_inputs = os.path.join(INPUT_ROOT, "raw-data")
         dataset_json_filepath = os.path.join(flat_inputs, "dataset.json")
@@ -130,10 +130,10 @@ def prepare_preprocessing_paths_on_valohai(dataset_id: int):
         dataset_name = f"Dataset{int(dataset_id):03d}_XYZ".format(dataset_id)
 
         print("Dataset name:", dataset_name)
-        nnunet_raw_dataset = os.path.join(nnunet_raw, dataset_name)
+        nnunet_raw_dataset = os.path.join(nnssl_raw, dataset_name)
         print(f"Creating folder {nnunet_raw_dataset}.")
         Path(nnunet_raw_dataset).mkdir(exist_ok=True)
-        nnunet_raw_dataset_imgs = os.path.join(nnunet_raw, dataset_name, "imagesTr")
+        nnunet_raw_dataset_imgs = os.path.join(nnssl_raw, dataset_name, "imagesTr")
         Path(nnunet_raw_dataset_imgs).mkdir(exist_ok=True)
 
         files = [f for f in os.listdir(flat_inputs) if f.endswith(dataset_json["file_ending"])]
@@ -243,11 +243,11 @@ if __name__ == "__main__":
     os.environ["VH_JOB_ID"] = "1"  # Make it look like we are on valohai
     os.environ["VH_INPUTS_DIR"] = "/home/tassilowald/Data/pseudo_valohai/inputs"
     os.environ["VH_OUTPUTS_DIR"] = "/home/tassilowald/Data/pseudo_valohai/outputs"
-    os.environ["nnUNet_raw"] = "/home/tassilowald/Data/pseudo_valohai/pseudo_raw"
+    os.environ["nnssl_raw"] = "/home/tassilowald/Data/pseudo_valohai/pseudo_raw"
     os.environ["nnssl_preprocessed"] = "/home/tassilowald/Data/pseudo_valohai/pseudo_pp"
     os.environ["nnssl_results"] = "/home/tassilowald/Data/pseudo_valohai/pseudo_res"
     prepare_preprocessing_paths_on_valohai(1)
-    save_files_on_valohai(os.environ["nnUNet_raw"], {"some": "meta_data"})
-    print(nnUNet_raw)  # Make sure this is actually overwritten!
+    save_files_on_valohai(os.environ["nnssl_raw"], {"some": "meta_data"})
+    print(nnssl_raw)  # Make sure this is actually overwritten!
     print(nnssl_preprocessed)
     print("Done")

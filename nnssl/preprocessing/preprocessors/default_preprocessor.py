@@ -22,7 +22,7 @@ from batchgenerators.utilities.file_and_folder_operations import *
 
 
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
-from nnssl.paths import nnssl_preprocessed, nnUNet_raw
+from nnssl.paths import nnssl_preprocessed, nnssl_raw
 from nnssl.preprocessing.cropping.cropping import crop_to_nonzero
 from nnssl.preprocessing.normalization.normalization_schemes import apply_normalization
 from nnssl.preprocessing.resampling.default_resampling import compute_new_shape, get_resampling_scheme
@@ -128,7 +128,7 @@ def default_preprocess(
     that does not contain label information.
     """
     dataset_name = maybe_convert_to_dataset_name(dataset_name_or_id)
-    assert isdir(join(nnUNet_raw, dataset_name)), "The requested dataset could not be found in nnUNet_raw"
+    assert isdir(join(nnssl_raw, dataset_name)), "The requested dataset could not be found in nnssl_raw"
 
     plans_file = join(nnssl_preprocessed, dataset_name, plans_identifier + ".json")
     assert isfile(plans_file), (
@@ -153,7 +153,7 @@ def default_preprocess(
 
     maybe_mkdir_p(output_directory)
 
-    dataset = get_filenames_of_train_images(join(nnUNet_raw, dataset_name), dataset_json)
+    dataset = get_filenames_of_train_images(join(nnssl_raw, dataset_name), dataset_json)
 
     # identifiers = [os.path.basename(i[:-len(dataset_json['file_ending'])]) for i in seg_fnames]
     # output_filenames_truncated = [join(output_directory, i) for i in identifiers]

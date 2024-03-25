@@ -60,11 +60,11 @@ def save_mris(mris: list[Path], out_dir: Path):
 
 
 if __name__ == "__main__":
-    mris_dir = Path("/home/tassilowald/Data/Datasets/nnunetv2/nnUNet_raw/Dataset737_FloyPrototype")
-    out_dir = Path("/home/tassilowald/Data/Datasets/nnunetv2/nnUNet_raw/Dataset739_FloyPrototype_more_filtered")
+    mris_dir = Path("/home/tassilowald/Data/Datasets/nnunetv2/nnssl_raw/Dataset737_FloyPrototype")
+    out_dir = Path("/home/tassilowald/Data/Datasets/nnunetv2/nnssl_raw/Dataset739_FloyPrototype_more_filtered")
     meta_data_df: pd.DataFrame = pd.read_csv("/home/tassilowald/Data/Datasets/mr-head-150/mr_150_meta.csv")
     pat_map: dict = load_json(
-        "/home/tassilowald/Data/Datasets/nnunetv2/nnUNet_raw/Dataset737_FloyPrototype/patient_id_mapping.json"
+        "/home/tassilowald/Data/Datasets/nnunetv2/nnssl_raw/Dataset737_FloyPrototype/patient_id_mapping.json"
     )
     out_dir.mkdir(exist_ok=True)
     mris = list(mris_dir.glob("**/*.nii.gz"))

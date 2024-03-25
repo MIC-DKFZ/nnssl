@@ -5,7 +5,7 @@ from batchgenerators.utilities.file_and_folder_operations import load_json, join
 
 from nnssl.configuration import default_num_processes
 from nnssl.evaluation.evaluate_predictions import compute_metrics_on_folder
-from nnssl.paths import nnUNet_raw, nnssl_preprocessed
+from nnssl.paths import nnssl_raw, nnssl_preprocessed
 from nnssl.utilities.plans_handling.plans_handler import PlansManager
 
 
@@ -44,7 +44,7 @@ def accumulate_cv_results(trained_model_folder,
 
     if did_we_copy_something or not isfile(join(merged_output_folder, 'summary.json')):
         label_manager = plans_manager.get_label_manager(dataset_json)
-        gt_folder = join(nnUNet_raw, plans_manager.dataset_name, 'labelsTr')
+        gt_folder = join(nnssl_raw, plans_manager.dataset_name, 'labelsTr')
         if not isdir(gt_folder):
             gt_folder = join(nnssl_preprocessed, plans_manager.dataset_name, 'gt_segmentations')
         compute_metrics_on_folder(gt_folder,

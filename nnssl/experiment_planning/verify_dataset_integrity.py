@@ -24,7 +24,7 @@ from batchgenerators.utilities.file_and_folder_operations import *
 
 from nnssl.imageio.base_reader_writer import BaseReaderWriter
 from nnssl.imageio.reader_writer_registry import determine_reader_writer_from_dataset_json
-from nnssl.paths import nnUNet_raw
+from nnssl.paths import nnssl_raw
 from nnssl.utilities.utils import get_filenames_of_train_images
 
 
@@ -147,6 +147,6 @@ def verify_dataset_integrity(folder: str, num_processes: int = 8) -> None:
 
 if __name__ == "__main__":
     # investigate geometry issues
-    example_folder = join(nnUNet_raw, "Dataset250_COMPUTING_it0")
+    example_folder = join(nnssl_raw, "Dataset250_COMPUTING_it0")
     num_processes = 6
     verify_dataset_integrity(example_folder, num_processes)

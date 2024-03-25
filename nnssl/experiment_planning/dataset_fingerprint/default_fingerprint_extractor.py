@@ -8,7 +8,7 @@ import numpy as np
 from tqdm import tqdm
 
 from nnssl.imageio.reader_writer_registry import determine_reader_writer_from_dataset_json
-from nnssl.paths import nnUNet_raw, nnssl_preprocessed
+from nnssl.paths import nnssl_raw, nnssl_preprocessed
 from batchgenerators.utilities.file_and_folder_operations import load_json, join, save_json, isfile, maybe_mkdir_p
 from nnssl.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
 from nnssl.utilities.utils import get_filenames_of_train_images
@@ -31,7 +31,7 @@ def setup_dataset_fingerprint_extractor(
     """
 
     dataset_name = maybe_convert_to_dataset_name(dataset_name_or_id)
-    input_folder = join(nnUNet_raw, dataset_name)
+    input_folder = join(nnssl_raw, dataset_name)
     dataset_json = load_json(join(input_folder, "dataset.json"))
 
     dataset = get_filenames_of_train_images(input_folder, dataset_json)

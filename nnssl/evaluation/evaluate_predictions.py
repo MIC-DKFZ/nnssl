@@ -321,7 +321,7 @@ def evaluate_simple_entry_point():
 
 
 if __name__ == "__main__":
-    folder_ref = "/media/fabian/data/nnUNet_raw/Dataset004_Hippocampus/labelsTr"
+    folder_ref = "/media/fabian/data/nnssl_raw/Dataset004_Hippocampus/labelsTr"
     folder_pred = "/home/fabian/results/nnUNet_remake/Dataset004_Hippocampus/nnUNetModule__nnUNetPlans__3d_fullres/fold_0/validation"
     output_file = "/home/fabian/results/nnUNet_remake/Dataset004_Hippocampus/nnUNetModule__nnUNetPlans__3d_fullres/fold_0/validation/summary.json"
     image_reader_writer = SimpleITKIO()
