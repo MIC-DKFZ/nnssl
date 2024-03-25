@@ -406,7 +406,12 @@ def plan_and_preprocess_entry():
             "valohai.dataset-versions": [f"dataset://{dataset_name}/{version_name}"],
             "start_fresh": start_fresh,
         }
-        save_files_on_valohai(os.environ["nnssl_preprocessed"], meta_data_json, compress_output=compress_output)
+        save_files_on_valohai(
+            os.environ["nnssl_preprocessed"],
+            meta_data_json,
+            compress_output=compress_output,
+            identifier_tag=dataset_name,
+        )
 
 
 if __name__ == "__main__":

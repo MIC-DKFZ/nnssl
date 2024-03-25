@@ -191,7 +191,9 @@ def get_all_file_in_dir(dir_path: str) -> list[str]:
     return files
 
 
-def save_files_on_valohai(path_to_copy: str, meta_data_dict: dict | None = None, compress_output: bool = False):
+def save_files_on_valohai(
+    path_to_copy: str, meta_data_dict: dict | None = None, compress_output: bool = False, identifier_tag: str = None
+):
     """
     Takes all files that were written into the nnssl_preprocessed folder
     and serializes them to the valohai output folder (if running in valohai).
@@ -209,7 +211,10 @@ def save_files_on_valohai(path_to_copy: str, meta_data_dict: dict | None = None,
             samples_to_compress = os.listdir(path_containing_outputs)
             n_samples_in_path = len(samples_to_compress)
             timestamp = datetime.datetime.now().strftime("%d_%H_%M_%S")
-            filename = f"nnssl_pp_{n_samples_in_path}_{timestamp}"
+            if identifier_tag is None:
+                filename = f"nnssl_pp_{n_samples_in_path}_{timestamp}"
+            else:
+                filename = f"nnssl_pp_{identifier_tag}_{n_samples_in_path}_{timestamp}"
             format = "gztar"
             print(f"Compressing {n_samples_in_path} samples to {filename}.{format}")
             shutil.make_archive(
