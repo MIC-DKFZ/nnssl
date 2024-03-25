@@ -15,8 +15,12 @@ import datetime
 
 def file_is_3d(file: str) -> bool:
     """Check if the file is not a 4D file."""
-    im = sitk.ReadImage(file)
-    dim = sitk.GetArrayFromImage(im).ndim
+    try:
+        im = sitk.ReadImage(file)
+        dim = sitk.GetArrayFromImage(im).ndim
+    except:
+        # Might be non-orthonormal so we want to remove it as well!
+        return False
     return dim == 3
 
 
