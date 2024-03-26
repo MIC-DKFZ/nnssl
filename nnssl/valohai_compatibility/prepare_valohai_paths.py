@@ -70,8 +70,11 @@ def copy_to_target_and_maybe_decompress_files(path_to_content: str, target_path:
             decompress_file,
             [(os.path.join(path_to_content, f), target_path) for f in files_to_extract],
         )
+    # Remove the shitty .json files as they might be messed up from the MP decompression!
+    [os.remove(os.path.join(target_path, f)) for f in os.listdir(target_path) if f.endswith(".json")]
 
     # ------------------ Copy over files that are not compressed ----------------- #
+    # There should be a clean copy of the json also passed!
     other_files = [f for f in os.listdir(path_to_content) if not f.endswith(".tar.gz")]
     file_target_pairs = [(os.path.join(path_to_content, f), target_path) for f in other_files]
 
