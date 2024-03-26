@@ -58,6 +58,13 @@ def copy_files(file_path, target_path):
         print(f"File {file_path} already exists in {target_path}. Skipping.")
 
 
+def move_files(file_path, target_path):
+    try:
+        shutil.move(file_path, target_path)
+    except shutil.SameFileError:
+        print(f"File {file_path} already exists in {target_path}. Skipping.")
+
+
 def copy_to_target_and_maybe_decompress_files(path_to_content: str, target_path: str) -> None:
     """Decompress all files in the folder.
     Return if files were compressed. If compressed we skip checking for broken files
@@ -83,9 +90,9 @@ def copy_to_target_and_maybe_decompress_files(path_to_content: str, target_path:
 
     # TQDM Multiprocessing
     with multiprocessing.Pool(20) as p:
-        logger.info(f"Moving {len(files_to_extract)} files.")
-        p.starmap(copy_files, file_target_pairs)
-
+        logger.info(f"Moving {len(file_target_pairs)} files.")
+        p.starmap(move_files, file_target_pairs)
+    logger.info("Done moving files.")
     return len(files_to_extract) > 0
 
 
