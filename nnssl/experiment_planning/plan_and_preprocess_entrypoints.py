@@ -9,6 +9,7 @@ from nnssl.experiment_planning.dataset_fingerprint.abstract_fingerprint_extracti
 from nnssl.valohai_compatibility.prepare_valohai_paths import (
     prepare_preprocessing_paths_on_valohai,
     save_files_on_valohai,
+    save_plans_on_valohai,
 )
 
 
@@ -402,16 +403,27 @@ def plan_and_preprocess_entry():
         preprocess(dataset_id, args.overwrite_plans_name, args.c, np, args.verbose)
 
     if is_running_in_valohai():
-        meta_data_json = {
-            "valohai.dataset-versions": [f"dataset://{dataset_name}/{version_name}"],
-            "start_fresh": start_fresh,
+        plans_json = {
+            "valohai.dataset-versions": [f"dataset://{dataset_name}/plans_{version_name}"],
+            "start_fresh": True,  # We always start fresh for the plans
         }
-        save_files_on_valohai(
+        save_plans_on_valohai(
             os.environ["nnssl_preprocessed"],
-            meta_data_json,
-            compress_output=compress_output,
+            plans_json,
             identifier_tag=dataset_name,
         )
+        # We only save a new version of the dataset if we actually preprocessed it.
+        if not args.no_pp:
+            meta_data_json = {
+                "valohai.dataset-versions": [f"dataset://{dataset_name}/{version_name}"],
+                "start_fresh": start_fresh,
+            }
+            save_files_on_valohai(
+                os.environ["nnssl_preprocessed"],
+                meta_data_json,
+                compress_output=compress_output,
+                identifier_tag=dataset_name,
+            )
 
 
 if __name__ == "__main__":

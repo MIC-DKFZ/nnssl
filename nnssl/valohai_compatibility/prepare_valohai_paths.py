@@ -184,7 +184,7 @@ def prepare_preprocessing_paths_on_valohai(dataset_id: int):
         pass
 
 
-def serialize_files_and_move_to_valohai_outputs(some_file_path: str, meta_data_dict: dict | None = None):
+def serialize_files_and_move_to_valohai_outputs(some_file_path: str, meta_data_dict: dict | None = None) -> str:
     """
     Takes a file, removes the data structure and saves it encoded into the output folder.
     This can then be easily reverted in next step and when loading.
@@ -198,7 +198,7 @@ def serialize_files_and_move_to_valohai_outputs(some_file_path: str, meta_data_d
     shutil.copy(some_file_path, out_filepath)
     if meta_data_dict is not None:
         save_json(meta_data_dict, out_filepath + ".metadata.json")
-
+    return out_filepath
 
 def get_all_file_in_dir(dir_path: str) -> list[str]:
     """Get all path files to the files in the directory and subdirectories."""
@@ -212,6 +212,27 @@ def get_all_file_in_dir(dir_path: str) -> list[str]:
         else:
             files += get_all_file_in_dir(f)
     return files
+
+
+def save_plans_on_valohai(
+    path_to_copy: str,
+    meta_data_dict: dict | None = None,
+    identifier_tag: str = None,
+):
+    if is_running_in_valohai():
+        pp_path = path_to_copy
+        all_files = get_all_file_in_dir(pp_path)
+        all_files = [f for f in all_files if f.endswith("plans.json")]
+        if identifier_tag is None:
+            filename = f"nnssl_pp_plan_{timestamp}"
+        else:
+            filename = f"nnssl_pp_{identifier_tag}_plan_{timestamp}"
+
+        # Save the plans files
+        for f in tqdm(all_files):
+            out_file_path = serialize_files_and_move_to_valohai_outputs(f)
+            timestamp = datetime.datetime.now().strftime("%d_%H_%M_%S")
+            save_json(meta_data_dict, out_file_path + ".metadata.json")
 
 
 def save_files_on_valohai(
@@ -238,18 +259,19 @@ def save_files_on_valohai(
                 filename = f"nnssl_pp_{n_samples_in_path}_{timestamp}"
             else:
                 filename = f"nnssl_pp_{identifier_tag}_{n_samples_in_path}_{timestamp}"
-            format = "gztar"
-            print(f"Compressing {n_samples_in_path} samples to {filename}.{format}")
+            compress_format = "gztar"
+            print(f"Compressing {n_samples_in_path} samples to {filename}.{compress_format}")
             shutil.make_archive(
                 base_name=os.path.join(path_containing_outputs, filename),
-                format=format,
+                format=compress_format,
                 root_dir=path_containing_outputs,
                 base_dir=None,
             )
             print(f"Removing {n_samples_in_path} samples from {path_containing_outputs}.")
             [os.remove(os.path.join(path_containing_outputs, f)) for f in samples_to_compress]
             save_json(
-                meta_data_dict, os.path.join(path_containing_outputs, filename + f".{format}" + ".metadata.json")
+                meta_data_dict,
+                os.path.join(path_containing_outputs, filename + f".{compress_format}" + ".metadata.json"),
             )
 
     else:
