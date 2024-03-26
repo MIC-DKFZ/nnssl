@@ -44,8 +44,11 @@ def get_broken_pp_identifiers(flat_path: str) -> list[str]:
 
 
 def decompress_file(file_path, target_path):
-    with tarfile.open(file_path, "r:gz") as tar:
-        tar.extractall(target_path)
+    try:
+        with tarfile.open(file_path, "r:gz") as tar:
+            tar.extractall(target_path)
+    except:
+        print(f"Failed to decompress {file_path} to {target_path}.")
 
 
 def copy_files(file_path, target_path):
