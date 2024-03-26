@@ -91,7 +91,7 @@ def copy_to_target_and_maybe_decompress_files(path_to_content: str, target_path:
     # TQDM Multiprocessing
     with multiprocessing.Pool(20) as p:
         logger.info(f"Moving {len(file_target_pairs)} files.")
-        p.starmap(move_files, file_target_pairs)
+        p.starmap(copy_files, file_target_pairs)
     logger.info("Done moving files.")
     return len(files_to_extract) > 0
 
