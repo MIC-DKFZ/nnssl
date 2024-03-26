@@ -96,27 +96,26 @@ def prepare_training_paths_on_valohai():
         INPUT_ROOT = get_inputs_path()
         nnunet_pp = os.path.join(INPUT_ROOT, "nnssl_preprocessed")
         nnunet_results = os.path.join(INPUT_ROOT, "nnssl_results")
-        # temp_pp_path = os.path.join(INPUT_ROOT, "temp_pp")
-        Path(nnunet_pp).mkdir(exist_ok=True)
+        temp_pp_path = os.path.join(INPUT_ROOT, "temp_pp")
         Path(nnunet_pp).mkdir(exist_ok=True)
         Path(nnunet_results).mkdir(exist_ok=True)
         os.environ["nnssl_preprocessed"] = nnunet_pp
         os.environ["nnssl_results"] = nnunet_results
 
         input_paths = os.path.join(INPUT_ROOT, "pp-data")
-        print(f"Copying/decompressing files from {input_paths} to {nnunet_pp}.")
-        is_zipped = copy_to_target_and_maybe_decompress_files(input_paths, nnunet_pp)
+        print(f"Copying/decompressing files from {input_paths} to {temp_pp_path}.")
+        is_zipped = copy_to_target_and_maybe_decompress_files(input_paths, temp_pp_path)
         if not is_zipped:
-            print(f"Removing broken files in {nnunet_pp}.")
-            remove_broken_files_in_folder(nnunet_pp)
+            print(f"Removing broken files in {temp_pp_path}.")
+            remove_broken_files_in_folder(temp_pp_path)
 
         # print(f"Moving files from {temp_pp_path} to {nnunet_pp}.")
-        # for file in os.listdir(temp_pp_path):
-        #     cur_path = os.path.join(temp_pp_path, file)
-        #     pp_file_path = file.split("__")
-        #     new_path = os.path.join(INPUT_ROOT, *pp_file_path)
-        #     Path(new_path).parent.mkdir(exist_ok=True, parents=True)
-        #     shutil.copy(cur_path, new_path)
+        for file in os.listdir(temp_pp_path):
+            cur_path = os.path.join(temp_pp_path, file)
+            pp_file_path = file.split("__")
+            new_path = os.path.join(INPUT_ROOT, *pp_file_path)
+            Path(new_path).parent.mkdir(exist_ok=True, parents=True)
+            shutil.copy(cur_path, new_path)
     else:
         print("Not on valohai.")
         # Local paths are fine, no need to change anything.
