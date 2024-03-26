@@ -410,7 +410,6 @@ def plan_and_preprocess_entry():
         save_plans_on_valohai(
             os.environ["nnssl_preprocessed"],
             plans_json,
-            identifier_tag=dataset_name,
         )
         # We only save a new version of the dataset if we actually preprocessed it.
         if not args.no_pp:
