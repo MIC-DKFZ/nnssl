@@ -542,15 +542,15 @@ class AbstractBaseTrainer(ABC):
             self.logger.plot_progress_png(self.output_folder)
 
         if is_running_in_valohai():
-            self.current_epoch_log["epoch"] = self.current_epoch
-            self.current_epoch_log["train_loss"] = self.logger.my_fantastic_logging["train_losses"][-1]
-            self.current_epoch_log["val_loss"] = self.logger.my_fantastic_logging["val_losses"][-1]
-            self.current_epoch_log["learning_rate"] = self.logger.my_fantastic_logging["lrs"][-1]
-            self.current_epoch_log["epoch_time"] = np.round(
+            self.current_epoch_log["epoch"] = int(self.current_epoch)
+            self.current_epoch_log["train_loss"] = float(self.logger.my_fantastic_logging["train_losses"][-1])
+            self.current_epoch_log["val_loss"] = float(self.logger.my_fantastic_logging["val_losses"][-1])
+            self.current_epoch_log["learning_rate"] = float(self.logger.my_fantastic_logging["lrs"][-1])
+            self.current_epoch_log["epoch_time"] = float(np.round(
                 self.logger.my_fantastic_logging["epoch_end_timestamps"][-1]
                 - self.logger.my_fantastic_logging["epoch_start_timestamps"][-1],
                 decimals=2,
-            )
+            ))
             print(json.dumps(self.current_epoch_log))
             self.current_epoch_log = {}
 
