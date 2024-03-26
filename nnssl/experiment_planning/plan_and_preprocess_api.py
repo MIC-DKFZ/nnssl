@@ -87,9 +87,11 @@ def plan_experiment_dataset(
         dataset_id,
         gpu_memory_target_in_gb=gpu_memory_target_in_gb,
         preprocessor_name=preprocess_class_name,
-        overwrite_target_spacing=[float(i) for i in overwrite_target_spacing]
-        if overwrite_target_spacing is not None
-        else overwrite_target_spacing,
+        overwrite_target_spacing=(
+            [float(i) for i in overwrite_target_spacing]
+            if overwrite_target_spacing is not None
+            else overwrite_target_spacing
+        ),
         suppress_transpose=False,  # might expose this later,
         **kwargs,
     ).plan_experiment()

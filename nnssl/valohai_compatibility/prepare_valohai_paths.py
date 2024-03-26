@@ -222,7 +222,8 @@ def save_plans_on_valohai(
     if is_running_in_valohai():
         pp_path = path_to_copy
         all_files = get_all_file_in_dir(pp_path)
-        all_files = [f for f in all_files if f.endswith("plans.json")]
+        all_files = [f for f in all_files if f.endswith(".json")]
+        print(f"Found {len(all_files)} plans files.")
 
         # Save the plans files
         for f in tqdm(all_files):
