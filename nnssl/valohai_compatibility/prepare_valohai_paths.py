@@ -11,6 +11,7 @@ from tqdm import tqdm
 from nnssl.paths import nnssl_raw, nnssl_preprocessed
 import SimpleITK as sitk
 import datetime
+import multiprocessing
 
 
 def file_is_3d(file: str) -> bool:
@@ -40,6 +41,11 @@ def get_broken_pp_identifiers(flat_path: str) -> list[str]:
     return broken_identifiers
 
 
+def decompress_file(file_path, target_path):
+    with tarfile.open(file_path, "r:gz") as tar:
+        tar.extractall(target_path)
+
+
 def copy_to_target_and_maybe_decompress_files(path_to_content: str, target_path: str) -> None:
     """Decompress all files in the folder.
     Return if files were compressed. If compressed we skip checking for broken files
@@ -48,10 +54,17 @@ def copy_to_target_and_maybe_decompress_files(path_to_content: str, target_path:
     # ----------------------- Decompress files to temp path ---------------------- #
     files_to_extract = [f for f in os.listdir(path_to_content) if f.endswith(".tar.gz")]
 
+    pool = multiprocessing.Pool(processes=8)
+    results = []
     for file in tqdm(files_to_extract, desc="Decompressing files"):
         file_path = os.path.join(path_to_content, file)
-        with tarfile.open(file_path, "r:gz") as tar:
-            tar.extractall(target_path)
+        results.append(pool.apply_async(decompress_file, (file_path, target_path)))
+
+    pool.close()
+    pool.join()
+
+    for result in results:
+        result.get()
     # ------------------ Copy over files that are not compressed ----------------- #
     other_files = [f for f in os.listdir(path_to_content) if not f.endswith(".tar.gz")]
     for file in other_files:
