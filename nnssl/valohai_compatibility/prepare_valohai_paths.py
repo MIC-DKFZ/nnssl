@@ -13,6 +13,7 @@ import SimpleITK as sitk
 import datetime
 import multiprocessing
 from tqdm.contrib.concurrent import process_map
+from loguru import logger
 
 
 def file_is_3d(file: str) -> bool:
@@ -63,19 +64,21 @@ def copy_to_target_and_maybe_decompress_files(path_to_content: str, target_path:
     files_to_extract = [f for f in os.listdir(path_to_content) if f.endswith(".tar.gz")]
 
     # TQDM Multiprocessing
-    process_map(
-        decompress_file,
-        [(os.path.join(path_to_content, f), target_path) for f in files_to_extract],
-        max_workers=8,
-        desc="Decompressing files",
-    )
+    with multiprocessing.Pool(8) as p:
+        logger.info(f"Decompressing {len(files_to_extract)} files.")
+        p.starmap(
+            decompress_file,
+            [(os.path.join(path_to_content, f), target_path) for f in files_to_extract],
+        )
 
     # ------------------ Copy over files that are not compressed ----------------- #
     other_files = [f for f in os.listdir(path_to_content) if not f.endswith(".tar.gz")]
     file_target_pairs = [(os.path.join(path_to_content, f), target_path) for f in other_files]
 
     # TQDM Multiprocessing
-    process_map(copy_files, file_target_pairs, max_workers=8, desc="Copying files")
+    with multiprocessing.Pool(8) as p:
+        logger.info(f"Moving {len(files_to_extract)} files.")
+        p.starmap(copy_files, file_target_pairs)
 
     return len(files_to_extract) > 0
 
