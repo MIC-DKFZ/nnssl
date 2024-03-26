@@ -12,6 +12,7 @@ from nnssl.paths import nnssl_raw, nnssl_preprocessed
 import SimpleITK as sitk
 import datetime
 import multiprocessing
+from tqdm.contrib.concurrent import process_map
 
 
 def file_is_3d(file: str) -> bool:
@@ -46,6 +47,13 @@ def decompress_file(file_path, target_path):
         tar.extractall(target_path)
 
 
+def copy_files(file_path, target_path):
+    try:
+        shutil.copy(file_path, target_path)
+    except shutil.SameFileError:
+        print(f"File {file_path} already exists in {target_path}. Skipping.")
+
+
 def copy_to_target_and_maybe_decompress_files(path_to_content: str, target_path: str) -> None:
     """Decompress all files in the folder.
     Return if files were compressed. If compressed we skip checking for broken files
@@ -54,24 +62,20 @@ def copy_to_target_and_maybe_decompress_files(path_to_content: str, target_path:
     # ----------------------- Decompress files to temp path ---------------------- #
     files_to_extract = [f for f in os.listdir(path_to_content) if f.endswith(".tar.gz")]
 
-    pool = multiprocessing.Pool(processes=8)
-    results = []
-    for file in tqdm(files_to_extract, desc="Decompressing files"):
-        file_path = os.path.join(path_to_content, file)
-        results.append(pool.apply_async(decompress_file, (file_path, target_path)))
+    # TQDM Multiprocessing
+    process_map(
+        decompress_file,
+        [(os.path.join(path_to_content, f), target_path) for f in files_to_extract],
+        max_workers=8,
+        desc="Decompressing files",
+    )
 
-    pool.close()
-    pool.join()
-
-    for result in results:
-        result.get()
     # ------------------ Copy over files that are not compressed ----------------- #
     other_files = [f for f in os.listdir(path_to_content) if not f.endswith(".tar.gz")]
-    for file in other_files:
-        try:
-            shutil.copy(os.path.join(path_to_content, file), target_path)
-        except shutil.SameFileError:
-            print(f"File {file} already exists in {target_path}. Skipping.")
+    file_target_pairs = [(os.path.join(path_to_content, f), target_path) for f in other_files]
+
+    # TQDM Multiprocessing
+    process_map(copy_files, file_target_pairs, max_workers=8, desc="Copying files")
 
     return len(files_to_extract) > 0
 
@@ -89,7 +93,7 @@ def prepare_training_paths_on_valohai():
         INPUT_ROOT = get_inputs_path()
         nnunet_pp = os.path.join(INPUT_ROOT, "nnssl_preprocessed")
         nnunet_results = os.path.join(INPUT_ROOT, "nnssl_results")
-        temp_pp_path = os.path.join(INPUT_ROOT, "temp_pp")
+        # temp_pp_path = os.path.join(INPUT_ROOT, "temp_pp")
         Path(nnunet_pp).mkdir(exist_ok=True)
         Path(nnunet_pp).mkdir(exist_ok=True)
         Path(nnunet_results).mkdir(exist_ok=True)
@@ -97,19 +101,19 @@ def prepare_training_paths_on_valohai():
         os.environ["nnssl_results"] = nnunet_results
 
         input_paths = os.path.join(INPUT_ROOT, "pp-data")
-        print(f"Copying/decompressing files from {input_paths} to {temp_pp_path}.")
-        is_zipped = copy_to_target_and_maybe_decompress_files(input_paths, temp_pp_path)
+        print(f"Copying/decompressing files from {input_paths} to {nnunet_pp}.")
+        is_zipped = copy_to_target_and_maybe_decompress_files(input_paths, nnunet_pp)
         if not is_zipped:
-            print(f"Removing broken files in {temp_pp_path}.")
-            remove_broken_files_in_folder(temp_pp_path)
+            print(f"Removing broken files in {nnunet_pp}.")
+            remove_broken_files_in_folder(nnunet_pp)
 
-        print(f"Moving files from {temp_pp_path} to {nnunet_pp}.")
-        for file in os.listdir(temp_pp_path):
-            cur_path = os.path.join(temp_pp_path, file)
-            pp_file_path = file.split("__")
-            new_path = os.path.join(INPUT_ROOT, *pp_file_path)
-            Path(new_path).parent.mkdir(exist_ok=True, parents=True)
-            shutil.copy(cur_path, new_path)
+        # print(f"Moving files from {temp_pp_path} to {nnunet_pp}.")
+        # for file in os.listdir(temp_pp_path):
+        #     cur_path = os.path.join(temp_pp_path, file)
+        #     pp_file_path = file.split("__")
+        #     new_path = os.path.join(INPUT_ROOT, *pp_file_path)
+        #     Path(new_path).parent.mkdir(exist_ok=True, parents=True)
+        #     shutil.copy(cur_path, new_path)
     else:
         print("Not on valohai.")
         # Local paths are fine, no need to change anything.
