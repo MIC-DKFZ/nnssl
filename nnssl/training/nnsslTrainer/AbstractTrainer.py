@@ -103,7 +103,7 @@ class AbstractBaseTrainer(ABC):
         self.dataset_json = dataset_json
         self.fold = fold
         self.unpack_dataset = unpack_dataset
-        if self.is_running_in_valohai():
+        if is_running_in_valohai():
             self.current_epoch_log = {}
 
         # ----------------------- Setting all the folder names. ---------------------- #
