@@ -159,7 +159,7 @@ def prepare_training_paths_on_valohai():
 
 def prepare_preprocessing_paths_on_valohai(dataset_id: int):
     if is_running_in_valohai():
-        print("Preparing paths for preprocessing on Valohai.")
+        logger.info("Preparing paths for preprocessing on Valohai.")
         INPUT_ROOT = get_inputs_path()
         nnssl_raw = os.path.join(INPUT_ROOT, "nnssl_raw")
         nnssl_pp = os.path.join(INPUT_ROOT, "nnssl_preprocessed")
@@ -182,20 +182,20 @@ def prepare_preprocessing_paths_on_valohai(dataset_id: int):
                 "numTraining": 0,
                 "release": "0.0",
             }
-        print(f"Looking for files ending on {dataset_json['file_ending']} in {flat_inputs}.")
-        print(f"Found {len(os.listdir(flat_inputs))}")
+        logger.info(f"Looking for files ending on {dataset_json['file_ending']} in {flat_inputs}.")
+        logger.info(f"Found {len(os.listdir(flat_inputs))}")
 
         dataset_name = f"Dataset{int(dataset_id):03d}_XYZ".format(dataset_id)
 
-        print("Dataset name:", dataset_name)
+        logger.info("Dataset name:", dataset_name)
         nnunet_raw_dataset = os.path.join(nnssl_raw, dataset_name)
-        print(f"Creating folder {nnunet_raw_dataset}.")
+        logger.info(f"Creating folder {nnunet_raw_dataset}.")
         Path(nnunet_raw_dataset).mkdir(exist_ok=True)
         nnunet_raw_dataset_imgs = os.path.join(nnssl_raw, dataset_name, "imagesTr")
         Path(nnunet_raw_dataset_imgs).mkdir(exist_ok=True)
 
         files = [f for f in os.listdir(flat_inputs) if f.endswith(dataset_json["file_ending"])]
-        print(f"Found {len(files)} files ... Copying them to {nnunet_raw_dataset_imgs}.")
+        logger.info(f"Found {len(files)} files ... Copying them to {nnunet_raw_dataset_imgs}.")
         # Move raw-data files over.
         not_3d_files = []
         for f in files:
@@ -207,14 +207,14 @@ def prepare_preprocessing_paths_on_valohai(dataset_id: int):
             else:
                 f_target = f
             shutil.copy(os.path.join(flat_inputs, f), os.path.join(nnunet_raw_dataset_imgs, f_target))
-        print("Found", len(not_3d_files), "files that are not 3D. Ignoring them.")
-        print(f"Moved {len(os.listdir(nnunet_raw_dataset_imgs))} files to {nnunet_raw_dataset_imgs}")
+        logger.info("Found", len(not_3d_files), "files that are not 3D. Ignoring them.")
+        logger.info(f"Moved {len(os.listdir(nnunet_raw_dataset_imgs))} files to {nnunet_raw_dataset_imgs}")
         dataset_json["numTraining"] = len(os.listdir(nnunet_raw_dataset_imgs))
         # Adapt number of training cases accordingly.
         save_json(dataset_json, os.path.join(nnunet_raw_dataset, "dataset.json"))
 
     else:
-        print("Not on valohai.")
+        logger.info("Not on valohai.")
         # Local paths are fine, no need to change anything.
         pass
 
