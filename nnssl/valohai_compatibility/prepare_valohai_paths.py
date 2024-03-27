@@ -41,6 +41,7 @@ def get_broken_pp_identifiers(flat_path: str) -> list[str]:
         except zipfile.BadZipFile:
             broken_identifiers.append(npz)
             broken_identifiers.append(npz[:-4] + ".pkl")
+    logger.info("Found ", len(broken_identifiers), "broken files.")
     return broken_identifiers
 
 

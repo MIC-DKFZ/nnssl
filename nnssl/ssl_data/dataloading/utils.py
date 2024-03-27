@@ -123,11 +123,16 @@ def unpack_dataset(
             _convert_to_npy,
             zip(npz_files, [unpack_segmentation] * len(npz_files), [overwrite_existing] * len(npz_files)),
         )
-    npys = subfiles(folder, True, None, ".npy", True)
-    npzs = subfiles(folder, True, None, ".npz", True)
 
     if is_running_in_valohai():
-        logger.info(f"Have {len(npys)} images remaining after unpacking; {len(npzs)} npz's remaining.")
+        n_npys = len(subfiles(folder, True, None, ".npy", True))
+        n_pkl = len(subfiles(folder, True, None, ".pkl", True))
+        n_json = len(subfiles(folder, True, None, ".json", True))
+        n_npzs = len(subfiles(folder, True, None, ".npz", True))
+        logger.info(
+            f"Total of {n_npys+n_pkl+n_json+n_npzs} images \n NPY: {n_npys}; NPZ: {n_npzs}; PKL: {n_pkl}; JSON: {n_json} npz's remaining."
+        )
+
         logger.info(f"Allocated Space in /valohai/inputs: {measure_allocated_space_in_path(folder)} GB")
 
 
