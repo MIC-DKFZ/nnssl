@@ -48,6 +48,10 @@ def decompress_file(file_path, target_path):
     try:
         with tarfile.open(file_path, "r:gz") as tar:
             tar.extractall(target_path)
+            try:
+                os.remove(file_path)
+            except Exception as e:
+                logger.error("Welp, tried with os.remove but also doesn't work, so remove here")
     except Exception as e:
         logger.warning(f"Failed to decompress {file_path} to {target_path}.")
         logger.error(str(e))
