@@ -54,6 +54,7 @@ def decompress_file(file_path, target_path):
 
 def copy_files(file_path, target_path):
     try:
+        Path(target_path).parent.mkdir
         shutil.copy(file_path, target_path)
     except shutil.SameFileError:
         logger.warning(f"File {file_path} already exists in {target_path}. Skipping.")
@@ -61,6 +62,7 @@ def copy_files(file_path, target_path):
 
 def move_files(file_path, target_path):
     try:
+        Path(target_path).parent.mkdir
         shutil.move(file_path, target_path)
     except shutil.SameFileError:
         logger.warning(f"File {file_path} already exists in {target_path}. Skipping.")
