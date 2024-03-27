@@ -48,8 +48,9 @@ def decompress_file(file_path, target_path):
     try:
         with tarfile.open(file_path, "r:gz") as tar:
             tar.extractall(target_path)
-    except:
+    except Exception as e:
         logger.warning(f"Failed to decompress {file_path} to {target_path}.")
+        logger.error(str(e))
 
 
 def copy_files(file_path, target_path):
