@@ -121,8 +121,11 @@ def unpack_dataset(
             _convert_to_npy,
             zip(npz_files, [unpack_segmentation] * len(npz_files), [overwrite_existing] * len(npz_files)),
         )
-    logger.info(f"Have {len(subfiles(folder, True, None, ".npy", True))} images remaining after unpacking.")
-    logger.info(f"Sanity check: {len(subfiles(folder, True, None, ".npz", True))} npz's remaining.")
+    npys = subfiles(folder, True, None, ".npy", True)
+    npzs = subfiles(folder, True, None, ".npz", True)
+
+    logger.info(f"Have {len(npys)} images remaining after unpacking.")
+    logger.info(f"Sanity check: {len(npzs)} npz's remaining.")
 
 
 def get_case_identifiers(folder: str) -> List[str]:
