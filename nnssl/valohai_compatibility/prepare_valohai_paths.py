@@ -120,7 +120,7 @@ def measure_free_diskspace(path: str) -> int:
 
 def mp_move_files(source_path, target_path, n_processes=21):
     src_target_pairs: list[tuple[str, str]] = []
-    for file in os.listdir(source_path):
+    for file in set(os.listdir(source_path)):  # Only unique files
         cur_path = os.path.join(source_path, file)
         pp_file_path = file.split("__")
         new_path = os.path.join(target_path, *pp_file_path)
@@ -132,7 +132,7 @@ def mp_move_files(source_path, target_path, n_processes=21):
 
 def mp_copy_files(source_path, target_path, n_processes=21):
     src_target_pairs: list[tuple[str, str]] = []
-    for file in os.listdir(source_path):
+    for file in set(os.listdir(source_path)):
         cur_path = os.path.join(source_path, file)
         pp_file_path = file.split("__")
         new_path = os.path.join(target_path, *pp_file_path)
