@@ -21,6 +21,7 @@ from batchgenerators.transforms.abstract_transforms import AbstractTransform, Co
 from batchgenerators.transforms.utility_transforms import NumpyToTensor
 from torch import autocast
 from nnssl.utilities.helpers import dummy_context
+import valohai
 
 from nnssl.utilities.default_n_proc_DA import get_allowed_n_proc_DA
 import numpy as np
@@ -65,7 +66,7 @@ class BaseMAETrainer(AbstractBaseTrainer, ABC):
         self.batch_size: int = 1
         self.im_output_folder = os.path.join(self.output_folder, "img_log")
         os.makedirs(self.im_output_folder, exist_ok=True)
-        self.save_imgs_every_n_epochs = 25
+        self.save_imgs_every_n_epochs = 50
 
     def initialize(self):
         super().initialize()
@@ -244,10 +245,14 @@ class BaseMAETrainer(AbstractBaseTrainer, ABC):
         ax[3].imshow((np.abs(img - reco) * 255.0).astype(np.uint8), cmap="gray")
 
         plt.title(f"Loss: {float(loss):.05f}")
-        plt.savefig(os.path.join(self.im_output_folder, filename))
-        plt.close()
         if is_running_in_valohai():
-            pass
+            out_path = valohai().outputs().path(filename)
+            plt.savefig(out_path)
+            plt.close()
+            valohai.outputs().live_upload(filename)  # Live update
+        else:
+            plt.savefig(os.path.join(self.im_output_folder, filename))
+            plt.close()
 
     @staticmethod
     def rescale_images(
