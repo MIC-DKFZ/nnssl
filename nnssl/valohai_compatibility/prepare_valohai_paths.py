@@ -69,11 +69,11 @@ def copy_del_files(file_path, target_path):
                 shutil.copy(file_path, target_path)
                 shutil.rmtree(file_path)
             else:
-                logger.warning(f"File {target_path} does not exist.")
+                logger.warning(f"Target path {target_path} does not exist.")
         else:
-            logger.warning(f"File {file_path} does not exist.")
-    except shutil.SameFileError:
-        logger.warning(f"File {file_path} already exists in {target_path}. Skipping.")
+            logger.warning(f"Src file: {file_path} does not exist.")
+    except Exception as e:
+        logger.error("Some error occured:", e)
 
 
 def move_files(file_path, target_path):
