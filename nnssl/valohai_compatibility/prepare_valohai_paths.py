@@ -80,6 +80,7 @@ def copy_to_target_and_maybe_decompress_files(path_to_content: str, target_path:
     # TQDM Multiprocessing
     with multiprocessing.Pool(21) as p:
         logger.info(f"Decompressing {len(files_to_extract)} files.")
+        os.mkdir(target_path)  # Make sure the path exists already.
         p.starmap(
             decompress_file,
             [(os.path.join(path_to_content, f), target_path) for f in files_to_extract],
