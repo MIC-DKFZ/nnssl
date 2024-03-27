@@ -63,9 +63,15 @@ def copy_files(file_path, target_path):
 
 def copy_del_files(file_path, target_path):
     try:
-        Path(target_path).parent.mkdir
-        shutil.copy(file_path, target_path)
-        shutil.rmtree(file_path)
+        Path(target_path).parent.mkdir(parents=True, exist_ok=True)
+        if os.path.exists(file_path):
+            if os.path.exists(target_path):
+                shutil.copy(file_path, target_path)
+                shutil.rmtree(file_path)
+            else:
+                logger.warning(f"File {target_path} does not exist.")
+        else:
+            logger.warning(f"File {file_path} does not exist.")
     except shutil.SameFileError:
         logger.warning(f"File {file_path} already exists in {target_path}. Skipping.")
 
