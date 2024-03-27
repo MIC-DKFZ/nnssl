@@ -62,24 +62,25 @@ def copy_files(file_path, target_path):
 
 
 def copy_del_files(file_path, target_path):
-    try:
-        target_dir = Path(target_path).parent
-        target_dir.mkdir(exist_ok=True, parents=True)
-        if os.path.exists(file_path):
-            if os.path.exists(target_dir):
+
+    target_dir = Path(target_path).parent
+    target_dir.mkdir(exist_ok=True, parents=True)
+    if os.path.exists(file_path):
+        if os.path.exists(target_dir):
+            try:
                 shutil.copy(file_path, target_path)
                 try:
                     shutil.rmtree(file_path)
                 except Exception as e:
                     logger.warning(f"Failed to remove {file_path}.")
                     logger.error(str(e))
-            else:
-                logger.warning(f"Target path {target_path} does not exist.")
+            except Exception as e:
+                logger.error("Some error occured:")
+                logger.error(str(e))
         else:
-            logger.warning(f"Src file: {file_path} does not exist.")
-    except Exception as e:
-        logger.error("Some error occured:")
-        logger.error(str(e))
+            logger.warning(f"Target path {target_path} does not exist.")
+    else:
+        logger.warning(f"Src file: {file_path} does not exist.")
 
 
 def move_files(file_path, target_path):
