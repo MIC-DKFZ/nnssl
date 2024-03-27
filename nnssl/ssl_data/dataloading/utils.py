@@ -8,6 +8,7 @@ from warnings import warn
 import numpy as np
 from batchgenerators.utilities.file_and_folder_operations import isfile, subfiles
 from nnssl.configuration import default_num_processes
+from valohai.config import is_running_in_valohai
 
 
 def find_broken_image_and_labels(
@@ -18,7 +19,7 @@ def find_broken_image_and_labels(
     If so, the case id is added to the respective set and returned for potential fixing.
 
     :path_to_data_dir: Path/str to the preprocessed directory containing the npys and npzs.
-    :returns: Tuple of a set containing the case ids of the broken npy images and a set of the case ids of broken npy segmentations. 
+    :returns: Tuple of a set containing the case ids of the broken npy images and a set of the case ids of broken npy segmentations.
     """
     content = os.listdir(path_to_data_dir)
     unique_ids = [c[:-4] for c in content if c.endswith(".npz")]
@@ -40,7 +41,7 @@ def find_broken_image_and_labels(
 
 
 def try_fix_broken_npy(path_do_data_dir: Path, case_ids: set[str], fix_image: bool):
-    """ 
+    """
     Receives broken case ids and tries to fix them by re-extracting the npz file (up to 5 times).
 
     :param case_ids: Set of case ids that are broken.
@@ -59,9 +60,7 @@ def try_fix_broken_npy(path_do_data_dir: Path, case_ids: set[str], fix_image: bo
                 break
             except ValueError:
                 if i == 4:
-                    raise ValueError(
-                        f"Could not unpack {case_id + suffix} after 5 tries!"
-                    )
+                    raise ValueError(f"Could not unpack {case_id + suffix} after 5 tries!")
                 continue
 
 
@@ -92,9 +91,12 @@ def _convert_to_npy(npz_file: str, unpack_segmentation: bool = True, overwrite_e
     try:
         a = np.load(npz_file)  # inexpensive, no compression is done here. This just reads metadata
         if overwrite_existing or not isfile(npz_file[:-3] + "npy"):
-            np.save(npz_file[:-3] + "npy", a['data'])
+            np.save(npz_file[:-3] + "npy", a["data"])
         if unpack_segmentation and (overwrite_existing or not isfile(npz_file[:-4] + "_seg.npy")):
-            np.save(npz_file[:-4] + "_seg.npy", a['seg'])
+            np.save(npz_file[:-4] + "_seg.npy", a["seg"])
+        # Remote npz to save space if on Valohai!
+        if is_running_in_valohai():
+            os.remove(npz_file)
     except KeyboardInterrupt:
         if isfile(npz_file[:-3] + "npy"):
             os.remove(npz_file[:-3] + "npy")
@@ -103,26 +105,32 @@ def _convert_to_npy(npz_file: str, unpack_segmentation: bool = True, overwrite_e
         raise KeyboardInterrupt
 
 
-def unpack_dataset(folder: str, unpack_segmentation: bool = False, overwrite_existing: bool = False,
-                   num_processes: int = default_num_processes):
+def unpack_dataset(
+    folder: str,
+    unpack_segmentation: bool = False,
+    overwrite_existing: bool = False,
+    num_processes: int = default_num_processes,
+):
     """
     all npz files in this folder belong to the dataset, unpack them all
     """
     with multiprocessing.get_context("spawn").Pool(num_processes) as p:
         npz_files = subfiles(folder, True, None, ".npz", True)
-        p.starmap(_convert_to_npy, zip(npz_files,
-                                       [unpack_segmentation] * len(npz_files),
-                                       [overwrite_existing] * len(npz_files))
-                  )
+        p.starmap(
+            _convert_to_npy,
+            zip(npz_files, [unpack_segmentation] * len(npz_files), [overwrite_existing] * len(npz_files)),
+        )
 
 
 def get_case_identifiers(folder: str) -> List[str]:
     """
     finds all npz files in the given folder and reconstructs the training case names from them
     """
-    case_identifiers = [i[:-4] for i in os.listdir(folder) if i.endswith("npz") and (i.find("segFromPrevStage") == -1)]
+    case_identifiers = [
+        i[:-4] for i in os.listdir(folder) if i.endswith("npz") and (i.find("segFromPrevStage") == -1)
+    ]
     return case_identifiers
 
 
-if __name__ == '__main__':
-    unpack_dataset('/media/fabian/data/nnssl_preprocessed/Dataset002_Heart/2d')
+if __name__ == "__main__":
+    unpack_dataset("/media/fabian/data/nnssl_preprocessed/Dataset002_Heart/2d")
