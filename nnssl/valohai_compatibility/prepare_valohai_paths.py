@@ -196,19 +196,19 @@ def prepare_training_paths_on_valohai():
             remove_broken_files_in_folder(temp_pp_path)
         logger.info(f"Total space used in {temp_pp_path}: {measure_allocated_space_in_path(temp_pp_path)} GB")
 
-        logger.info(f"Move files from {temp_pp_path} to {nnunet_pp}.")
-        mp_move_files(temp_pp_path, INPUT_ROOT)
+        logger.info(f"Copy files from {temp_pp_path} to {nnunet_pp}.")
+        mp_copy_del_files(temp_pp_path, INPUT_ROOT)
         # for file in os.listdir(temp_pp_path):
         #     cur_path = os.path.join(temp_pp_path, file)
         #     pp_file_path = file.split("__")
         #     new_path = os.path.join(INPUT_ROOT, *pp_file_path)
         #     Path(new_path).parent.mkdir(exist_ok=True, parents=True)
         #     shutil.move(cur_path, new_path)
-        logger.info(f"Removing temp dir: {temp_pp_path}")
-        shutil.rmtree(temp_pp_path)
+        # logger.info(f"Removing temp dir: {temp_pp_path}")
+        # shutil.rmtree(temp_pp_path)
 
-        logger.info(f"Total space used in {temp_pp_path}: {measure_allocated_space_in_path(temp_pp_path)} GB")
-        logger.info(f"Total space free: {measure_free_diskspace(temp_pp_path)} GB")
+        logger.info(f"Total space used in {INPUT_ROOT}: {measure_allocated_space_in_path(INPUT_ROOT)} GB")
+        logger.info(f"Total space free: {measure_free_diskspace(INPUT_ROOT)} GB")
 
     else:
         logger.info("Not on valohai.")
