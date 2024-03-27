@@ -49,21 +49,21 @@ def decompress_file(file_path, target_path):
         with tarfile.open(file_path, "r:gz") as tar:
             tar.extractall(target_path)
     except:
-        print(f"Failed to decompress {file_path} to {target_path}.")
+        logger.warning(f"Failed to decompress {file_path} to {target_path}.")
 
 
 def copy_files(file_path, target_path):
     try:
         shutil.copy(file_path, target_path)
     except shutil.SameFileError:
-        print(f"File {file_path} already exists in {target_path}. Skipping.")
+        logger.warning(f"File {file_path} already exists in {target_path}. Skipping.")
 
 
 def move_files(file_path, target_path):
     try:
         shutil.move(file_path, target_path)
     except shutil.SameFileError:
-        print(f"File {file_path} already exists in {target_path}. Skipping.")
+        logger.warning(f"File {file_path} already exists in {target_path}. Skipping.")
 
 
 def copy_to_target_and_maybe_decompress_files(path_to_content: str, target_path: str) -> None:
@@ -258,7 +258,7 @@ def save_plans_on_valohai(
         pp_path = path_to_copy
         all_files = get_all_file_in_dir(pp_path)
         all_files = [f for f in all_files if f.endswith(".json")]
-        print(f"Found {len(all_files)} plans files.")
+        logger.info(f"Found {len(all_files)} plans files.")
 
         # Save the plans files
         for f in tqdm(all_files):
@@ -291,14 +291,14 @@ def save_files_on_valohai(
             else:
                 filename = f"nnssl_pp_{identifier_tag}_{n_samples_in_path}_{timestamp}"
             compress_format = "gztar"
-            print(f"Compressing {n_samples_in_path} samples to {filename}.{compress_format}")
+            logger.info(f"Compressing {n_samples_in_path} samples to {filename}.{compress_format}")
             shutil.make_archive(
                 base_name=os.path.join(path_containing_outputs, filename),
                 format=compress_format,
                 root_dir=path_containing_outputs,
                 base_dir=None,
             )
-            print(f"Removing {n_samples_in_path} samples from {path_containing_outputs}.")
+            logger.info(f"Removing {n_samples_in_path} samples from {path_containing_outputs}.")
             [os.remove(os.path.join(path_containing_outputs, f)) for f in samples_to_compress]
             save_json(
                 meta_data_dict,
@@ -326,4 +326,4 @@ if __name__ == "__main__":
     save_files_on_valohai(os.environ["nnssl_raw"], {"some": "meta_data"})
     print(nnssl_raw)  # Make sure this is actually overwritten!
     print(nnssl_preprocessed)
-    print("Done")
+    logger.info("Done")
