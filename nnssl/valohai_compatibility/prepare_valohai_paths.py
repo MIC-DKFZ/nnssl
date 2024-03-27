@@ -89,13 +89,13 @@ def copy_to_target_and_maybe_decompress_files(path_to_content: str, target_path:
 
     # ------------------ Copy over files that are not compressed ----------------- #
     # There should be a clean copy of the json also passed!
-    other_files = [f for f in os.listdir(path_to_content) if not f.endswith(".tar.gz")]
+    other_files = list(set([f for f in os.listdir(path_to_content) if not f.endswith(".tar.gz")]))
     file_target_pairs = [(os.path.join(path_to_content, f), target_path) for f in other_files]
 
     # TQDM Multiprocessing
     with multiprocessing.Pool(21) as p:
         logger.info(f"Moving {len(file_target_pairs)} files.")
-        p.starmap(copy_files, file_target_pairs)
+        p.starmap(move_files, file_target_pairs)
     logger.info("Done moving files.")
     return len(files_to_extract) > 0
 
@@ -123,6 +123,9 @@ def mp_move_files(source_path, target_path, n_processes=21):
     src_target_pairs: list[tuple[str, str]] = []
     for file in set(os.listdir(source_path)):  # Only unique files
         cur_path = os.path.join(source_path, file)
+        if not os.path.exists(cur_path):
+            logger.warning("File does not exist:", cur_path)
+            continue
         pp_file_path = file.split("__")
         new_path = os.path.join(target_path, *pp_file_path)
         src_target_pairs.append((cur_path, new_path))
@@ -135,6 +138,9 @@ def mp_copy_files(source_path, target_path, n_processes=21):
     src_target_pairs: list[tuple[str, str]] = []
     for file in set(os.listdir(source_path)):
         cur_path = os.path.join(source_path, file)
+        if not os.path.exists(cur_path):
+            logger.warning("File does not exist:", cur_path)
+            continue
         pp_file_path = file.split("__")
         new_path = os.path.join(target_path, *pp_file_path)
         src_target_pairs.append((cur_path, new_path))
