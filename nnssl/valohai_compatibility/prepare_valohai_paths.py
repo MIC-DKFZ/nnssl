@@ -70,7 +70,7 @@ def copy_del_files(file_path, target_path):
             try:
                 shutil.copy(file_path, target_path)
                 try:
-                    shutil.rmtree(file_path)
+                    os.remove(file_path)
                 except Exception as e:
                     logger.warning(f"Failed to remove {file_path}.")
                     logger.error(str(e))
