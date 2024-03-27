@@ -65,6 +65,7 @@ class BaseMAETrainer(AbstractBaseTrainer, ABC):
         self.batch_size: int = 1
         self.im_output_folder = os.path.join(self.output_folder, "img_log")
         os.makedirs(self.im_output_folder, exist_ok=True)
+        self.save_imgs_every_n_epochs = 25
 
     def initialize(self):
         super().initialize()
@@ -355,7 +356,7 @@ class BaseMAETrainer(AbstractBaseTrainer, ABC):
                 self.on_validation_epoch_end(val_outputs)
 
                 # ------------------------ Maybe Log qualitative recon ----------------------- #
-                if (self.current_epoch + 1) % 10 == 0:
+                if (self.current_epoch + 1) % self.save_imgs_every_n_epochs == 0:
                     self.log_qualitative_reconstruction_step()
 
             self.on_epoch_end()
