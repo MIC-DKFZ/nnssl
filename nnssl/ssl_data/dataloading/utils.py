@@ -11,6 +11,8 @@ from nnssl.configuration import default_num_processes
 from valohai.config import is_running_in_valohai
 from loguru import logger
 
+from nnssl.valohai_compatibility.prepare_valohai_paths import measure_allocated_space_in_path
+
 
 def find_broken_image_and_labels(
     path_to_data_dir: str | Path,
@@ -124,8 +126,9 @@ def unpack_dataset(
     npys = subfiles(folder, True, None, ".npy", True)
     npzs = subfiles(folder, True, None, ".npz", True)
 
-    logger.info(f"Have {len(npys)} images remaining after unpacking.")
-    logger.info(f"Sanity check: {len(npzs)} npz's remaining.")
+    if is_running_in_valohai():
+        logger.info(f"Have {len(npys)} images remaining after unpacking; {len(npzs)} npz's remaining.")
+        logger.info(f"Allocated Space in /valohai/inputs: {measure_allocated_space_in_path(folder)} GB")
 
 
 def get_case_identifiers(folder: str) -> List[str]:
