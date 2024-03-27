@@ -61,6 +61,15 @@ def copy_files(file_path, target_path):
         logger.warning(f"File {file_path} already exists in {target_path}. Skipping.")
 
 
+def copy_del_files(file_path, target_path):
+    try:
+        Path(target_path).parent.mkdir
+        shutil.copy(file_path, target_path)
+        shutil.rmtree(file_path)
+    except shutil.SameFileError:
+        logger.warning(f"File {file_path} already exists in {target_path}. Skipping.")
+
+
 def move_files(file_path, target_path):
     try:
         Path(target_path).parent.mkdir
@@ -148,6 +157,21 @@ def mp_copy_files(source_path, target_path, n_processes=21):
     logger.debug(f"Moving {len(src_target_pairs)} Files")
     with multiprocessing.Pool(n_processes) as p:
         p.starmap(copy_files, src_target_pairs)
+
+
+def mp_copy_del_files(source_path, target_path, n_processes=21):
+    src_target_pairs: list[tuple[str, str]] = []
+    for file in set(os.listdir(source_path)):
+        cur_path = os.path.join(source_path, file)
+        if not os.path.exists(cur_path):
+            logger.warning("File does not exist:", cur_path)
+            continue
+        pp_file_path = file.split("__")
+        new_path = os.path.join(target_path, *pp_file_path)
+        src_target_pairs.append((cur_path, new_path))
+    logger.debug(f"Moving {len(src_target_pairs)} Files")
+    with multiprocessing.Pool(n_processes) as p:
+        p.starmap(copy_del_files, src_target_pairs)
 
 
 def prepare_training_paths_on_valohai():
