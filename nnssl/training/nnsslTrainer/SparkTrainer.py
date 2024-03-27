@@ -148,6 +148,20 @@ class SparkMAETrainer(BaseMAETrainer):
         return
 
 
+class SparkMAETrainer5ep(SparkMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        self.num_epochs = 5
+
+
 class SparkMAETrainer2k(SparkMAETrainer):
     def __init__(
         self,
