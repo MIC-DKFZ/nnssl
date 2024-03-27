@@ -14,6 +14,7 @@ import datetime
 import multiprocessing
 from tqdm.contrib.concurrent import process_map
 from loguru import logger
+import shutil
 
 
 def file_is_3d(file: str) -> bool:
@@ -74,7 +75,7 @@ def copy_to_target_and_maybe_decompress_files(path_to_content: str, target_path:
     files_to_extract = [f for f in os.listdir(path_to_content) if f.endswith(".tar.gz")]
 
     # TQDM Multiprocessing
-    with multiprocessing.Pool(20) as p:
+    with multiprocessing.Pool(21) as p:
         logger.info(f"Decompressing {len(files_to_extract)} files.")
         p.starmap(
             decompress_file,
@@ -89,7 +90,7 @@ def copy_to_target_and_maybe_decompress_files(path_to_content: str, target_path:
     file_target_pairs = [(os.path.join(path_to_content, f), target_path) for f in other_files]
 
     # TQDM Multiprocessing
-    with multiprocessing.Pool(20) as p:
+    with multiprocessing.Pool(21) as p:
         logger.info(f"Moving {len(file_target_pairs)} files.")
         p.starmap(copy_files, file_target_pairs)
     logger.info("Done moving files.")
@@ -101,6 +102,18 @@ def remove_broken_files_in_folder(data_folder: str):
     for f in broken_files:
         os.remove(os.path.join(data_folder, f))
     return
+
+
+def measure_allocated_space_in_path(path: str) -> str:
+    """Measure the allocated space in the path in GB."""
+    _, used, _ = shutil.disk_usage(path)
+    return str(f"{used / (2**30):.2f}")
+
+
+def measure_free_diskspace(path: str) -> int:
+    """Measure the free space in the path."""
+    _, _, free = shutil.disk_usage(path)
+    return str(f"{free / (2**30):.2f}")
 
 
 def prepare_training_paths_on_valohai():
@@ -121,14 +134,16 @@ def prepare_training_paths_on_valohai():
         if not is_zipped:
             print(f"Removing broken files in {temp_pp_path}.")
             remove_broken_files_in_folder(temp_pp_path)
+        logger.info(f"Total space used in {temp_pp_path}: {measure_allocated_space_in_path(temp_pp_path)}")
 
-        # print(f"Moving files from {temp_pp_path} to {nnunet_pp}.")
+        logger.info(f"Copying files from {temp_pp_path} to {nnunet_pp}.")
         for file in os.listdir(temp_pp_path):
             cur_path = os.path.join(temp_pp_path, file)
             pp_file_path = file.split("__")
             new_path = os.path.join(INPUT_ROOT, *pp_file_path)
             Path(new_path).parent.mkdir(exist_ok=True, parents=True)
             shutil.copy(cur_path, new_path)
+
     else:
         print("Not on valohai.")
         # Local paths are fine, no need to change anything.
