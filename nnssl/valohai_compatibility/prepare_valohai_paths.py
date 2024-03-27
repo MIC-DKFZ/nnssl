@@ -116,6 +116,30 @@ def measure_free_diskspace(path: str) -> int:
     return str(f"{free / (2**30):.2f}")
 
 
+def mp_move_files(source_path, target_path, n_processes=21):
+    src_target_pairs: list[tuple[str, str]] = []
+    for file in os.listdir(source_path):
+        cur_path = os.path.join(source_path, file)
+        pp_file_path = file.split("__")
+        new_path = os.path.join(target_path, *pp_file_path)
+        src_target_pairs.append((cur_path, new_path))
+    logger.debug(f"Moving {len(src_target_pairs)} Files")
+    with multiprocessing.Pool(n_processes) as p:
+        p.starmap(move_files, src_target_pairs)
+
+
+def mp_copy_files(source_path, target_path, n_processes=21):
+    src_target_pairs: list[tuple[str, str]] = []
+    for file in os.listdir(source_path):
+        cur_path = os.path.join(source_path, file)
+        pp_file_path = file.split("__")
+        new_path = os.path.join(target_path, *pp_file_path)
+        src_target_pairs.append((cur_path, new_path))
+    logger.debug(f"Moving {len(src_target_pairs)} Files")
+    with multiprocessing.Pool(n_processes) as p:
+        p.starmap(copy_files, src_target_pairs)
+
+
 def prepare_training_paths_on_valohai():
     if is_running_in_valohai():
         logger.info("Preparing paths for preprocessing on Valohai.")
@@ -139,17 +163,18 @@ def prepare_training_paths_on_valohai():
         logger.info(f"Total space used in {temp_pp_path}: {measure_allocated_space_in_path(temp_pp_path)} GB")
 
         logger.info(f"Move files from {temp_pp_path} to {nnunet_pp}.")
-        for file in os.listdir(temp_pp_path):
-            cur_path = os.path.join(temp_pp_path, file)
-            pp_file_path = file.split("__")
-            new_path = os.path.join(INPUT_ROOT, *pp_file_path)
-            Path(new_path).parent.mkdir(exist_ok=True, parents=True)
-            shutil.move(cur_path, new_path)
+        mp_move_files(temp_pp_path, INPUT_ROOT)
+        # for file in os.listdir(temp_pp_path):
+        #     cur_path = os.path.join(temp_pp_path, file)
+        #     pp_file_path = file.split("__")
+        #     new_path = os.path.join(INPUT_ROOT, *pp_file_path)
+        #     Path(new_path).parent.mkdir(exist_ok=True, parents=True)
+        #     shutil.move(cur_path, new_path)
         logger.info(f"Removing temp dir: {temp_pp_path}")
         shutil.rmtree(temp_pp_path)
 
-        logger.info(f"Total space used in {temp_pp_path}: {measure_allocated_space_in_path(pp_file_path)} GB")
-        logger.info(f"Total space free: {measure_free_diskspace(pp_file_path)} GB")
+        logger.info(f"Total space used in {temp_pp_path}: {measure_allocated_space_in_path(temp_pp_path)} GB")
+        logger.info(f"Total space free: {measure_free_diskspace(temp_pp_path)} GB")
 
     else:
         logger.info("Not on valohai.")

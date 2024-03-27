@@ -9,6 +9,7 @@ import numpy as np
 from batchgenerators.utilities.file_and_folder_operations import isfile, subfiles
 from nnssl.configuration import default_num_processes
 from valohai.config import is_running_in_valohai
+from loguru import logger
 
 
 def find_broken_image_and_labels(
@@ -120,6 +121,8 @@ def unpack_dataset(
             _convert_to_npy,
             zip(npz_files, [unpack_segmentation] * len(npz_files), [overwrite_existing] * len(npz_files)),
         )
+    logger.info(f"Have {len(subfiles(folder, True, None, ".npy", True))} images remaining after unpacking.")
+    logger.info(f"Sanity check: {len(subfiles(folder, True, None, ".npz", True))} npz's remaining.")
 
 
 def get_case_identifiers(folder: str) -> List[str]:
