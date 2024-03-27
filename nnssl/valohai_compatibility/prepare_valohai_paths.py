@@ -63,9 +63,10 @@ def copy_files(file_path, target_path):
 
 def copy_del_files(file_path, target_path):
     try:
-        Path(target_path).parent.mkdir(parents=True, exist_ok=True)
+        target_dir = Path(target_path).parent
+        target_dir.mkdir(exist_ok=True, parents=True)
         if os.path.exists(file_path):
-            if os.path.exists(target_path):
+            if os.path.exists(target_dir):
                 shutil.copy(file_path, target_path)
                 shutil.rmtree(file_path)
             else:
