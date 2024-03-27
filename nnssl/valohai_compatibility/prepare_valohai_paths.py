@@ -118,7 +118,7 @@ def measure_free_diskspace(path: str) -> int:
 
 def prepare_training_paths_on_valohai():
     if is_running_in_valohai():
-        print("Preparing paths for preprocessing on Valohai.")
+        logger.info("Preparing paths for preprocessing on Valohai.")
         INPUT_ROOT = get_inputs_path()
         nnunet_pp = os.path.join(INPUT_ROOT, "nnssl_preprocessed")
         nnunet_results = os.path.join(INPUT_ROOT, "nnssl_results")
@@ -130,13 +130,13 @@ def prepare_training_paths_on_valohai():
         os.environ["nnssl_results"] = nnunet_results
 
         input_paths = os.path.join(INPUT_ROOT, "pp-data")
-        logger.info(f"Size of downloaded files in {input_paths}: {measure_allocated_space_in_path(input_paths)}")
-        print(f"Copying/decompressing files from {input_paths} to {temp_pp_path}.")
+        logger.info(f"Size of downloaded files in {input_paths}: {measure_allocated_space_in_path(input_paths)} GB")
+        logger.info(f"Copying/decompressing files from {input_paths} to {temp_pp_path}.")
         is_zipped = copy_to_target_and_maybe_decompress_files(input_paths, temp_pp_path)
         if not is_zipped:
-            print(f"Removing broken files in {temp_pp_path}.")
+            logger.info(f"Removing broken files in {temp_pp_path}.")
             remove_broken_files_in_folder(temp_pp_path)
-        logger.info(f"Total space used in {temp_pp_path}: {measure_allocated_space_in_path(temp_pp_path)}")
+        logger.info(f"Total space used in {temp_pp_path}: {measure_allocated_space_in_path(temp_pp_path)} GB")
 
         logger.info(f"Copying files from {temp_pp_path} to {nnunet_pp}.")
         for file in os.listdir(temp_pp_path):
@@ -148,11 +148,11 @@ def prepare_training_paths_on_valohai():
         logger.info(f"Removing temp dir: {temp_pp_path}")
         shutil.rmtree(temp_pp_path)
 
-        logger.info(f"Total space used in {temp_pp_path}: {measure_allocated_space_in_path(pp_file_path)}")
-        logger.info(f"Total space free: {measure_free_diskspace(pp_file_path)}")
+        logger.info(f"Total space used in {temp_pp_path}: {measure_allocated_space_in_path(pp_file_path)} GB")
+        logger.info(f"Total space free: {measure_free_diskspace(pp_file_path)} GB")
 
     else:
-        print("Not on valohai.")
+        logger.info("Not on valohai.")
         # Local paths are fine, no need to change anything.
         pass
 
