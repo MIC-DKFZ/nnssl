@@ -78,8 +78,8 @@ def copy_to_target_and_maybe_decompress_files(path_to_content: str, target_path:
     files_to_extract = [f for f in os.listdir(path_to_content) if f.endswith(".tar.gz")]
 
     # TQDM Multiprocessing
+    logger.info(f"Decompressing {len(files_to_extract)} files.")
     with multiprocessing.Pool(21) as p:
-        logger.info(f"Decompressing {len(files_to_extract)} files.")
         os.mkdir(target_path)  # Make sure the path exists already.
         p.starmap(
             decompress_file,
@@ -94,9 +94,9 @@ def copy_to_target_and_maybe_decompress_files(path_to_content: str, target_path:
     file_target_pairs = [(os.path.join(path_to_content, f), target_path) for f in other_files]
 
     # TQDM Multiprocessing
-    with multiprocessing.Pool(21) as p:
-        logger.info(f"Moving {len(file_target_pairs)} files.")
-        p.starmap(move_files, file_target_pairs)
+    logger.info(f"Copying over {len(file_target_pairs)} files.")
+    for file, target in tqdm(file_target_pairs, desc="Copying files"):
+        copy_files(file, target)
     logger.info("Done moving files.")
     return len(files_to_extract) > 0
 
