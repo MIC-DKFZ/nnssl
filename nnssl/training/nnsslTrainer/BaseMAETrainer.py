@@ -246,7 +246,7 @@ class BaseMAETrainer(AbstractBaseTrainer, ABC):
 
         plt.title(f"Loss: {float(loss):.05f}")
         if is_running_in_valohai():
-            out_path = valohai().outputs().path(filename)
+            out_path = valohai.outputs().path(filename)
             plt.savefig(out_path)
             plt.close()
             valohai.outputs().live_upload(filename)  # Live update
