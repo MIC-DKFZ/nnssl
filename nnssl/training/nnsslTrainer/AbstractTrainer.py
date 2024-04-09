@@ -370,7 +370,7 @@ class AbstractBaseTrainer(ABC):
 
         dl_tr = nnsslDataLoader3D(
             dataset_tr,
-            self.batch_size,
+            self.config_plan.batch_size,
             initial_patch_size,
             self.config_plan.patch_size,
             sampling_probabilities=None,
@@ -378,7 +378,7 @@ class AbstractBaseTrainer(ABC):
         )
         dl_val = nnsslDataLoader3D(
             dataset_val,
-            self.batch_size,
+            self.config_plan.batch_size,
             self.config_plan.patch_size,
             self.config_plan.patch_size,
             sampling_probabilities=None,
@@ -664,38 +664,6 @@ class AbstractBaseTrainer(ABC):
             dct["torch_version"] = torch_version
             dct["cudnn_version"] = cudnn_version
             save_json(dct, join(self.output_folder, "debug.json"))
-
-    def _set_batch_size(self):
-        if not self.is_ddp:
-            # set batch size to what the plan says, leave oversample untouched
-            self.batch_size = self.config_plan.batch_size
-        else:
-            # batch size is distributed over DDP workers and we need to change oversample_percent for each worker
-            batch_sizes = []
-
-            world_size = dist.get_world_size()
-            my_rank = dist.get_rank()
-
-            global_batch_size = self.config_plan.batch_size
-            assert global_batch_size >= world_size, (
-                "Cannot run DDP if the batch size is smaller than the number of " "GPUs... Duh."
-            )
-
-            batch_size_per_GPU = np.ceil(global_batch_size / world_size).astype(int)
-
-            for rank in range(world_size):
-                if (rank + 1) * batch_size_per_GPU > global_batch_size:
-                    batch_size = batch_size_per_GPU - ((rank + 1) * batch_size_per_GPU - global_batch_size)
-                else:
-                    batch_size = batch_size_per_GPU
-
-                batch_sizes.append(batch_size)
-
-            print("worker", my_rank, "batch_size", batch_sizes[my_rank])
-            # self.print_to_log_file("worker", my_rank, "oversample", oversample_percents[my_rank])
-            # self.print_to_log_file("worker", my_rank, "batch_size", batch_sizes[my_rank])
-
-            self.batch_size = batch_sizes[my_rank]
 
     def do_split(self):
         """

@@ -190,7 +190,7 @@ class SparkMAETrainer4k(SparkMAETrainer):
         self.num_epochs = 4000
 
 
-class SparkMAETrainer5epBS10(SparkMAETrainer):
+class SparkMAETrainer5epBS10(SparkMAETrainer5ep):
     def __init__(
         self,
         plan: Plan,
@@ -201,13 +201,13 @@ class SparkMAETrainer5epBS10(SparkMAETrainer):
         device: torch.device = torch.device("cuda"),
     ):
         # plan.configurations[configuration_name].batch_size = 10
+        plan.configurations[configuration_name].batch_size = 10
+        print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
-        self.num_epochs = 5
-        self.batch_size = 10
-        self.config_plan.batch_size = self.batch_size
+        print(f"Post Init Batch size: {self.config_plan.batch_size}")
 
 
-class SparkMAETrainer5epBS8(SparkMAETrainer):
+class SparkMAETrainer5epBS8(SparkMAETrainer5ep):
     def __init__(
         self,
         plan: Plan,
@@ -218,13 +218,12 @@ class SparkMAETrainer5epBS8(SparkMAETrainer):
         device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].batch_size = 8
+        print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
-        self.num_epochs = 5
-        self.batch_size = 8
-        self.config_plan.batch_size = self.batch_size
+        print(f"Post Init Batch size: {self.config_plan.batch_size}")
 
 
-class SparkMAETrainer5epBS6(SparkMAETrainer):
+class SparkMAETrainer5epBS6(SparkMAETrainer5ep):
     def __init__(
         self,
         plan: Plan,
@@ -235,13 +234,12 @@ class SparkMAETrainer5epBS6(SparkMAETrainer):
         device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].batch_size = 6
+        print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
-        self.batch_size = 6
-        self.config_plan.batch_size = self.batch_size
-        self.num_epochs = 5
+        print(f"Post Init Batch size: {self.config_plan.batch_size}")
 
 
-class SparkMAETrainer5epBS4(SparkMAETrainer):
+class SparkMAETrainer5epBS4(SparkMAETrainer5ep):
     def __init__(
         self,
         plan: Plan,
@@ -252,7 +250,6 @@ class SparkMAETrainer5epBS4(SparkMAETrainer):
         device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].batch_size = 4
+        print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
-        self.num_epochs = 5
-        self.batch_size = 4
-        self.config_plan.batch_size = self.batch_size
+        print(f"Post Init Batch size: {self.config_plan.batch_size}")
