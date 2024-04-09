@@ -80,7 +80,7 @@ class LoadingEfficientSparkMAETrainer(SparkMAETrainer):
         losses = []
         for _ in range(self.sub_steps):
 
-            sub_data = data[torch.permute(indices)[: self.sub_batch_size]]
+            sub_data = data[torch.permute(indices, dims=0)[: self.sub_batch_size]]
             sub_data = sub_data.to(self.device, non_blocking=True)
             sub_target = sub_data
 
@@ -140,8 +140,7 @@ class LoadingEfficientSparkMAETrainer(SparkMAETrainer):
 
             losses = []
             for i in range(self.sub_steps):
-                indices = torch.permute(indices)
-                sub_data = data
+                sub_data = data[torch.permute(indices, dims=0)[: self.sub_batch_size]]
                 sub_data = sub_data.to(self.device, non_blocking=True)
                 sub_target = sub_data
 
