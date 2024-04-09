@@ -120,7 +120,7 @@ class SparkMAETrainer(BaseMAETrainer):
                 data = data.to(self.device, non_blocking=True)
 
                 mask = self.mask_creation(
-                    self.config_plan.batch_size,
+                    1,
                     self.config_plan.patch_size,
                     self.mask_percentage,
                     rng_seed=123 + batch_id,

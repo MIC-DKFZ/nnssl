@@ -332,7 +332,7 @@ class BaseMAETrainer(AbstractBaseTrainer, ABC):
 
         dl_val = nnsslCenterCropDataLoader3D(
             dataset_val,
-            self.config_plan.batch_size,
+            1,
             self.config_plan.patch_size,
             self.config_plan.patch_size,
             sampling_probabilities=None,
