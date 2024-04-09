@@ -171,7 +171,7 @@ class AbstractBaseTrainer(ABC):
 
         ## DDP batch size and oversampling can differ between workers and needs adaptation
         # we need to change the batch size in DDP because we don't use any of those distributed samplers
-        self._set_batch_size()
+        # self._set_batch_size()
 
         self.was_initialized = False
 
@@ -546,11 +546,13 @@ class AbstractBaseTrainer(ABC):
             self.current_epoch_log["train_loss"] = float(self.logger.my_fantastic_logging["train_losses"][-1])
             self.current_epoch_log["val_loss"] = float(self.logger.my_fantastic_logging["val_losses"][-1])
             self.current_epoch_log["learning_rate"] = float(self.logger.my_fantastic_logging["lrs"][-1])
-            self.current_epoch_log["epoch_time"] = float(np.round(
-                self.logger.my_fantastic_logging["epoch_end_timestamps"][-1]
-                - self.logger.my_fantastic_logging["epoch_start_timestamps"][-1],
-                decimals=2,
-            ))
+            self.current_epoch_log["epoch_time"] = float(
+                np.round(
+                    self.logger.my_fantastic_logging["epoch_end_timestamps"][-1]
+                    - self.logger.my_fantastic_logging["epoch_start_timestamps"][-1],
+                    decimals=2,
+                )
+            )
             print(json.dumps(self.current_epoch_log))
             self.current_epoch_log = {}
 
