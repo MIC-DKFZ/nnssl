@@ -289,7 +289,7 @@ class BaseMAETrainer(AbstractBaseTrainer, ABC):
                 data = data.to(self.device, non_blocking=True)
 
                 mask = self.mask_creation(
-                    self.config_plan.batch_size, self.config_plan.patch_size, self.mask_percentage, rng_seed=123 + batch_id
+                    1, self.config_plan.patch_size, self.mask_percentage, rng_seed=123 + batch_id
                 ).to(self.device, non_blocking=True)
                 # Make the mask the same size as the data
                 rep_D, rep_H, rep_W = (
