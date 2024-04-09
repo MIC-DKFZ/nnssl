@@ -1,4 +1,4 @@
-    import torch
+import torch
 from nnssl.architectures.spark_utils import convert_to_spark_cnn
 
 from nnssl.experiment_planning.experiment_planners.plan import Plan
@@ -34,9 +34,9 @@ class LoadingEfficientSparkMAETrainer(SparkMAETrainer):
         self.batch_size = batch_size * self.loading_multiplicator
         self.mask_percentage: float = 0.75
         self.num_iterations_per_epoch = self.num_iterations_per_epoch // self.sub_steps
+        self.num_val_iterations_per_epoch = self.num_val_iterations_per_epoch // self.sub_steps
 
         self.config_plan.batch_size = self.batch_size
-
 
     def _build_loss(self):
         """
