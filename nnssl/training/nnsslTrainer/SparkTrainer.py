@@ -428,7 +428,7 @@ class SparkMAETrainerBS2_AdamW_5e_3(SparkMAETrainerBS2):
         return optimizer, lr_scheduler
 
 
-class SparkMAETrainerBS2_AdamW_5e_3(SparkMAETrainerBS2):
+class SparkMAETrainerBS2_AdamW_1e_2(SparkMAETrainerBS2):
     def __init__(
         self,
         plan: Plan,
