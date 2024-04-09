@@ -3,6 +3,7 @@ from nnssl.architectures.spark_utils import convert_to_spark_cnn
 
 from nnssl.experiment_planning.experiment_planners.plan import Plan
 from nnssl.training.loss.spark_loss import SparkLoss
+from nnssl.training.lr_scheduler.polylr import PolyLRScheduler
 from nnssl.training.nnsslTrainer.BaseMAETrainer import BaseMAETrainer
 from torch import nn
 
@@ -355,3 +356,94 @@ class SparkMAETrainerBS2_4k(SparkMAETrainer):
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
         self.num_epochs = 4000
         print(f"Post Init Batch size: {self.config_plan.batch_size}")
+
+
+class SparkMAETrainerBS2_lr5e_2(SparkMAETrainerBS2):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        self.initial_lr = 5e-2
+
+
+class SparkMAETrainerBS2_lr1e_1(SparkMAETrainerBS2):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        self.initial_lr = 1e-1
+
+
+class SparkMAETrainerBS2_AdamW_1e_3(SparkMAETrainerBS2):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        self.initial_lr = 1e-3
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.AdamW(
+            self.network.parameters(), self.initial_lr, weight_decay=self.weight_decay, momentum=0.99, nesterov=True
+        )
+        lr_scheduler = PolyLRScheduler(optimizer, self.initial_lr, self.num_epochs)
+        return optimizer, lr_scheduler
+
+
+class SparkMAETrainerBS2_AdamW_5e_3(SparkMAETrainerBS2):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        self.initial_lr = 5e-3
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.AdamW(
+            self.network.parameters(), self.initial_lr, weight_decay=self.weight_decay, momentum=0.99, nesterov=True
+        )
+        lr_scheduler = PolyLRScheduler(optimizer, self.initial_lr, self.num_epochs)
+        return optimizer, lr_scheduler
+
+
+class SparkMAETrainerBS2_AdamW_5e_3(SparkMAETrainerBS2):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        self.initial_lr = 1e-2
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.AdamW(
+            self.network.parameters(), self.initial_lr, weight_decay=self.weight_decay, momentum=0.99, nesterov=True
+        )
+        lr_scheduler = PolyLRScheduler(optimizer, self.initial_lr, self.num_epochs)
+        return optimizer, lr_scheduler
