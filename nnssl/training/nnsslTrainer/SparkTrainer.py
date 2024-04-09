@@ -96,9 +96,9 @@ class SparkMAETrainer(BaseMAETrainer):
             data = data.to(self.device, non_blocking=True)
             target = data
 
-            mask = self.mask_creation(self.config_plan.batch_size, self.config_plan.patch_size, self.mask_percentage).to(
-                self.device, non_blocking=True
-            )
+            mask = self.mask_creation(
+                self.config_plan.batch_size, self.config_plan.patch_size, self.mask_percentage
+            ).to(self.device, non_blocking=True)
             spark_utils._cur_active = mask
             # Autocast is a little bitch.
             # If the device_type is 'cpu' then it's slow as heck and needs to be disabledq.
@@ -120,7 +120,10 @@ class SparkMAETrainer(BaseMAETrainer):
                 data = data.to(self.device, non_blocking=True)
 
                 mask = self.mask_creation(
-                    self.config_plan.batch_size, self.config_plan.patch_size, self.mask_percentage, rng_seed=123 + batch_id
+                    self.config_plan.batch_size,
+                    self.config_plan.patch_size,
+                    self.mask_percentage,
+                    rng_seed=123 + batch_id,
                 ).to(self.device, non_blocking=True)
                 spark_utils._cur_active = mask
 
@@ -250,6 +253,22 @@ class SparkMAETrainer5epBS4(SparkMAETrainer5ep):
         device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].batch_size = 4
+        print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        print(f"Post Init Batch size: {self.config_plan.batch_size}")
+
+
+class SparkMAETrainer5epBS2(SparkMAETrainer5ep):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 2
         print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
         print(f"Post Init Batch size: {self.config_plan.batch_size}")
