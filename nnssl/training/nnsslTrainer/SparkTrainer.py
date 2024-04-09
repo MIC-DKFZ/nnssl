@@ -200,10 +200,11 @@ class SparkMAETrainer5epBS10(SparkMAETrainer):
         unpack_dataset: bool = True,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 10
+        # plan.configurations[configuration_name].batch_size = 10
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
         self.num_epochs = 5
         self.batch_size = 10
+        self.config_plan.batch_size = self.batch_size
 
 
 class SparkMAETrainer5epBS8(SparkMAETrainer):
@@ -220,6 +221,7 @@ class SparkMAETrainer5epBS8(SparkMAETrainer):
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
         self.num_epochs = 5
         self.batch_size = 8
+        self.config_plan.batch_size = self.batch_size
 
 
 class SparkMAETrainer5epBS6(SparkMAETrainer):
@@ -234,8 +236,9 @@ class SparkMAETrainer5epBS6(SparkMAETrainer):
     ):
         plan.configurations[configuration_name].batch_size = 6
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
-        self.num_epochs = 5
         self.batch_size = 6
+        self.config_plan.batch_size = self.batch_size
+        self.num_epochs = 5
 
 
 class SparkMAETrainer5epBS4(SparkMAETrainer):
@@ -252,3 +255,4 @@ class SparkMAETrainer5epBS4(SparkMAETrainer):
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
         self.num_epochs = 5
         self.batch_size = 4
+        self.config_plan.batch_size = self.batch_size
