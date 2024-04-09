@@ -211,7 +211,7 @@ class LoadingEfficientSparkMAETrainer5ep(LoadingEfficientSparkMAETrainer):
         self.num_epochs = 5
 
 
-class LoadingEfficientSparkMAETrainer5epBS4(LoadingEfficientSparkMAETrainer):
+class LoadingEfficientSparkMAETrainer5epBS6(LoadingEfficientSparkMAETrainer):
 
     def __init__(
         self,
@@ -224,7 +224,7 @@ class LoadingEfficientSparkMAETrainer5epBS4(LoadingEfficientSparkMAETrainer):
     ):
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
 
-        self.batch_size = 4 * self.loading_multiplicator  # Hardcode the batch size to 4.
+        self.batch_size = 6 * self.loading_multiplicator  # Hardcode the batch size to 4.
         self.mask_percentage: float = 0.75
 
         self.config_plan.batch_size = self.batch_size
