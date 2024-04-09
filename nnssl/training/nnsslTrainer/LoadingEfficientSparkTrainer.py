@@ -27,10 +27,10 @@ class LoadingEfficientSparkMAETrainer(SparkMAETrainer):
     ):
         self.loading_multiplicator = 2
         self.sub_steps = 4
+        batch_size = plan.configurations[configuration_name].batch_size
         self.loading_batch_size = batch_size * self.loading_multiplicator
         self.mask_percentage: float = 0.75
 
-        batch_size = plan.configurations[configuration_name].batch_size
         # Asserts that we load twice the samples to memory, which we then can sub-sample from.
         plan.configurations[configuration_name].batch_size = self.loading_batch_size
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
