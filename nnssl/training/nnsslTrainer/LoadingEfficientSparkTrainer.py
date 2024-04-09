@@ -1,4 +1,4 @@
-import torch
+    import torch
 from nnssl.architectures.spark_utils import convert_to_spark_cnn
 
 from nnssl.experiment_planning.experiment_planners.plan import Plan
@@ -25,19 +25,18 @@ class LoadingEfficientSparkMAETrainer(SparkMAETrainer):
         unpack_dataset: bool = True,
         device: torch.device = torch.device("cuda"),
     ):
+        # Asserts that we load twice the samples to memory, which we then can sub-sample from.
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
         self.loading_multiplicator = 2
         self.sub_steps = 4
         batch_size = plan.configurations[configuration_name].batch_size
         self.sub_batch_size = batch_size
-        self.loading_batch_size = batch_size * self.loading_multiplicator
+        self.batch_size = batch_size * self.loading_multiplicator
         self.mask_percentage: float = 0.75
+        self.num_iterations_per_epoch = self.num_iterations_per_epoch // self.sub_steps
 
-        # Asserts that we load twice the samples to memory, which we then can sub-sample from.
-        plan.configurations[configuration_name].batch_size = self.loading_batch_size
-        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
-        self.config_plan.batch_size = self.loading_batch_size
-        self.batch_size = self.loading_batch_size
-        self.loss: SparkLoss
+        self.config_plan.batch_size = self.batch_size
+
 
     def _build_loss(self):
         """
@@ -210,3 +209,23 @@ class LoadingEfficientSparkMAETrainer5ep(LoadingEfficientSparkMAETrainer):
     ):
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
         self.num_epochs = 5
+
+
+class LoadingEfficientSparkMAETrainer5epBS4(LoadingEfficientSparkMAETrainer):
+
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+
+        self.batch_size = 4 * self.loading_multiplicator  # Hardcode the batch size to 4.
+        self.mask_percentage: float = 0.75
+
+        self.config_plan.batch_size = self.batch_size
+        self.loss: SparkLoss
