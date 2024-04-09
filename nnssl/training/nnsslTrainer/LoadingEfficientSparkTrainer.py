@@ -144,7 +144,7 @@ class LoadingEfficientSparkMAETrainer(SparkMAETrainer):
                 sub_data = sub_data.to(self.device, non_blocking=True)
                 sub_target = sub_data
 
-                mask = self.mask_creation(self.batch_size, self.config_plan.patch_size, self.mask_percentage).to(
+                mask = self.mask_creation(self.sub_batch_size, self.config_plan.patch_size, self.mask_percentage).to(
                     self.device, non_blocking=True
                 )
                 spark_utils._cur_active = mask
