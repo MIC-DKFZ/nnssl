@@ -220,3 +220,35 @@ class SparkMAETrainer5epBS8(SparkMAETrainer):
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
         self.num_epochs = 5
         self.batch_size = 8
+
+
+class SparkMAETrainer5epBS6(SparkMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 6
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        self.num_epochs = 5
+        self.batch_size = 6
+
+
+class SparkMAETrainer5epBS4(SparkMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 4
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        self.num_epochs = 5
+        self.batch_size = 4
