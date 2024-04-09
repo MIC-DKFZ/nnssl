@@ -147,6 +147,8 @@ class AbstractBaseTrainer(ABC):
         self.grad_scaler = GradScaler() if self.device.type == "cuda" else None
         self.loss = None  # -> self.initialize
 
+        self.stop_at_nans = False
+
         ### Simple logging. Don't take that away from me!
         # initialize log file. This is just our log for the print statements etc. Not to be confused with lightning
         # logging
@@ -365,6 +367,13 @@ class AbstractBaseTrainer(ABC):
             )
         return mt_gen_train, mt_gen_val
 
+    def interrupt_at_nans(self, losses: list[dict]):
+        if self.stop_at_nans:
+            threshold = 20
+            nans = sum([1 if torch.isnan(l["loss"]) else 0 for l in losses])
+            if nans > threshold:
+                raise RuntimeError(f"More than {threshold} NaN's detected in loss. Aborting.")
+
     def get_plain_dataloaders(self, initial_patch_size: Tuple[int, ...]):
         dataset_tr, dataset_val = self.get_tr_and_val_datasets()
 
@@ -472,6 +481,7 @@ class AbstractBaseTrainer(ABC):
         self.print_to_log_file("Training done.")
 
     def on_train_epoch_end(self, train_outputs: List[dict]):
+        self.interrupt_at_nans(train_outputs)
         outputs = collate_outputs(train_outputs)
 
         if self.is_ddp:

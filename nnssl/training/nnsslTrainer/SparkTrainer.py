@@ -27,6 +27,7 @@ class SparkMAETrainer(BaseMAETrainer):
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
         self.mask_percentage: float = 0.75
         self.loss: SparkLoss
+        self.stop_at_nans = True
 
     def _build_loss(self):
         """
