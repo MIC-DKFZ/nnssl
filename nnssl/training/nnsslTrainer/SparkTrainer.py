@@ -65,7 +65,7 @@ class SparkMAETrainer(BaseMAETrainer):
         data = data.to(self.device, non_blocking=True)
         target = data
 
-        mask = self.mask_creation(self.batch_size, self.config_plan.patch_size, self.mask_percentage).to(
+        mask = self.mask_creation(self.config_plan.batch_size, self.config_plan.patch_size, self.mask_percentage).to(
             self.device, non_blocking=True
         )
         spark_utils._cur_active = mask
@@ -96,7 +96,7 @@ class SparkMAETrainer(BaseMAETrainer):
             data = data.to(self.device, non_blocking=True)
             target = data
 
-            mask = self.mask_creation(self.batch_size, self.config_plan.patch_size, self.mask_percentage).to(
+            mask = self.mask_creation(self.config_plan.batch_size, self.config_plan.patch_size, self.mask_percentage).to(
                 self.device, non_blocking=True
             )
             spark_utils._cur_active = mask
@@ -120,7 +120,7 @@ class SparkMAETrainer(BaseMAETrainer):
                 data = data.to(self.device, non_blocking=True)
 
                 mask = self.mask_creation(
-                    self.batch_size, self.config_plan.patch_size, self.mask_percentage, rng_seed=123 + batch_id
+                    self.config_plan.batch_size, self.config_plan.patch_size, self.mask_percentage, rng_seed=123 + batch_id
                 ).to(self.device, non_blocking=True)
                 spark_utils._cur_active = mask
 
