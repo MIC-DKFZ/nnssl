@@ -290,6 +290,22 @@ class SparkMAETrainerBS8(SparkMAETrainer):
         print(f"Post Init Batch size: {self.config_plan.batch_size}")
 
 
+class SparkMAETrainerBS4(SparkMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 4
+        print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        print(f"Post Init Batch size: {self.config_plan.batch_size}")
+
+
 class SparkMAETrainerBS4_2k(SparkMAETrainer):
     def __init__(
         self,
