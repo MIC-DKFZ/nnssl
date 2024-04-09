@@ -170,7 +170,7 @@ class BaseMAETrainer(AbstractBaseTrainer, ABC):
         data = batch["data"]
         data = data.to(self.device, non_blocking=True)
 
-        mask = self.mask_creation(self.batch_size, self.config_plan.patch_size, self.mask_percentage).to(
+        mask = self.mask_creation(self.config_plan.batch_size, self.config_plan.patch_size, self.mask_percentage).to(
             self.device, non_blocking=True
         )
         # Make the mask the same size as the data
@@ -209,7 +209,7 @@ class BaseMAETrainer(AbstractBaseTrainer, ABC):
         data = batch["data"]
         data = data.to(self.device, non_blocking=True)
 
-        mask = self.mask_creation(self.batch_size, self.config_plan.patch_size, self.mask_percentage).to(
+        mask = self.mask_creation(self.config_plan.batch_size, self.config_plan.patch_size, self.mask_percentage).to(
             self.device, non_blocking=True
         )
         # Make the mask the same size as the data
@@ -263,7 +263,7 @@ class BaseMAETrainer(AbstractBaseTrainer, ABC):
         return img_arr, rec_arr
 
     def log_img_slices(self, imgs, recos, masks, losses, batch_id: int):
-        offset = batch_id * self.batch_size
+        offset = batch_id * self.config_plan.batch_size
         for i in range(recos.shape[0]):
             img = torch.squeeze(imgs[i])
             rec = torch.squeeze(recos[i])
@@ -289,7 +289,7 @@ class BaseMAETrainer(AbstractBaseTrainer, ABC):
                 data = data.to(self.device, non_blocking=True)
 
                 mask = self.mask_creation(
-                    self.batch_size, self.config_plan.patch_size, self.mask_percentage, rng_seed=123 + batch_id
+                    self.config_plan.batch_size, self.config_plan.patch_size, self.mask_percentage, rng_seed=123 + batch_id
                 ).to(self.device, non_blocking=True)
                 # Make the mask the same size as the data
                 rep_D, rep_H, rep_W = (
@@ -332,7 +332,7 @@ class BaseMAETrainer(AbstractBaseTrainer, ABC):
 
         dl_val = nnsslCenterCropDataLoader3D(
             dataset_val,
-            self.batch_size,
+            self.config_plan.batch_size,
             self.config_plan.patch_size,
             self.config_plan.patch_size,
             sampling_probabilities=None,

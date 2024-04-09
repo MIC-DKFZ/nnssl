@@ -28,11 +28,11 @@ class LoadingEfficientSparkMAETrainer(SparkMAETrainer):
         # Asserts that we load twice the samples to memory, which we then can sub-sample from.
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
 
-        self.sub_steps, self.sub_batch_size, self.batch_size = self._get_sub_batch_infos()
+        self.sub_steps, self.sub_batch_size, batch_size = self._get_sub_batch_infos()
         self.num_iterations_per_epoch = self.num_iterations_per_epoch // self.sub_steps
         self.num_val_iterations_per_epoch = self.num_val_iterations_per_epoch // self.sub_steps
         # ------------------ Set the loading batch_size accordingly ------------------ #
-        self.config_plan.batch_size = self.batch_size
+        self.config_plan.batch_size = batch_size
 
     def _get_sub_batch_infos(self):
         sub_steps = 4
@@ -172,7 +172,7 @@ class LoadingEfficientSparkMAETrainer(SparkMAETrainer):
                 data = data.to(self.device, non_blocking=True)
 
                 mask = self.mask_creation(
-                    self.batch_size, self.config_plan.patch_size, self.mask_percentage, rng_seed=123 + batch_id
+                    self.config_plan.batch_size, self.config_plan.patch_size, self.mask_percentage, rng_seed=123 + batch_id
                 ).to(self.device, non_blocking=True)
                 spark_utils._cur_active = mask
 
