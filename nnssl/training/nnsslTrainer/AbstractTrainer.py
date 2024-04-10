@@ -370,7 +370,7 @@ class AbstractBaseTrainer(ABC):
     def interrupt_at_nans(self, losses: list[dict]):
         if self.stop_at_nans:
             threshold = 20
-            nans = sum([1 if torch.isnan(l["loss"]) else 0 for l in losses])
+            nans = sum([1 if np.isnan(l["loss"]) else 0 for l in losses])
             if nans > threshold:
                 raise RuntimeError(f"More than {threshold} NaN's detected in loss. Aborting.")
 
