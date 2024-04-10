@@ -398,11 +398,10 @@ class SparkMAETrainerBS2_AdamW_1e_3(SparkMAETrainerBS2):
     ):
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
         self.initial_lr = 1e-3
+        self.weight_decay = 1e-2
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(
-            self.network.parameters(), self.initial_lr, weight_decay=self.weight_decay, momentum=0.99, nesterov=True
-        )
+        optimizer = torch.optim.AdamW(self.network.parameters(), self.initial_lr, weight_decay=self.weight_decay)
         lr_scheduler = PolyLRScheduler(optimizer, self.initial_lr, self.num_epochs)
         return optimizer, lr_scheduler
 
@@ -419,11 +418,10 @@ class SparkMAETrainerBS2_AdamW_5e_3(SparkMAETrainerBS2):
     ):
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
         self.initial_lr = 5e-3
+        self.weight_decay = 1e-2
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(
-            self.network.parameters(), self.initial_lr, weight_decay=self.weight_decay, momentum=0.99, nesterov=True
-        )
+        optimizer = torch.optim.AdamW(self.network.parameters(), self.initial_lr, weight_decay=self.weight_decay)
         lr_scheduler = PolyLRScheduler(optimizer, self.initial_lr, self.num_epochs)
         return optimizer, lr_scheduler
 
@@ -440,10 +438,9 @@ class SparkMAETrainerBS2_AdamW_1e_2(SparkMAETrainerBS2):
     ):
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
         self.initial_lr = 1e-2
+        self.weight_decay = 1e-2
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(
-            self.network.parameters(), self.initial_lr, weight_decay=self.weight_decay, momentum=0.99, nesterov=True
-        )
+        optimizer = torch.optim.AdamW(self.network.parameters(), self.initial_lr, weight_decay=self.weight_decay)
         lr_scheduler = PolyLRScheduler(optimizer, self.initial_lr, self.num_epochs)
         return optimizer, lr_scheduler
