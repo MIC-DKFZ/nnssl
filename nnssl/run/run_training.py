@@ -385,23 +385,26 @@ def run_training_entry():
         device = torch.device("cuda")
     else:
         device = torch.device("mps")
-
-    run_training(
-        dataset_name,
-        config,
-        "all",
-        args.tr,
-        args.p,
-        args.pretrained_weights,
-        args.num_gpus,
-        args.use_compressed,
-        args.npz,
-        args.c,
-        args.val,
-        args.disable_checkpointing,
-        args.val_best,
-        device=device,
-    )
+    try:
+        run_training(
+            dataset_name,
+            config,
+            "all",
+            args.tr,
+            args.p,
+            args.pretrained_weights,
+            args.num_gpus,
+            args.use_compressed,
+            args.npz,
+            args.c,
+            args.val,
+            args.disable_checkpointing,
+            args.val_best,
+            device=device,
+        )
+    except KeyboardInterrupt:
+        if is_running_in_valohai():
+            save_files_on_valohai(os.environ.get("nnssl_results"))
     if is_running_in_valohai():
         save_files_on_valohai(os.environ.get("nnssl_results"))
 
