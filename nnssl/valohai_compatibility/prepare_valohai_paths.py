@@ -314,7 +314,7 @@ def get_all_file_in_dir(dir_path: str) -> list[str]:
     files = []
     for f in Path(dir_path).iterdir():
         if f.is_file():
-            if f.name not in [".DS_Store", "._.DS_Store"]:
+            if (f.name not in [".DS_Store", "._.DS_Store"]) and (not f.name.endswith(".png")):
                 files.append(str(f))
             else:
                 continue
