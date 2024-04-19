@@ -520,3 +520,33 @@ class SparkMAETrainerBS2_AdamW_1e_2(SparkMAETrainerBS2):
         optimizer = torch.optim.AdamW(self.network.parameters(), self.initial_lr, weight_decay=self.weight_decay)
         lr_scheduler = PolyLRScheduler(optimizer, self.initial_lr, self.num_epochs)
         return optimizer, lr_scheduler
+
+
+class SparkMAETrainerBS8_lr_3e2(SparkMAETrainerBS8):
+
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        self.initial_lr = 3e-2
+
+
+class SparkMAETrainerBS8_lr_5e2(SparkMAETrainerBS8):
+
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        self.initial_lr = 5e-2
