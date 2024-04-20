@@ -87,7 +87,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "737",
+                "741",
                 "3d_fullres",
                 "-tr",
                 "SparkMAETrainer",
