@@ -33,6 +33,7 @@ class SparkMAETrainer(BaseMAETrainer):
         self.mask_percentage: float = 0.75
         self.loss: SparkLoss
         self.stop_at_nans = True
+        self.use_mask_token: bool = True
         self.network: SparK3D = ...
 
     def _build_loss(self):
@@ -65,7 +66,7 @@ class SparkMAETrainer(BaseMAETrainer):
 
         spark_architecture = convert_to_spark_cnn(network.encoder)
         network.encoder = spark_architecture
-        actual_network = SparK3D(network, (160, 160, 160))
+        actual_network = SparK3D(network, (160, 160, 160), self.use_mask_token)
 
         return actual_network
 
@@ -365,6 +366,39 @@ class SparkMAETrainerBS8(SparkMAETrainer):
         plan.configurations[configuration_name].batch_size = 8
         print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        print(f"Post Init Batch size: {self.config_plan.batch_size}")
+
+
+class SparkMAETrainerBS7(SparkMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 7
+        print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        print(f"Post Init Batch size: {self.config_plan.batch_size}")
+
+
+class SparkMAETrainerBS7_noMaskToken(SparkMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 7
+        print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        self.use_mask_token = False
         print(f"Post Init Batch size: {self.config_plan.batch_size}")
 
 
