@@ -15,8 +15,6 @@ from dynamic_network_architectures.architectures.unet import ResidualEncoderUNet
 
 from nnssl.architectures.spark_utils import (
     SparseInstanceNorm3d,
-    SparseSyncBatchNorm3d,
-    _cur_active,
     _get_active_ex_or_ii,
 )
 
@@ -125,6 +123,79 @@ class SparK3D(nn.Module):
                 to_dec.append(bcfff)
         else:
             to_dec = fea_bcffs
+
+        # step4. Decode and reconstruct
+        rec_bchw = self.decoder(to_dec)
+        return rec_bchw
+
+
+# The current MaskToken makes training so much slower and messes up Gradient Calculations.
+#   Instead I propose to use the Mask Token just as a filler (without any Conv2d or Norm)
+#   The decoder has to figure out how to handle the Token instead.
+class EfficientSpark3D(nn.Module):
+
+    def __init__(
+        self,
+        architecture: ResidualEncoderUNet,
+        input_size: tuple[int, int, int],
+        **kwargs,
+    ):
+        super().__init__()
+        self.architecture = architecture
+        self.encoder = architecture.encoder
+        self.decoder = architecture.decoder
+
+        # ------- We need all this additional stuff only if we use mask tokens ------- #
+        features_per_stage = architecture.encoder.output_channels
+        strides = architecture.encoder.strides
+        absolute_reduction_factor = []
+        reduction_factor = (1, 1, 1)
+        for s in strides:
+            reduction_factor = (
+                reduction_factor[0] * abs(s[0]),
+                reduction_factor[1] * abs(s[1]),
+                reduction_factor[2] * abs(s[2]),
+            )
+            absolute_reduction_factor.append(reduction_factor)
+
+        downsample_raito = absolute_reduction_factor
+        self.downsample_raito = downsample_raito
+        all_fmaps = []
+        for i in [0, 1, 2]:
+            all_fmaps.append([input_size[i] // down_rt[i] for down_rt in downsample_raito])
+        self.fmap_h, self.fmap_w, self.fmap_d = all_fmaps
+
+        self.hierarchy = len(features_per_stage)
+
+        self.mask_tokens = nn.ParameterList()
+        # build the `densify` layers
+        for i, feats_per_stage in enumerate(features_per_stage):
+            # from the smallest feat map to the largest; i=0: the last feat map; i=1: the second last feat map ...
+            # create mask token
+            p = nn.Parameter(torch.zeros(1, feats_per_stage, 1, 1, 1))
+            trunc_normal_(p, mean=0, std=0.02, a=-0.02, b=0.02)
+            self.mask_tokens.append(p)
+
+    def forward(self, x: torch.Tensor):
+        # step1. Mask
+
+        # step2. Encode: get hierarchical encoded sparse features (a list containing 4 feature maps at 4 scales)
+        fea_bcffs: List[torch.Tensor] = self.encoder(x)
+        # fea_bcffs.reverse()  # after reversion: from the smallest feature map to the largest
+
+        # step3. Densify: get hierarchical dense features for decoding
+        # ---------------- Without Mask Token no densification is done --------------- #
+        to_dec = []
+        for i, bcfff in enumerate(fea_bcffs):  # from the smallest feature map to the largest
+            if bcfff is not None:
+                # bcfff = self.densify_norms[i](bcfff)  # Why even norm?
+                mask_tokens = self.mask_tokens[i]
+                cur_shape = [bcfff.shape[0]] + list(bcfff.shape[2:])  # B H W D
+                cur_mask = _get_active_ex_or_ii(*cur_shape)
+                densification_mask = mask_tokens * (1 - cur_mask)
+                bcfff = bcfff + densification_mask  # fill in empty (non-active) positions with [mask] tokens
+                # bcfff: torch.Tensor = self.densify_projs[i](bcfff)  -- No projection because Why do this at all?
+            to_dec.append(bcfff)
 
         # step4. Decode and reconstruct
         rec_bchw = self.decoder(to_dec)
