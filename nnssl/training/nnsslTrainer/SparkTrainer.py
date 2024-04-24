@@ -9,8 +9,6 @@ from nnssl.training.lr_scheduler.polylr import PolyLRScheduler
 from nnssl.training.nnsslTrainer.BaseMAETrainer import BaseMAETrainer
 from torch import nn
 
-from torch import nn
-import torch
 from torch import autocast
 from nnssl.utilities.helpers import dummy_context
 from dynamic_network_architectures.architectures.unet import ResidualEncoderUNet
@@ -589,7 +587,7 @@ class SparkMAETrainerBS2_AdamW_1e_2(SparkMAETrainerBS2):
         return optimizer, lr_scheduler
 
 
-class SparkMAETrainerBS8_lr_3e2(SparkMAETrainerBS8):
+class SparkMAETrainerBS7_lr_3e2(SparkMAETrainerBS7):
 
     def __init__(
         self,
@@ -604,7 +602,7 @@ class SparkMAETrainerBS8_lr_3e2(SparkMAETrainerBS8):
         self.initial_lr = 3e-2
 
 
-class SparkMAETrainerBS8_lr_5e2(SparkMAETrainerBS8):
+class SparkMAETrainerBS7_lr_5e2(SparkMAETrainerBS7):
 
     def __init__(
         self,
