@@ -48,6 +48,20 @@ class EffSparkMAETrainer(SparkMAETrainer):
         return actual_network
 
 
+class EffSparkMAETrainer_5ep(EffSparkMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        self.max_epochs = 5
+
+
 class EffSparkMAETrainer_BS7(EffSparkMAETrainer):
     def __init__(
         self,
