@@ -7,16 +7,16 @@ More coming soon
 ### ToDo's
 Current stages of process
 
-
-- [x] Filter out some images from the dataset
-
-**Error**: cannot load 42k files into docker --> Need to zip.
-- [x] Create Zipping of Files
-  - [x] Split data into batches that are zipped
-  - [ ] Save and upload zipped files
-- [ ] Test loading of zipped files for training
-  - [ ] Test merging of zipped files
-  - [ ] Test `dataset.json` loaded correctly
+- [ ] Evaluate, how Lightweight the decoder can become
+  - [ ] Test if we can e.g. halve the number of channels in the decoder
+  - [ ] Also test how much VRAM is allocated to the decoder overall (if it is low then why bother)
+- [ ] Test more efficient Densification
+  - [ ] Check epoch-times
+  - [ ] Check performance
+- [ ] Test higher LR for BS7
+  - [x] 3e-2 (ongoing)
+  - [x] 5e-2 (ongoing)
+  - [ ] Evaluate outcome
 
 **Training and integrating with Consti**
 
