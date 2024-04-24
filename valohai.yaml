@@ -149,5 +149,8 @@
     inputs:
     - name: pp-data
       description: Dataset that will be preprocessed
-      default: dataset://pp-fiona-Dataset737/v1
+      default: 
+      - dataset://fiona_pp_pure_flair/all
+      - dataset://fiona_pp_pure_t2/all
+      - dataset://fiona_pp_pure_t1/all_with_plan
 
