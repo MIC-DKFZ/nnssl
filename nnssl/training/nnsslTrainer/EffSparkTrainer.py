@@ -72,9 +72,9 @@ class EffSparkMAETrainer_BS8_5ep(EffSparkMAETrainer):
         unpack_dataset: bool = True,
         device: torch.device = torch.device("cuda"),
     ):
+
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
         self.num_epochs = 5
-        self.batch_size = 8
 
 
 class EffSparkMAETrainer_BS7(EffSparkMAETrainer):
@@ -87,5 +87,5 @@ class EffSparkMAETrainer_BS7(EffSparkMAETrainer):
         unpack_dataset: bool = True,
         device: torch.device = torch.device("cuda"),
     ):
+        plan.configurations[configuration_name].batch_size = 7
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
-        self.batch_size = 7
