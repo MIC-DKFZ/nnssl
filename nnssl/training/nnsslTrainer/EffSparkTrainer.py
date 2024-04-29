@@ -134,7 +134,7 @@ class EffSparkMAETrainer_BS28_LR_3e2(EffSparkMAETrainer):
         self.initial_lr = 3e-2
 
 
-class EffSparkMAETrainer_BS14_LR_5e2(EffSparkMAETrainer):
+class EffSparkMAETrainer_BS6_LR_5e2(EffSparkMAETrainer):
     def __init__(
         self,
         plan: Plan,
@@ -144,6 +144,6 @@ class EffSparkMAETrainer_BS14_LR_5e2(EffSparkMAETrainer):
         unpack_dataset: bool = True,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 14
+        plan.configurations[configuration_name].batch_size = 6
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
         self.initial_lr = 5e-2
