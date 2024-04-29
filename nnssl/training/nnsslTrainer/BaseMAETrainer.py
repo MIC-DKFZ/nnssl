@@ -233,26 +233,27 @@ class BaseMAETrainer(AbstractBaseTrainer, ABC):
         return {"loss": l.detach().cpu().numpy()}
 
     def log_image_and_reco(self, img, reco, mask, loss, index) -> None:
-        filename = f"epoch_{self.current_epoch}_{index}.png"
-        ax: list[plt.Axes]
-        _, ax = plt.subplots(nrows=1, ncols=4, figsize=(12, 4))
-        img_uint8 = (img * 255.0).astype(np.uint8)
-        mask_unint8 = (mask * 255.0).astype(np.uint8)
-        reco_uint8 = (reco * 255.0).astype(np.uint8)
-        ax[0].imshow(img_uint8, cmap="gray")
-        ax[1].imshow(mask_unint8, cmap="gray")
-        ax[2].imshow(reco_uint8, cmap="gray")
-        ax[3].imshow((np.abs(img - reco) * 255.0).astype(np.uint8), cmap="gray")
+        if self.local_rank == 0:
+            filename = f"epoch_{self.current_epoch}_{index}.png"
+            ax: list[plt.Axes]
+            _, ax = plt.subplots(nrows=1, ncols=4, figsize=(12, 4))
+            img_uint8 = (img * 255.0).astype(np.uint8)
+            mask_unint8 = (mask * 255.0).astype(np.uint8)
+            reco_uint8 = (reco * 255.0).astype(np.uint8)
+            ax[0].imshow(img_uint8, cmap="gray")
+            ax[1].imshow(mask_unint8, cmap="gray")
+            ax[2].imshow(reco_uint8, cmap="gray")
+            ax[3].imshow((np.abs(img - reco) * 255.0).astype(np.uint8), cmap="gray")
 
-        plt.title(f"Loss: {float(loss):.05f}")
-        if is_running_in_valohai():
-            out_path = valohai.outputs().path(filename)
-            plt.savefig(out_path)
-            plt.close()
-            valohai.outputs().live_upload(filename)  # Live update
-        else:
-            plt.savefig(os.path.join(self.im_output_folder, filename))
-            plt.close()
+            plt.title(f"Loss: {float(loss):.05f}")
+            if is_running_in_valohai():
+                out_path = valohai.outputs().path(filename)
+                plt.savefig(out_path)
+                plt.close()
+                valohai.outputs().live_upload(filename)  # Live update
+            else:
+                plt.savefig(os.path.join(self.im_output_folder, filename))
+                plt.close()
 
     @staticmethod
     def rescale_images(
@@ -342,7 +343,8 @@ class BaseMAETrainer(AbstractBaseTrainer, ABC):
 
     def run_training(self):
         self.on_train_start()
-        self.log_qualitative_reconstruction_step()  # Do a quick test everything works.
+        if self.local_rank == 0:
+            self.log_qualitative_reconstruction_step()  # Do a quick test everything works.
         for epoch in range(self.current_epoch, self.num_epochs):
             self.on_epoch_start()
 
@@ -362,7 +364,8 @@ class BaseMAETrainer(AbstractBaseTrainer, ABC):
 
                 # ------------------------ Maybe Log qualitative recon ----------------------- #
                 if (self.current_epoch + 1) % self.save_imgs_every_n_epochs == 0:
-                    self.log_qualitative_reconstruction_step()
+                    if self.local_rank == 0:
+                        self.log_qualitative_reconstruction_step()
 
             self.on_epoch_end()
 
