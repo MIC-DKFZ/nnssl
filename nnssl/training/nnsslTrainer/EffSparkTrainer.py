@@ -147,3 +147,31 @@ class EffSparkMAETrainer_BS6_LR_5e2(EffSparkMAETrainer):
         plan.configurations[configuration_name].batch_size = 6
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
         self.initial_lr = 5e-2
+
+
+class EffSparkMAETrainer_BS7_LR_3e2_Mask40(EffSparkMAETrainer_BS7_LR_3e2):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        self.mask_percentage = 0.4
+
+
+class EffSparkMAETrainer_BS7_LR_3e2_Mask60(EffSparkMAETrainer_BS7_LR_3e2):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        self.mask_percentage = 0.6
