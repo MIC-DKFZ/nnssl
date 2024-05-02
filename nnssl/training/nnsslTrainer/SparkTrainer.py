@@ -102,7 +102,7 @@ class SparkMAETrainer(BaseMAETrainer):
         if self.local_rank == 0:
             if not self.disable_checkpointing:
                 if self.is_ddp:
-                    mod = self.network.architecture.module
+                    mod = self.network.module.architecture
                 else:
                     mod = self.network.architecture
                 if isinstance(mod, OptimizedModule):
