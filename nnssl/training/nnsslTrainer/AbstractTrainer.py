@@ -200,8 +200,9 @@ class AbstractBaseTrainer(ABC):
             my_rank = dist.get_rank()
 
             global_batch_size = self.config_plan.batch_size
-            assert global_batch_size >= world_size, 'Cannot run DDP if the batch size is smaller than the number of ' \
-                                                    'GPUs... Duh.'
+            assert global_batch_size >= world_size, (
+                "Cannot run DDP if the batch size is smaller than the number of " "GPUs... Duh."
+            )
 
             batch_size_per_GPU = np.ceil(global_batch_size / world_size).astype(int)
 
@@ -251,7 +252,7 @@ class AbstractBaseTrainer(ABC):
             # if ddp, wrap in DDP wrapper
             if self.is_ddp:
                 self.network = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.network)
-                self.network = DDP(self.network, device_ids=[self.local_rank])
+                self.network = DDP(self.network, device_ids=[self.local_rank], find_unused_parameters=True)
 
             self.loss = self._build_loss()
             self.was_initialized = True
