@@ -177,20 +177,6 @@ class EffSparkMAETrainer_BS7_LR_3e2_Mask60(EffSparkMAETrainer_BS7_LR_3e2):
         self.mask_percentage = 0.6
 
 
-class EffSparkMAETrainer_BS7_LR_3e2_Mask85(EffSparkMAETrainer_BS7_LR_3e2):
-    def __init__(
-        self,
-        plan: Plan,
-        configuration_name: str,
-        fold: int,
-        dataset_json: dict,
-        unpack_dataset: bool = True,
-        device: torch.device = torch.device("cuda"),
-    ):
-        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
-        self.mask_percentage = 0.85
-
-
 class EffSparkMAETrainer_BS6_LR_3e2_Mask30(EffSparkMAETrainer):
     def __init__(
         self,
@@ -247,3 +233,17 @@ class EffSparkMAETrainer_BS6_LR_3e2_Mask75(EffSparkMAETrainer_BS6_LR_3e2_Mask30)
     ):
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
         self.mask_percentage = 0.75
+
+
+class EffSparkMAETrainer_BS6_LR_3e2_Mask90(EffSparkMAETrainer_BS6_LR_3e2_Mask30):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        self.mask_percentage = 0.9
