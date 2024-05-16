@@ -145,11 +145,17 @@
       default: 1
       pass-as: -num_gpus {v}
       type: integer
+    - name: continue_training
+      description: Continue training from a previous checkpoint
+      default: False
+      type: flag
+      pass-true-as: "--c"
+      pass-false-as: ""
 
     inputs:
     - name: pp-data
       description: Dataset that will be preprocessed
-      default: 
+      default:
       - dataset://fiona_pp_pure_flair/all
       - dataset://fiona_pp_pure_t2/all
       - dataset://fiona_pp_pure_t1/all_with_plan
