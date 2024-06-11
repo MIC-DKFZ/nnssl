@@ -529,13 +529,14 @@ class AbstractBaseTrainer(ABC):
         else:
             loss_here = np.mean(outputs["loss"])
 
-        if self.current_epoch % 50 == 0 and self.current_epoch != 0:
-            self.save_checkpoint(join(self.output_folder, f"checkpoint_epoch_{self.current_epoch}.pth"), live_upload=True)
+        if self.local_rank == 0:
+            if self.current_epoch % 50 == 0 and self.current_epoch != 0:
+                self.save_checkpoint(join(self.output_folder, f"checkpoint_epoch_{self.current_epoch}.pth"), live_upload=True)
 
-        self.logger.log("train_losses", loss_here, self.current_epoch)
-        with valohai.logger() as logger:
-            logger.log("train_loss", float(loss_here))
-            logger.log("epoch", int(self.current_epoch))
+            self.logger.log("train_losses", loss_here, self.current_epoch)
+            with valohai.logger() as logger:
+                logger.log("train_loss", float(loss_here))
+                logger.log("epoch", int(self.current_epoch))
 
     def on_validation_epoch_end(self, val_outputs: List[dict]):
         outputs_collated = collate_outputs(val_outputs)
@@ -548,9 +549,10 @@ class AbstractBaseTrainer(ABC):
         else:
             loss_here = np.mean(outputs_collated["loss"])
 
-        self.logger.log("val_losses", loss_here, self.current_epoch)
-        with valohai.logger() as logger:
-            logger.log("val_loss", float(loss_here))
+        if self.local_rank == 0:
+            self.logger.log("val_losses", loss_here, self.current_epoch)
+            with valohai.logger() as logger:
+                logger.log("val_loss", float(loss_here))
 
     def on_train_epoch_start(self):
         self.network.train()
