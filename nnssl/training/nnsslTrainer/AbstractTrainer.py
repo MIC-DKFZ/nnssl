@@ -10,6 +10,7 @@ from copy import deepcopy
 from datetime import datetime
 from time import time, sleep
 from typing import Union, Tuple, List
+from valohai.config import is_running_in_valohai
 
 import valohai
 
@@ -528,6 +529,9 @@ class AbstractBaseTrainer(ABC):
         else:
             loss_here = np.mean(outputs["loss"])
 
+        if self.current_epoch % 50 == 0 and self.current_epoch != 0:
+            self.save_checkpoint(join(self.output_folder, f"checkpoint_epoch_{self.current_epoch}.pth"), live_upload=True)
+
         self.logger.log("train_losses", loss_here, self.current_epoch)
         with valohai.logger() as logger:
             logger.log("train_loss", float(loss_here))
@@ -605,7 +609,7 @@ class AbstractBaseTrainer(ABC):
 
         self.current_epoch += 1
 
-    def save_checkpoint(self, filename: str) -> None:
+    def save_checkpoint(self, filename: str, live_upload: bool = False) -> None:
         if self.local_rank == 0:
             if not self.disable_checkpointing:
                 if self.is_ddp:
@@ -626,6 +630,8 @@ class AbstractBaseTrainer(ABC):
                     "trainer_name": self.__class__.__name__,
                 }
                 torch.save(checkpoint, filename)
+                if is_running_in_valohai() and live_upload:
+                    valohai.outputs().live_upload(filename)
             else:
                 self.print_to_log_file("No checkpoint written, checkpointing is disabled")
 
