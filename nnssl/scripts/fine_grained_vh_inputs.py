@@ -1,16 +1,10 @@
 from dataclasses import dataclass
-import os
 from pathlib import Path
-import shutil
 import pandas as pd
 from tqdm import tqdm
 from valohai.config import is_running_in_valohai
-import SimpleITK as sitk
-import requests
-import glob
 from batchgenerators.utilities.file_and_folder_operations import save_json, load_json
 from loguru import logger
-import json
 
 from nnssl.dataset_conversion.filter_mris_all import filter_mri_case
 

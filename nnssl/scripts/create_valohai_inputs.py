@@ -1,8 +1,5 @@
 from pathlib import Path
 import pandas as pd
-import valohai_cli
-import json
-import requests
 
 
 def choose_first_n_files_from_meta_data(meta_data_path: Path, n: int):
@@ -32,7 +29,7 @@ def main():
         "dataset": "018d5ae8-b4ae-2363-1e34-9a116fe8e800",
         "files": [{"datum": v} for v in s3_filenames],
     }
-
+    import requests
     requests.post(post_url, post_request_body)
 
 

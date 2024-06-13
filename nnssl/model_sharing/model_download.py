@@ -1,6 +1,6 @@
 from typing import Optional
 
-import requests
+
 from batchgenerators.utilities.file_and_folder_operations import *
 from time import time
 from nnssl.model_sharing.model_import import install_model_from_zip_file
@@ -35,6 +35,8 @@ def download_and_install_from_url(url):
 
 
 def download_file(url: str, local_filename: str, chunk_size: Optional[int] = 8192 * 16) -> str:
+    import requests
+
     # borrowed from https://stackoverflow.com/questions/16694907/download-large-file-in-python-with-requests
     # NOTE the stream=True parameter below
     with requests.get(url, stream=True, timeout=100) as r:
@@ -43,5 +45,3 @@ def download_file(url: str, local_filename: str, chunk_size: Optional[int] = 819
             for chunk in r.iter_content(chunk_size=chunk_size):
                 f.write(chunk)
     return local_filename
-
-
