@@ -42,10 +42,9 @@ class VariableSparkMAETrainer(EffSparkMAETrainer):
         """
 
         block_size = 16
-        mask = [
-            create_blocky_mask(patch_size, block_size, np.random.uniform(mask_percentage[0], mask_percentage[1]))
-            for _ in range(batch_size)
-        ]
+
+        cur_mask_ratio = np.random.uniform(mask_percentage[0], mask_percentage[1])
+        mask = [create_blocky_mask(patch_size, block_size, cur_mask_ratio) for _ in range(batch_size)]
         mask = torch.stack(mask)[:, None, ...]  # Add channel dimension
         return mask
 
