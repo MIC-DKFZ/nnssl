@@ -23,13 +23,13 @@ class VariableSparkMAETrainer(EffSparkMAETrainer):
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
         self.mask_percentage = (0.6, 0.9)
         self.num_epochs = 52
+        self.mask_random_seed = np.random.RandomState(123)
 
-    @staticmethod
     def mask_creation(
+        self,
         batch_size: int,
         patch_size: tuple[int, int, int],
         mask_percentage: tuple[float, float],
-        rng_seed: int | None = None,
     ) -> torch.Tensor:
         """
         Creates a masking tensor with 1s (indicating no masking) and 0s (indicating masking).
@@ -43,7 +43,7 @@ class VariableSparkMAETrainer(EffSparkMAETrainer):
 
         block_size = 16
 
-        cur_mask_ratio = np.random.uniform(mask_percentage[0], mask_percentage[1])
+        cur_mask_ratio = self.mask_random_seed.uniform(mask_percentage[0], mask_percentage[1])
         mask = [create_blocky_mask(patch_size, block_size, cur_mask_ratio) for _ in range(batch_size)]
         mask = torch.stack(mask)[:, None, ...]  # Add channel dimension
         return mask
