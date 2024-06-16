@@ -30,6 +30,7 @@ class VariableSparkMAETrainer(EffSparkMAETrainer):
         batch_size: int,
         patch_size: tuple[int, int, int],
         mask_percentage: tuple[float, float],
+        rng_seed: int | None = None,
     ) -> torch.Tensor:
         """
         Creates a masking tensor with 1s (indicating no masking) and 0s (indicating masking).
