@@ -529,11 +529,13 @@ class AbstractBaseTrainer(ABC):
         else:
             loss_here = np.mean(outputs["loss"])
 
+        self.logger.log("train_losses", loss_here, self.current_epoch)
         if self.local_rank == 0:
             if self.current_epoch % 50 == 0 and self.current_epoch != 0:
-                self.save_checkpoint(join(self.output_folder, f"checkpoint_epoch_{self.current_epoch}.pth"), live_upload=True)
+                self.save_checkpoint(
+                    join(self.output_folder, f"checkpoint_epoch_{self.current_epoch}.pth"), live_upload=True
+                )
 
-            self.logger.log("train_losses", loss_here, self.current_epoch)
             with valohai.logger() as logger:
                 logger.log("train_loss", float(loss_here))
                 logger.log("epoch", int(self.current_epoch))
@@ -549,8 +551,8 @@ class AbstractBaseTrainer(ABC):
         else:
             loss_here = np.mean(outputs_collated["loss"])
 
+        self.logger.log("val_losses", loss_here, self.current_epoch)
         if self.local_rank == 0:
-            self.logger.log("val_losses", loss_here, self.current_epoch)
             with valohai.logger() as logger:
                 logger.log("val_loss", float(loss_here))
 
