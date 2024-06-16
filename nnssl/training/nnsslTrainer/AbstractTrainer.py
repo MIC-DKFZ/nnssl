@@ -417,7 +417,7 @@ class AbstractBaseTrainer(ABC):
 
         dl_tr = nnsslDataLoader3D(
             dataset_tr,
-            self.config_plan.batch_size,
+            self.batch_size,
             initial_patch_size,
             self.config_plan.patch_size,
             sampling_probabilities=None,
@@ -425,7 +425,7 @@ class AbstractBaseTrainer(ABC):
         )
         dl_val = nnsslDataLoader3D(
             dataset_val,
-            self.config_plan.batch_size,
+            self.batch_size,
             self.config_plan.patch_size,
             self.config_plan.patch_size,
             sampling_probabilities=None,

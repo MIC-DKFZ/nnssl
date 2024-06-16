@@ -288,7 +288,7 @@ class SparkMAETrainer5epBS10(SparkMAETrainer5ep):
         plan.configurations[configuration_name].batch_size = 10
         print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
-        print(f"Post Init Batch size: {self.config_plan.batch_size}")
+        print(f"Post Init Batch size: {self.batch_size}")
 
 
 class SparkMAETrainer5epBS8(SparkMAETrainer5ep):
@@ -304,7 +304,7 @@ class SparkMAETrainer5epBS8(SparkMAETrainer5ep):
         plan.configurations[configuration_name].batch_size = 8
         print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
-        print(f"Post Init Batch size: {self.config_plan.batch_size}")
+        print(f"Post Init Batch size: {self.batch_size}")
 
 
 class SparkMAETrainer5epBS6(SparkMAETrainer5ep):
@@ -320,7 +320,7 @@ class SparkMAETrainer5epBS6(SparkMAETrainer5ep):
         plan.configurations[configuration_name].batch_size = 6
         print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
-        print(f"Post Init Batch size: {self.config_plan.batch_size}")
+        print(f"Post Init Batch size: {self.batch_size}")
 
 
 class SparkMAETrainer5epBS4(SparkMAETrainer5ep):
@@ -336,7 +336,7 @@ class SparkMAETrainer5epBS4(SparkMAETrainer5ep):
         plan.configurations[configuration_name].batch_size = 4
         print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
-        print(f"Post Init Batch size: {self.config_plan.batch_size}")
+        print(f"Post Init Batch size: {self.batch_size}")
 
 
 class SparkMAETrainer5epBS2(SparkMAETrainer5ep):
@@ -352,7 +352,7 @@ class SparkMAETrainer5epBS2(SparkMAETrainer5ep):
         plan.configurations[configuration_name].batch_size = 2
         print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
-        print(f"Post Init Batch size: {self.config_plan.batch_size}")
+        print(f"Post Init Batch size: {self.batch_size}")
 
 
 class SparkMAETrainerBS8(SparkMAETrainer):
@@ -368,7 +368,7 @@ class SparkMAETrainerBS8(SparkMAETrainer):
         plan.configurations[configuration_name].batch_size = 8
         print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
-        print(f"Post Init Batch size: {self.config_plan.batch_size}")
+        print(f"Post Init Batch size: {self.batch_size}")
 
 
 class SparkMAETrainer_test_mask(SparkMAETrainer):
@@ -384,7 +384,7 @@ class SparkMAETrainer_test_mask(SparkMAETrainer):
         plan.configurations[configuration_name].batch_size = 1
         print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
-        print(f"Post Init Batch size: {self.config_plan.batch_size}")
+        print(f"Post Init Batch size: {self.batch_size}")
 
 
 class SparkMAETrainer_test_no_mask(SparkMAETrainer):
@@ -401,7 +401,7 @@ class SparkMAETrainer_test_no_mask(SparkMAETrainer):
         print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
         self.use_mask_token = False
-        print(f"Post Init Batch size: {self.config_plan.batch_size}")
+        print(f"Post Init Batch size: {self.batch_size}")
 
 
 class SparkMAETrainerBS7(SparkMAETrainer):
@@ -417,7 +417,7 @@ class SparkMAETrainerBS7(SparkMAETrainer):
         plan.configurations[configuration_name].batch_size = 7
         print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
-        print(f"Post Init Batch size: {self.config_plan.batch_size}")
+        print(f"Post Init Batch size: {self.batch_size}")
 
 
 class SparkMAETrainerBS7_noMaskToken(SparkMAETrainer):
@@ -434,7 +434,7 @@ class SparkMAETrainerBS7_noMaskToken(SparkMAETrainer):
         print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
         self.use_mask_token = False
-        print(f"Post Init Batch size: {self.config_plan.batch_size}")
+        print(f"Post Init Batch size: {self.batch_size}")
 
 
 class SparkMAETrainerBS4(SparkMAETrainer):
@@ -450,7 +450,7 @@ class SparkMAETrainerBS4(SparkMAETrainer):
         plan.configurations[configuration_name].batch_size = 4
         print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
-        print(f"Post Init Batch size: {self.config_plan.batch_size}")
+        print(f"Post Init Batch size: {self.batch_size}")
 
 
 class SparkMAETrainerBS4_2k(SparkMAETrainer):
@@ -466,7 +466,7 @@ class SparkMAETrainerBS4_2k(SparkMAETrainer):
         plan.configurations[configuration_name].batch_size = 4
         print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
-        print(f"Post Init Batch size: {self.config_plan.batch_size}")
+        print(f"Post Init Batch size: {self.batch_size}")
         self.num_epochs = 2000
 
 
@@ -483,7 +483,7 @@ class SparkMAETrainerBS2(SparkMAETrainer):
         plan.configurations[configuration_name].batch_size = 2
         print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
-        print(f"Post Init Batch size: {self.config_plan.batch_size}")
+        print(f"Post Init Batch size: {self.batch_size}")
 
 
 class SparkMAETrainerBS2_4k(SparkMAETrainer):
@@ -500,7 +500,7 @@ class SparkMAETrainerBS2_4k(SparkMAETrainer):
         print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
         self.num_epochs = 4000
-        print(f"Post Init Batch size: {self.config_plan.batch_size}")
+        print(f"Post Init Batch size: {self.batch_size}")
 
 
 class SparkMAETrainerBS2_lr5e_2(SparkMAETrainerBS2):
