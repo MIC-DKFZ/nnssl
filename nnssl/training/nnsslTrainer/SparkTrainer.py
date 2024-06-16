@@ -9,6 +9,8 @@ from nnssl.training.lr_scheduler.polylr import PolyLRScheduler
 from nnssl.training.nnsslTrainer.BaseMAETrainer import BaseMAETrainer
 from torch import nn
 
+import valohai
+from valohai.config import is_running_in_valohai
 from torch import autocast
 from nnssl.utilities.helpers import dummy_context
 from dynamic_network_architectures.architectures.unet import ResidualEncoderUNet
@@ -98,7 +100,7 @@ class SparkMAETrainer(BaseMAETrainer):
             self.optimizer.step()
         return {"loss": l.detach().cpu().numpy()}
 
-    def save_checkpoint(self, filename: str) -> None:
+    def save_checkpoint(self, filename: str, live_upload: bool = False) -> None:
         if self.local_rank == 0:
             if not self.disable_checkpointing:
                 if self.is_ddp:
@@ -127,6 +129,8 @@ class SparkMAETrainer(BaseMAETrainer):
                     "trainer_name": self.__class__.__name__,
                 }
                 torch.save(checkpoint, filename)
+                if is_running_in_valohai() and live_upload:
+                    valohai.outputs().live_upload(filename)
             else:
                 self.print_to_log_file("No checkpoint written, checkpointing is disabled")
 
