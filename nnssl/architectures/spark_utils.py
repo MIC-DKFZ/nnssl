@@ -1,11 +1,13 @@
 import torch
 from torch import nn
+
 from einops import rearrange, repeat
 from torch import nn
 import torch
 
 from einops import rearrange
-
+from einops._torch_specific import allow_ops_in_compiled_graph  # requires einops>=0.6.1
+allow_ops_in_compiled_graph()
 
 _cur_active: torch.Tensor = None  # B1fff
 
@@ -248,12 +250,18 @@ def convert_to_spark_cnn(m: nn.Module, verbose=False, sbn=False):
         if hasattr(m, "qconfig"):
             oup.qconfig = m.qconfig
     elif isinstance(m, (nn.InstanceNorm3d,)):
-        pass
-    # elif isinstance(m, nn.LayerNorm) and not isinstance(m, SparseConvNeXtLayerNorm):
-    #     m: nn.LayerNorm
-    #     oup = SparseConvNeXtLayerNorm(m.weight.shape[0], eps=m.eps)
-    #     oup.weight.data.copy_(m.weight.data)
-    #     oup.bias.data.copy_(m.bias.data)
+        m: nn.InstanceNorm3d
+        oup = SparseInstanceNorm3d(
+            m.weight.shape[0],
+            eps=m.eps,
+            momentum=m.momentum,
+            affine=m.affine,
+            track_running_stats=m.track_running_stats,
+        )
+        oup.weight.data.copy_(m.weight.data)
+        oup.bias.data.copy_(m.bias.data)
+        if hasattr(m, "qconfig"):
+            oup.qconfig = m.qconfig
     elif isinstance(m, (nn.Conv1d,)):
         raise NotImplementedError
     # Right now seems a bit fishy. Seems like infinite recursion.
