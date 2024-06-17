@@ -212,11 +212,41 @@ def convert_to_spark_cnn(m: nn.Module, verbose=False, sbn=False):
         if bias:
             oup.bias.data.copy_(m.bias.data)
     elif isinstance(m, nn.MaxPool3d):
-        pass
+        m: nn.MaxPool3d
+        oup = SparseMaxPooling(
+            m.kernel_size,
+            stride=m.stride,
+            padding=m.padding,
+            dilation=m.dilation,
+            return_indices=m.return_indices,
+            ceil_mode=m.ceil_mode,
+        )
     elif isinstance(m, nn.AvgPool3d):
-        pass
+        m: nn.AvgPool3d
+        oup = SparseAvgPooling(
+            m.kernel_size,
+            m.stride,
+            m.padding,
+            ceil_mode=m.ceil_mode,
+            count_include_pad=m.count_include_pad,
+            divisor_override=m.divisor_override,
+        )
     elif isinstance(m, (nn.BatchNorm3d, nn.SyncBatchNorm)):
-        pass
+        m: nn.BatchNorm3d
+        oup = (SparseSyncBatchNorm3d if sbn else SparseBatchNorm3d)(
+            m.weight.shape[0],
+            eps=m.eps,
+            momentum=m.momentum,
+            affine=m.affine,
+            track_running_stats=m.track_running_stats,
+        )
+        oup.weight.data.copy_(m.weight.data)
+        oup.bias.data.copy_(m.bias.data)
+        oup.running_mean.data.copy_(m.running_mean.data)
+        oup.running_var.data.copy_(m.running_var.data)
+        oup.num_batches_tracked.data.copy_(m.num_batches_tracked.data)
+        if hasattr(m, "qconfig"):
+            oup.qconfig = m.qconfig
     elif isinstance(m, (nn.InstanceNorm3d,)):
         pass
     # elif isinstance(m, nn.LayerNorm) and not isinstance(m, SparseConvNeXtLayerNorm):
