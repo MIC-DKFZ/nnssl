@@ -189,3 +189,8 @@ def convert_to_spark_cnn(m: nn.Module, verbose=False, sbn=False):
         oup.add_module(name, convert_to_spark_cnn(child, verbose=verbose, sbn=sbn))
     del m
     return oup
+
+
+def convert_to_spark_cnn(m: nn.Module, verbose=False, sbn=False):
+    # Dummy to see if this is what breaks torch.compile or if it's something else.
+    return m
