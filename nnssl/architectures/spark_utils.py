@@ -7,6 +7,7 @@ import torch
 
 from einops import rearrange
 from einops._torch_specific import allow_ops_in_compiled_graph  # requires einops>=0.6.1
+
 allow_ops_in_compiled_graph()
 
 _cur_active: torch.Tensor = None  # B1fff
@@ -41,26 +42,26 @@ def sp_conv_forward(self, x: torch.Tensor):
     return x
 
 
-def sp_in_forward(self, x: torch.Tensor):
-    mask = _get_active_ex_or_ii(B=x.shape[0], D=x.shape[2], H=x.shape[3], W=x.shape[4])
-    # active_ex.squeeze(1).nonzero(as_tuple=True)  # ii: bi, di, hi, wi
+# def sp_in_forward(self, x: torch.Tensor):
+#     mask = _get_active_ex_or_ii(B=x.shape[0], D=x.shape[2], H=x.shape[3], W=x.shape[4])
+#     # active_ex.squeeze(1).nonzero(as_tuple=True)  # ii: bi, di, hi, wi
 
-    x_1d = rearrange(x, "b c d h w -> b c (d h w)")
-    mask = repeat(mask, "b 1 d h w -> b 1 (d h w)", c=x.shape[1])
-    mask_ids = mask.nonzero(as_tuple=True)
+#     x_1d = rearrange(x, "b c d h w -> b c (d h w)")
+#     mask = repeat(mask, "b 1 d h w -> b 1 (d h w)", c=x.shape[1])
+#     mask_ids = mask.nonzero(as_tuple=True)
 
-    ncl = x_1d[mask_ids]
-    ncl = super(type(self), self).forward(ncl)  # use BN1d to normalize this flatten feature `nc`
+#     ncl = x_1d[mask_ids]
+#     ncl = super(type(self), self).forward(ncl)  # use BN1d to normalize this flatten feature `nc`
 
-    x_postbn = torch.zeros_like(x)
-    x_postbn[mask_ids] = ncl
-    # bcdhw = rearrange(
-    #     x_postbn, "b c (d h w)  -> b c d h w", d=x.shape[2], h=x.shape[3], w=x.shape[4]
-    # )  # reshape the normalized flatten feature back to the original shape
-    return bcdhw
+#     x_postbn = torch.zeros_like(x)
+#     x_postbn[mask_ids] = ncl
+#     # bcdhw = rearrange(
+#     #     x_postbn, "b c (d h w)  -> b c d h w", d=x.shape[2], h=x.shape[3], w=x.shape[4]
+#     # )  # reshape the normalized flatten feature back to the original shape
+#     return bcdhw
 
 
-def sp_bn_forward(self, x: torch.Tensor):
+def einops_sp_bn_forward(self, x: torch.Tensor):
     """
     Flatten the input, normalize it, and then reshape it back to the original shape.
     This has to be done to make the masking not affect the norm statistics.
@@ -87,6 +88,39 @@ def sp_bn_forward(self, x: torch.Tensor):
     return x_postin
 
 
+def sp_bn_forward(self, x: torch.Tensor):
+    """
+    Flatten the input, normalize it, and then reshape it back to the original shape.
+    This has to be done to make the masking not affect the norm statistics.
+    """
+    mask = _get_active_ex_or_ii(B=x.shape[0], D=x.shape[2], H=x.shape[3], W=x.shape[4])
+    # active_ex.squeeze(1).nonzero(as_tuple=True)  # ii: bi, di, hi, wi
+    # ToDo: Test this re-arrange madness.
+    #   Should normalize by sample now (not by batch, as we do instance norm and not batchnorm!)
+    # x_pre_in = rearrange(x, "b c d h w -> b d h w c")
+    x_pre_in = torch.permute(x, (0, 2, 3, 4, 1))
+    mask = mask.squeeze(1)
+    L = mask.sum(dim=(1, 2, 3))[0]
+    mask_ids = mask.nonzero(as_tuple=True)
+    flat_values = x_pre_in[mask_ids]
+    # ncl = rearrange(flat_values, "(b L) c -> b c L", b=x.shape[0], c=x.shape[1], L=int(L))  # (BCL) -> (BCL)
+    pre_nlc = torch.reshape(flat_values, (x.shape[0], L, -1))  # (BL)C -> BLC
+    pre_ncl = torch.permute(pre_nlc, (0, 2, 1))  # BLC -> BCL
+    post_ncl = super(type(self), self).forward(pre_ncl)  # use BN1d to normalize this flatten feature `nc`
+    # ncl = rearrange(ncl, "b c L -> (b L) c")  # (BCL) -> (BCL)
+    post_nlc = torch.permute(post_ncl, (0, 2, 1))  # BCL -> BLC
+    post_ncl = torch.reshape(post_nlc, (x.shape[0] * L, -1))  # BLC -> (BL)C
+
+    x_postin = torch.zeros_like(x_pre_in, dtype=x_pre_in.dtype, device=x_pre_in.device)
+    x_postin[mask_ids] = post_ncl
+    # x_postin = rearrange(x_postin, "b d h w c -> b c d h w")  # (BDHWC) -> (BCDHW)
+    x_postin = torch.permute(x_postin, (0, 4, 1, 2, 3))
+    # bcdhw = rearrange(
+    #     x_postbn, "b c (d h w)  -> b c d h w", d=x.shape[2], h=x.shape[3], w=x.shape[4]
+    # )  # reshape the normalized flatten feature back to the original shape
+    return x_postin
+
+
 class SparseConv3d(nn.Conv3d):
     forward = sp_conv_forward  # hack: override the forward function; see `sp_conv_forward` above for more details
 
@@ -101,6 +135,10 @@ class SparseAvgPooling(nn.AvgPool3d):
 
 class SparseBatchNorm3d(nn.BatchNorm1d):
     forward = sp_bn_forward  # hack: override the forward function; see `sp_bn_forward` above for more details
+
+
+class einops_SparseInstanceNorm3d(nn.InstanceNorm1d):
+    forward = einops_sp_bn_forward  # hack: override the forward function; see `sp_bn_forward` above for more details
 
 
 class SparseInstanceNorm3d(nn.InstanceNorm1d):
@@ -269,3 +307,26 @@ def convert_to_spark_cnn(m: nn.Module, verbose=False, sbn=False):
         oup.add_module(name, convert_to_spark_cnn(child, verbose=verbose, sbn=sbn))
     del m
     return oup
+
+
+if __name__ == "__main__":
+    # Test einops_sp_bn_forward vs sp_bn_forward
+    # Mask shape should be b, 1, d, h, w
+    mask = torch.randint(0, 2, (1, 1, 16, 16, 16))
+    mask = repeat(mask, "1 1 d h w -> b 1 d h w", b=4)
+
+    # Test SparseBatchNorm3d
+    _cur_active = mask
+    sp_in = SparseInstanceNorm3d(3)
+    einops_sp_in = einops_SparseInstanceNorm3d(3)
+
+    for j in range(10):
+        x = torch.randn(4, 3, 16, 16, 16)
+        out_b = einops_sp_in(x)
+        out_a = sp_in(x)
+        if torch.allclose(out_a, out_b):
+            print(f"Passed at {j}")
+        else:
+            print(f"Failed at {j}")
+            print(out_a)
+            print(out_b)
