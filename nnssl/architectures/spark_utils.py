@@ -193,4 +193,41 @@ def convert_to_spark_cnn(m: nn.Module, verbose=False, sbn=False):
 
 def convert_to_spark_cnn(m: nn.Module, verbose=False, sbn=False):
     # Dummy to see if this is what breaks torch.compile or if it's something else.
-    return m
+    oup = m
+    if isinstance(m, nn.Conv3d):
+        m: nn.Conv3d
+        bias = m.bias is not None
+        oup = SparseConv3d(
+            m.in_channels,
+            m.out_channels,
+            kernel_size=m.kernel_size,
+            stride=m.stride,
+            padding=m.padding,
+            dilation=m.dilation,
+            groups=m.groups,
+            bias=bias,
+            padding_mode=m.padding_mode,
+        )
+        oup.weight.data.copy_(m.weight.data)
+        if bias:
+            oup.bias.data.copy_(m.bias.data)
+    elif isinstance(m, nn.MaxPool3d):
+        pass
+    elif isinstance(m, nn.AvgPool3d):
+        pass
+    elif isinstance(m, (nn.BatchNorm3d, nn.SyncBatchNorm)):
+        pass
+    elif isinstance(m, (nn.InstanceNorm3d,)):
+        pass
+    # elif isinstance(m, nn.LayerNorm) and not isinstance(m, SparseConvNeXtLayerNorm):
+    #     m: nn.LayerNorm
+    #     oup = SparseConvNeXtLayerNorm(m.weight.shape[0], eps=m.eps)
+    #     oup.weight.data.copy_(m.weight.data)
+    #     oup.bias.data.copy_(m.bias.data)
+    elif isinstance(m, (nn.Conv1d,)):
+        raise NotImplementedError
+    # Right now seems a bit fishy. Seems like infinite recursion.
+    for name, child in m.named_children():
+        oup.add_module(name, convert_to_spark_cnn(child, verbose=verbose, sbn=sbn))
+    del m
+    return oup
