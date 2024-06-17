@@ -9,7 +9,7 @@ from nnssl.training.nnsslTrainer.EffSparkTrainer import EffSparkMAETrainer
 import numpy as np
 
 
-class VariableSparkMAETrainer(EffSparkMAETrainer):
+class VariableEffSparkMAETrainer(EffSparkMAETrainer):
     def __init__(
         self,
         plan: Plan,
@@ -74,3 +74,22 @@ class VariableSparkMAETrainer(EffSparkMAETrainer):
         actual_network = EfficientSpark3D(network, (160, 160, 160))
 
         return actual_network
+
+
+class BigVariableEffSparkMAETrainer(VariableEffSparkMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 48  # 6 * 8 (8 GPUs)
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        self.mask_percentage = (0.6, 0.9)
+        self.num_epochs = 4000
+        self.mask_random_seed = np.random.RandomState(123)
+        self.initial_lr = 3e-2  # Bit more as we increase batch size a lot
+
