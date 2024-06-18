@@ -139,12 +139,48 @@ class SparseBatchNorm3d(nn.BatchNorm1d):
     forward = sp_bn_forward  # hack: override the forward function; see `sp_bn_forward` above for more details
 
 
+class SparseInstanceNorm3d(nn.InstanceNorm3d):
+
+    def _apply_instance_norm(self, input):
+        x = input
+        mask = _get_active_ex_or_ii(B=x.shape[0], D=x.shape[2], H=x.shape[3], W=x.shape[4])
+        n_active = torch.sum(mask, dim=(1, 2, 3, 4), keepdim=True)  # [B, 1, 1, 1, 1]
+        foreground_sum = torch.sum(x * mask, dim=(2, 3, 4), keepdim=True)  # [B, C, 1, 1, 1]
+        foreground_mean = foreground_sum / n_active  # B C 1 1 1
+        foreground_var = torch.sum(((x - foreground_mean) ** 2) * mask, dim=(2, 3, 4), keepdim=True) / n_active
+
+        x_instance_normed = (x - foreground_mean) / torch.sqrt(foreground_var + self.eps)
+
+        return (x_instance_normed * self.weight[None, :, None, None, None] + self.bias[None, :, None, None, None])*mask
+
+    # def forward(self, x: torch.Tensor):
+    #     # mask : B 1 D H W
+
+    #     if self.momentum is None:
+    #         exponential_average_factor = 0.0
+    #     else:
+    #         exponential_average_factor = self.momentum
+
+    #     if self.training and self.track_running_stats:
+    #         if self.num_batches_tracked is not None:  # type: ignore[has-type]
+    #             self.num_batches_tracked.add_(1)  # type: ignore[has-type]
+    #             if self.momentum is None:  # use cumulative moving average
+    #                 exponential_average_factor = 1.0 / float(self.num_batches_tracked)
+    #             else:  # use exponential moving average
+    #                 exponential_average_factor = self.momentum
+
+    #     if self.training:
+    #         bn_training = True
+    #     else:
+    #         bn_training = (self.running_mean is None) and (self.running_var is None)
+
+
 class einops_SparseInstanceNorm3d(nn.InstanceNorm1d):
     forward = einops_sp_bn_forward  # hack: override the forward function; see `sp_bn_forward` above for more details
 
 
-class SparseInstanceNorm3d(nn.InstanceNorm1d):
-    forward = sp_bn_forward  # hack: override the forward function; see `sp_bn_forward` above for more details
+# class SparseInstanceNorm3d(nn.InstanceNorm1d):
+#     forward = sp_bn_forward  # hack: override the forward function; see `sp_bn_forward` above for more details
 
 
 class SparseSyncBatchNorm3d(nn.SyncBatchNorm):
@@ -319,8 +355,8 @@ if __name__ == "__main__":
 
     # Test SparseBatchNorm3d
     _cur_active = mask
-    sp_in = SparseInstanceNorm3d(3)
-    einops_sp_in = einops_SparseInstanceNorm3d(3)
+    sp_in = SparseInstanceNorm3d(3, affine=True)
+    einops_sp_in = einops_SparseInstanceNorm3d(3, affine=True)
 
     for j in range(10):
         x = torch.randn(4, 3, 16, 16, 16)
@@ -330,5 +366,5 @@ if __name__ == "__main__":
             print(f"Passed at {j}")
         else:
             print(f"Failed at {j}")
-            print(out_a)
-            print(out_b)
+            diff = torch.sum(torch.abs(out_a - out_b))
+            print(f"Diff: {diff}")
