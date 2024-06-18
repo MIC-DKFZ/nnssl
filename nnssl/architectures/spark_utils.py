@@ -151,7 +151,9 @@ class SparseInstanceNorm3d(nn.InstanceNorm3d):
 
         x_instance_normed = (x - foreground_mean) / torch.sqrt(foreground_var + self.eps)
 
-        return (x_instance_normed * self.weight[None, :, None, None, None] + self.bias[None, :, None, None, None])*mask
+        return (
+            x_instance_normed * self.weight[None, :, None, None, None] + self.bias[None, :, None, None, None]
+        ) * mask
 
     # def forward(self, x: torch.Tensor):
     #     # mask : B 1 D H W
@@ -243,18 +245,19 @@ def convert_to_spark_cnn(m: nn.Module, verbose=False, sbn=False):
         if hasattr(m, "qconfig"):
             oup.qconfig = m.qconfig
     elif isinstance(m, (nn.InstanceNorm3d,)):
-        m: nn.InstanceNorm3d
-        oup = SparseInstanceNorm3d(
-            m.weight.shape[0],
-            eps=m.eps,
-            momentum=m.momentum,
-            affine=m.affine,
-            track_running_stats=m.track_running_stats,
-        )
-        oup.weight.data.copy_(m.weight.data)
-        oup.bias.data.copy_(m.bias.data)
-        if hasattr(m, "qconfig"):
-            oup.qconfig = m.qconfig
+        pass
+        # m: nn.InstanceNorm3d
+        # oup = SparseInstanceNorm3d(
+        #     m.weight.shape[0],
+        #     eps=m.eps,
+        #     momentum=m.momentum,
+        #     affine=m.affine,
+        #     track_running_stats=m.track_running_stats,
+        # )
+        # oup.weight.data.copy_(m.weight.data)
+        # oup.bias.data.copy_(m.bias.data)
+        # if hasattr(m, "qconfig"):
+        #     oup.qconfig = m.qconfig
     # elif isinstance(m, nn.LayerNorm) and not isinstance(m, SparseConvNeXtLayerNorm):
     #     m: nn.LayerNorm
     #     oup = SparseConvNeXtLayerNorm(m.weight.shape[0], eps=m.eps)
