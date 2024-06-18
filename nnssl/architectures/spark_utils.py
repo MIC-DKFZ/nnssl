@@ -3,6 +3,7 @@ from torch import nn
 
 from einops import rearrange, repeat
 from torch import nn
+from torch._subclasses.fake_tensor import FakeTensorMode
 import torch
 
 from einops import rearrange
@@ -28,6 +29,7 @@ def _get_active_ex_or_ii(B, D, H, W, device, dtype):
         _cur_active.repeat_interleave(d_repeat, dim=2)
         .repeat_interleave(h_repeat, dim=3)
         .repeat_interleave(w_repeat, dim=4)
+        .to(device=device, dtype=dtype)
     )
     return active_ex
 
@@ -66,27 +68,28 @@ def einops_sp_bn_forward(self, x: torch.Tensor):
     Flatten the input, normalize it, and then reshape it back to the original shape.
     This has to be done to make the masking not affect the norm statistics.
     """
-    mask = _get_active_ex_or_ii(
-        B=x.shape[0], D=x.shape[2], H=x.shape[3], W=x.shape[4], device=x.device, dtype=x.dtype
-    )
-    # active_ex.squeeze(1).nonzero(as_tuple=True)  # ii: bi, di, hi, wi
-    # ToDo: Test this re-arrange madness.
-    #   Should normalize by sample now (not by batch, as we do instance norm and not batchnorm!)
-    x_pre_in = rearrange(x, "b c d h w -> b d h w c")
-    mask = mask.squeeze(1)
-    L = mask.sum(dim=(1, 2, 3))[0]  # Same for all batch elements
-    mask_ids = mask.nonzero(as_tuple=True)
-    flat_values = x_pre_in[mask_ids]
-    ncl = rearrange(flat_values, "(b L) c -> b c L", b=x.shape[0], c=x.shape[1], L=int(L))  # (BCL) -> (BCL)
-    ncl = super(type(self), self).forward(ncl)  # use BN1d to normalize this flatten feature `nc`
-    ncl = rearrange(ncl, "b c L -> (b L) c")  # (BCL) -> (BCL)
+    with FakeTensorMode():
+        mask = _get_active_ex_or_ii(
+            B=x.shape[0], D=x.shape[2], H=x.shape[3], W=x.shape[4], device=x.device, dtype=x.dtype
+        )
+        # active_ex.squeeze(1).nonzero(as_tuple=True)  # ii: bi, di, hi, wi
+        # ToDo: Test this re-arrange madness.
+        #   Should normalize by sample now (not by batch, as we do instance norm and not batchnorm!)
+        x_pre_in = rearrange(x, "b c d h w -> b d h w c")
+        mask = mask.squeeze(1)
+        L = mask.sum(dim=(1, 2, 3))[0]  # Same for all batch elements
+        mask_ids = mask.nonzero(as_tuple=True)
+        flat_values = x_pre_in[mask_ids]
+        ncl = rearrange(flat_values, "(b L) c -> b c L", b=x.shape[0], c=x.shape[1], L=int(L))  # (BCL) -> (BCL)
+        ncl = super(type(self), self).forward(ncl)  # use BN1d to normalize this flatten feature `nc`
+        ncl = rearrange(ncl, "b c L -> (b L) c")  # (BCL) -> (BCL)
 
-    x_postin = torch.zeros_like(x_pre_in, dtype=x_pre_in.dtype, device=x_pre_in.device)
-    x_postin[mask_ids] = ncl
-    x_postin = rearrange(x_postin, "b d h w c -> b c d h w")  # (BDHWC) -> (BCDHW)
-    # bcdhw = rearrange(
-    #     x_postbn, "b c (d h w)  -> b c d h w", d=x.shape[2], h=x.shape[3], w=x.shape[4]
-    # )  # reshape the normalized flatten feature back to the original shape
+        x_postin = torch.zeros_like(x_pre_in, dtype=x_pre_in.dtype, device=x_pre_in.device)
+        x_postin[mask_ids] = ncl
+        x_postin = rearrange(x_postin, "b d h w c -> b c d h w")  # (BDHWC) -> (BCDHW)
+        # bcdhw = rearrange(
+        #     x_postbn, "b c (d h w)  -> b c d h w", d=x.shape[2], h=x.shape[3], w=x.shape[4]
+        # )  # reshape the normalized flatten feature back to the original shape
     return x_postin
 
 
@@ -251,19 +254,18 @@ def convert_to_spark_cnn(m: nn.Module, verbose=False, sbn=False):
         if hasattr(m, "qconfig"):
             oup.qconfig = m.qconfig
     elif isinstance(m, (nn.InstanceNorm3d,)):
-        pass
-        # m: nn.InstanceNorm3d
-        # oup = SparseInstanceNorm3d(
-        #     m.weight.shape[0],
-        #     eps=m.eps,
-        #     momentum=m.momentum,
-        #     affine=m.affine,
-        #     track_running_stats=m.track_running_stats,
-        # )
-        # oup.weight.data.copy_(m.weight.data)
-        # oup.bias.data.copy_(m.bias.data)
-        # if hasattr(m, "qconfig"):
-        #     oup.qconfig = m.qconfig
+        m: nn.InstanceNorm3d
+        oup = SparseInstanceNorm3d(
+            m.weight.shape[0],
+            eps=m.eps,
+            momentum=m.momentum,
+            affine=m.affine,
+            track_running_stats=m.track_running_stats,
+        )
+        oup.weight.data.copy_(m.weight.data)
+        oup.bias.data.copy_(m.bias.data)
+        if hasattr(m, "qconfig"):
+            oup.qconfig = m.qconfig
     # elif isinstance(m, nn.LayerNorm) and not isinstance(m, SparseConvNeXtLayerNorm):
     #     m: nn.LayerNorm
     #     oup = SparseConvNeXtLayerNorm(m.weight.shape[0], eps=m.eps)
