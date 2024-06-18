@@ -93,23 +93,25 @@ def sp_bn_forward(self, x: torch.Tensor):
     Flatten the input, normalize it, and then reshape it back to the original shape.
     This has to be done to make the masking not affect the norm statistics.
     """
+
+    B, C, D, H, W = x.shape
     mask = _get_active_ex_or_ii(B=x.shape[0], D=x.shape[2], H=x.shape[3], W=x.shape[4])
     # active_ex.squeeze(1).nonzero(as_tuple=True)  # ii: bi, di, hi, wi
-    # ToDo: Test this re-arrange madness.
     #   Should normalize by sample now (not by batch, as we do instance norm and not batchnorm!)
     # x_pre_in = rearrange(x, "b c d h w -> b d h w c")
+
     x_pre_in = torch.permute(x, (0, 2, 3, 4, 1))
     mask = mask.squeeze(1)
     L = mask.sum(dim=(1, 2, 3))[0]
     mask_ids = mask.nonzero(as_tuple=True)
     flat_values = x_pre_in[mask_ids]
     # ncl = rearrange(flat_values, "(b L) c -> b c L", b=x.shape[0], c=x.shape[1], L=int(L))  # (BCL) -> (BCL)
-    pre_nlc = torch.reshape(flat_values, (x.shape[0], L, -1))  # (BL)C -> BLC
+    pre_nlc = torch.reshape(flat_values, (B, L, -1))  # (BL)C -> BLC
     pre_ncl = torch.permute(pre_nlc, (0, 2, 1))  # BLC -> BCL
     post_ncl = super(type(self), self).forward(pre_ncl)  # use BN1d to normalize this flatten feature `nc`
     # ncl = rearrange(ncl, "b c L -> (b L) c")  # (BCL) -> (BCL)
     post_nlc = torch.permute(post_ncl, (0, 2, 1))  # BCL -> BLC
-    post_ncl = torch.reshape(post_nlc, (x.shape[0] * L, -1))  # BLC -> (BL)C
+    post_ncl = torch.reshape(post_nlc, (B * L, -1))  # BLC -> (BL)C
 
     x_postin = torch.zeros_like(x_pre_in, dtype=x_pre_in.dtype, device=x_pre_in.device)
     x_postin[mask_ids] = post_ncl
