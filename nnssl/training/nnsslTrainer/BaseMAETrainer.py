@@ -257,6 +257,7 @@ class BaseMAETrainer(AbstractBaseTrainer, ABC):
         return {"loss": l.detach().cpu().numpy()}
 
     def log_image_and_reco(self, img, reco, mask, loss, index) -> None:
+        return
         if self.local_rank == 0:
             filename = f"epoch_{self.current_epoch}_{index}.png"
             ax: list[plt.Axes]
@@ -307,6 +308,7 @@ class BaseMAETrainer(AbstractBaseTrainer, ABC):
     def log_qualitative_reconstruction_step(
         self,
     ):
+        return
         """For each sample in the validation dataloader,"""
         with torch.no_grad():
             for batch_id in range(len(self.recon_dataloader)):
