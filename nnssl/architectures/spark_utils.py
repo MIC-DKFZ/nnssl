@@ -149,20 +149,21 @@ class SparseBatchNorm3d(nn.BatchNorm1d):
 class SparseInstanceNorm3d(nn.InstanceNorm3d):
 
     def _apply_instance_norm(self, input):
-        x = input
-        mask = _get_active_ex_or_ii(
-            B=x.shape[0], D=x.shape[2], H=x.shape[3], W=x.shape[4], device=x.device, dtype=x.dtype
-        )
-        n_active = torch.sum(mask, dim=(1, 2, 3, 4), keepdim=True)  # [B, 1, 1, 1, 1]
-        foreground_sum = torch.sum(x * mask, dim=(2, 3, 4), keepdim=True)  # [B, C, 1, 1, 1]
-        foreground_mean = foreground_sum / n_active  # B C 1 1 1
-        foreground_var = torch.sum(((x - foreground_mean) ** 2) * mask, dim=(2, 3, 4), keepdim=True) / n_active
+        with FakeTensorMode():
+            x = input
+            mask = _get_active_ex_or_ii(
+                B=x.shape[0], D=x.shape[2], H=x.shape[3], W=x.shape[4], device=x.device, dtype=x.dtype
+            )
+            n_active = torch.sum(mask, dim=(1, 2, 3, 4), keepdim=True)  # [B, 1, 1, 1, 1]
+            foreground_sum = torch.sum(x * mask, dim=(2, 3, 4), keepdim=True)  # [B, C, 1, 1, 1]
+            foreground_mean = foreground_sum / n_active  # B C 1 1 1
+            foreground_var = torch.sum(((x - foreground_mean) ** 2) * mask, dim=(2, 3, 4), keepdim=True) / n_active
 
-        x_instance_normed = (x - foreground_mean) / torch.sqrt(foreground_var + self.eps)
+            x_instance_normed = (x - foreground_mean) / torch.sqrt(foreground_var + self.eps)
 
-        return (
-            x_instance_normed * self.weight[None, :, None, None, None] + self.bias[None, :, None, None, None]
-        ) * mask
+            return (
+                x_instance_normed * self.weight[None, :, None, None, None] + self.bias[None, :, None, None, None]
+            ) * mask
 
     # def forward(self, x: torch.Tensor):
     #     # mask : B 1 D H W
