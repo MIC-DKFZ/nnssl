@@ -102,7 +102,7 @@ def sp_bn_forward(self, x: torch.Tensor):
 
     x_pre_in = torch.permute(x, (0, 2, 3, 4, 1))
     mask = mask.squeeze(1)
-    L = mask.sum(dim=(1, 2, 3))[0]
+    L = int(mask.sum(dim=(1, 2, 3))[0])
     mask_ids = mask.nonzero(as_tuple=True)
     flat_values = x_pre_in[mask_ids]
     # ncl = rearrange(flat_values, "(b L) c -> b c L", b=x.shape[0], c=x.shape[1], L=int(L))  # (BCL) -> (BCL)
