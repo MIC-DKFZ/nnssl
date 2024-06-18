@@ -149,7 +149,7 @@ class SparseBatchNorm3d(nn.BatchNorm1d):
 class SparseInstanceNorm3d(nn.InstanceNorm3d):
 
     def _apply_instance_norm(self, input):
-        with FakeTensorMode():
+        with FakeTensorMode(allow_non_fake_inputs=True):
             x = input
             mask = _get_active_ex_or_ii(
                 B=x.shape[0], D=x.shape[2], H=x.shape[3], W=x.shape[4], device=x.device, dtype=x.dtype
