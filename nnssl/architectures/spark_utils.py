@@ -94,7 +94,7 @@ def sp_bn_forward(self, x: torch.Tensor):
     This has to be done to make the masking not affect the norm statistics.
     """
 
-    B, C, D, H, W = x.shape
+    B = x.shape[0]
     mask = _get_active_ex_or_ii(B=x.shape[0], D=x.shape[2], H=x.shape[3], W=x.shape[4])
     # active_ex.squeeze(1).nonzero(as_tuple=True)  # ii: bi, di, hi, wi
     #   Should normalize by sample now (not by batch, as we do instance norm and not batchnorm!)
