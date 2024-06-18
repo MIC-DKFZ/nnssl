@@ -78,10 +78,7 @@ class BaseMAETrainer(AbstractBaseTrainer, ABC):
             # compile network for free speedup
             if self._do_i_compile():
                 self.print_to_log_file("Using torch.compile...")
-                from einops._torch_specific import allow_ops_in_compiled_graph  # requires einops>=0.6.1
-
-                allow_ops_in_compiled_graph()
-                self.network = torch.compile(self.network, dynamic=True)
+                self.network = torch.compile(self.network)
 
             self.optimizer, self.lr_scheduler = self.configure_optimizers()
             # if ddp, wrap in DDP wrapper

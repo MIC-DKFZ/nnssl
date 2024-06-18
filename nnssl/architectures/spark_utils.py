@@ -1,3 +1,4 @@
+import sys
 import torch
 from torch import nn
 
@@ -68,28 +69,27 @@ def einops_sp_bn_forward(self, x: torch.Tensor):
     Flatten the input, normalize it, and then reshape it back to the original shape.
     This has to be done to make the masking not affect the norm statistics.
     """
-    with FakeTensorMode():
-        mask = _get_active_ex_or_ii(
-            B=x.shape[0], D=x.shape[2], H=x.shape[3], W=x.shape[4], device=x.device, dtype=x.dtype
-        )
-        # active_ex.squeeze(1).nonzero(as_tuple=True)  # ii: bi, di, hi, wi
-        # ToDo: Test this re-arrange madness.
-        #   Should normalize by sample now (not by batch, as we do instance norm and not batchnorm!)
-        x_pre_in = rearrange(x, "b c d h w -> b d h w c")
-        mask = mask.squeeze(1)
-        L = mask.sum(dim=(1, 2, 3))[0]  # Same for all batch elements
-        mask_ids = mask.nonzero(as_tuple=True)
-        flat_values = x_pre_in[mask_ids]
-        ncl = rearrange(flat_values, "(b L) c -> b c L", b=x.shape[0], c=x.shape[1], L=int(L))  # (BCL) -> (BCL)
-        ncl = super(type(self), self).forward(ncl)  # use BN1d to normalize this flatten feature `nc`
-        ncl = rearrange(ncl, "b c L -> (b L) c")  # (BCL) -> (BCL)
+    mask = _get_active_ex_or_ii(
+        B=x.shape[0], D=x.shape[2], H=x.shape[3], W=x.shape[4], device=x.device, dtype=x.dtype
+    )
+    # active_ex.squeeze(1).nonzero(as_tuple=True)  # ii: bi, di, hi, wi
+    # ToDo: Test this re-arrange madness.
+    #   Should normalize by sample now (not by batch, as we do instance norm and not batchnorm!)
+    x_pre_in = rearrange(x, "b c d h w -> b d h w c")
+    mask = mask.squeeze(1)
+    L = mask.sum(dim=(1, 2, 3))[0]  # Same for all batch elements
+    mask_ids = mask.nonzero(as_tuple=True)
+    flat_values = x_pre_in[mask_ids]
+    ncl = rearrange(flat_values, "(b L) c -> b c L", b=x.shape[0], c=x.shape[1], L=int(L))  # (BCL) -> (BCL)
+    ncl = super(type(self), self).forward(ncl)  # use BN1d to normalize this flatten feature `nc`
+    ncl = rearrange(ncl, "b c L -> (b L) c")  # (BCL) -> (BCL)
 
-        x_postin = torch.zeros_like(x_pre_in, dtype=x_pre_in.dtype, device=x_pre_in.device)
-        x_postin[mask_ids] = ncl
-        x_postin = rearrange(x_postin, "b d h w c -> b c d h w")  # (BDHWC) -> (BCDHW)
-        # bcdhw = rearrange(
-        #     x_postbn, "b c (d h w)  -> b c d h w", d=x.shape[2], h=x.shape[3], w=x.shape[4]
-        # )  # reshape the normalized flatten feature back to the original shape
+    x_postin = torch.zeros_like(x_pre_in, dtype=x_pre_in.dtype, device=x_pre_in.device)
+    x_postin[mask_ids] = ncl
+    x_postin = rearrange(x_postin, "b d h w c -> b c d h w")  # (BDHWC) -> (BCDHW)
+    # bcdhw = rearrange(
+    #     x_postbn, "b c (d h w)  -> b c d h w", d=x.shape[2], h=x.shape[3], w=x.shape[4]
+    # )  # reshape the normalized flatten feature back to the original shape
     return x_postin
 
 
@@ -98,35 +98,34 @@ def sp_bn_forward(self, x: torch.Tensor):
     Flatten the input, normalize it, and then reshape it back to the original shape.
     This has to be done to make the masking not affect the norm statistics.
     """
-    with FakeTensorMode(allow_non_fake_inputs=True):
-        B, C = x.shape[0], x.shape[1]
-        mask = _get_active_ex_or_ii(
-            B=x.shape[0], D=x.shape[2], H=x.shape[3], W=x.shape[4], device=x.device, dtype=x.dtype
-        )
-        # active_ex.squeeze(1).nonzero(as_tuple=True)  # ii: bi, di, hi, wi
-        #   Should normalize by sample now (not by batch, as we do instance norm and not batchnorm!)
-        # x_pre_in = rearrange(x, "b c d h w -> b d h w c")
+    B, C = x.shape[0], x.shape[1]
+    mask = _get_active_ex_or_ii(
+        B=x.shape[0], D=x.shape[2], H=x.shape[3], W=x.shape[4], device=x.device, dtype=x.dtype
+    )
+    # active_ex.squeeze(1).nonzero(as_tuple=True)  # ii: bi, di, hi, wi
+    #   Should normalize by sample now (not by batch, as we do instance norm and not batchnorm!)
+    # x_pre_in = rearrange(x, "b c d h w -> b d h w c")
 
-        x_pre_in = torch.permute(x, (0, 2, 3, 4, 1))
-        mask = mask.squeeze(1)
-        L = int(mask.sum(dim=(1, 2, 3))[0])
-        mask_ids = mask.nonzero(as_tuple=True)
-        flat_values = x_pre_in[mask_ids]
-        # ncl = rearrange(flat_values, "(b L) c -> b c L", b=x.shape[0], c=x.shape[1], L=int(L))  # (BCL) -> (BCL)
-        pre_nlc = torch.reshape(flat_values, (B, L, C))  # (BL)C -> BLC
-        pre_ncl = torch.permute(pre_nlc, (0, 2, 1))  # BLC -> BCL
-        post_ncl = super(type(self), self).forward(pre_ncl)  # use BN1d to normalize this flatten feature `nc`
-        # ncl = rearrange(ncl, "b c L -> (b L) c")  # (BCL) -> (BCL)
-        post_nlc = torch.permute(post_ncl, (0, 2, 1))  # BCL -> BLC
-        post_ncl = torch.reshape(post_nlc, (B * L, C))  # BLC -> (BL)C
+    x_pre_in = torch.permute(x, (0, 2, 3, 4, 1))
+    mask = mask.squeeze(1)
+    L = int(mask.sum(dim=(1, 2, 3))[0])
+    mask_ids = mask.nonzero(as_tuple=True)
+    flat_values = x_pre_in[mask_ids]
+    # ncl = rearrange(flat_values, "(b L) c -> b c L", b=x.shape[0], c=x.shape[1], L=int(L))  # (BCL) -> (BCL)
+    pre_nlc = torch.reshape(flat_values, (B, L, C))  # (BL)C -> BLC
+    pre_ncl = torch.permute(pre_nlc, (0, 2, 1))  # BLC -> BCL
+    post_ncl = super(type(self), self).forward(pre_ncl)  # use BN1d to normalize this flatten feature `nc`
+    # ncl = rearrange(ncl, "b c L -> (b L) c")  # (BCL) -> (BCL)
+    post_nlc = torch.permute(post_ncl, (0, 2, 1))  # BCL -> BLC
+    post_ncl = torch.reshape(post_nlc, (B * L, C))  # BLC -> (BL)C
 
-        x_postin = torch.zeros_like(x_pre_in, dtype=x_pre_in.dtype, device=x_pre_in.device)
-        x_postin[mask_ids] = post_ncl
-        # x_postin = rearrange(x_postin, "b d h w c -> b c d h w")  # (BDHWC) -> (BCDHW)
-        x_postin = torch.permute(x_postin, (0, 4, 1, 2, 3))
-        # bcdhw = rearrange(
-        #     x_postbn, "b c (d h w)  -> b c d h w", d=x.shape[2], h=x.shape[3], w=x.shape[4]
-        # )  # reshape the normalized flatten feature back to the original shape
+    x_postin = torch.zeros_like(x_pre_in, dtype=x_pre_in.dtype, device=x_pre_in.device)
+    x_postin[mask_ids] = post_ncl
+    # x_postin = rearrange(x_postin, "b d h w c -> b c d h w")  # (BDHWC) -> (BCDHW)
+    x_postin = torch.permute(x_postin, (0, 4, 1, 2, 3))
+    # bcdhw = rearrange(
+    #     x_postbn, "b c (d h w)  -> b c d h w", d=x.shape[2], h=x.shape[3], w=x.shape[4]
+    # )  # reshape the normalized flatten feature back to the original shape
     return x_postin
 
 
@@ -165,26 +164,26 @@ class SparseBatchNorm3d(nn.BatchNorm1d):
 #                 x_instance_normed * self.weight[None, :, None, None, None] + self.bias[None, :, None, None, None]
 #             ) * mask
 
-    # def forward(self, x: torch.Tensor):
-    #     # mask : B 1 D H W
+# def forward(self, x: torch.Tensor):
+#     # mask : B 1 D H W
 
-    #     if self.momentum is None:
-    #         exponential_average_factor = 0.0
-    #     else:
-    #         exponential_average_factor = self.momentum
+#     if self.momentum is None:
+#         exponential_average_factor = 0.0
+#     else:
+#         exponential_average_factor = self.momentum
 
-    #     if self.training and self.track_running_stats:
-    #         if self.num_batches_tracked is not None:  # type: ignore[has-type]
-    #             self.num_batches_tracked.add_(1)  # type: ignore[has-type]
-    #             if self.momentum is None:  # use cumulative moving average
-    #                 exponential_average_factor = 1.0 / float(self.num_batches_tracked)
-    #             else:  # use exponential moving average
-    #                 exponential_average_factor = self.momentum
+#     if self.training and self.track_running_stats:
+#         if self.num_batches_tracked is not None:  # type: ignore[has-type]
+#             self.num_batches_tracked.add_(1)  # type: ignore[has-type]
+#             if self.momentum is None:  # use cumulative moving average
+#                 exponential_average_factor = 1.0 / float(self.num_batches_tracked)
+#             else:  # use exponential moving average
+#                 exponential_average_factor = self.momentum
 
-    #     if self.training:
-    #         bn_training = True
-    #     else:
-    #         bn_training = (self.running_mean is None) and (self.running_var is None)
+#     if self.training:
+#         bn_training = True
+#     else:
+#         bn_training = (self.running_mean is None) and (self.running_var is None)
 
 
 class einops_SparseInstanceNorm3d(nn.InstanceNorm1d):
@@ -369,6 +368,7 @@ if __name__ == "__main__":
     _cur_active = mask
     sp_in = SparseInstanceNorm3d(3, affine=True)
     einops_sp_in = einops_SparseInstanceNorm3d(3, affine=True)
+    sparse_conv = SparseConv3d(3, 3, 3)
 
     for j in range(10):
         x = torch.randn(4, 3, 16, 16, 16)
@@ -380,3 +380,14 @@ if __name__ == "__main__":
             print(f"Failed at {j}")
             diff = torch.sum(torch.abs(out_a - out_b))
             print(f"Diff: {diff}")
+
+    x = torch.randn(4, 3, 16, 16, 16)
+
+    conv = torch.compile(sparse_conv, options={"trace.enabled": True})
+    print("Compiled conv")
+    out_a = torch.compile(sp_in)
+    print("Compiled IN")
+    joint = torch.nn.Sequential(*[sparse_conv, sp_in])
+    torch.compile(joint)
+    print("Compiled joint")
+    sys.exit(0)
