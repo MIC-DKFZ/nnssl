@@ -13,7 +13,7 @@ allow_ops_in_compiled_graph()
 _cur_active: torch.Tensor = None  # B1fff
 
 
-def _get_active_ex_or_ii(B, D, H, W):
+def _get_active_ex_or_ii(B, D, H, W, device, dtype):
     """
     This probably needs to be adapted. Right now the lowest level defines the mask, but we do it right now at the highest level.
     Otherwise this enforces that the blocks will be quite large in the input (depending on downsampling).
@@ -21,7 +21,7 @@ def _get_active_ex_or_ii(B, D, H, W):
     mask_D, mask_H, mask_W = _cur_active.shape[2:]
     # If we the resolution is smaller than our blocks
     if D < mask_D and H < mask_H and W < mask_W:
-        return torch.ones(B, 1, D, H, W, dtype=_cur_active.dtype, device=_cur_active.device)
+        return torch.ones(B, 1, D, H, W, dtype=dtype, device=device)
     # If the resolution is larger than our blocks -?
     d_repeat, h_repeat, w_repeat = D // _cur_active.shape[-3], H // _cur_active.shape[-2], W // _cur_active.shape[-1]
     active_ex = (
@@ -37,7 +37,7 @@ def sp_conv_forward(self, x: torch.Tensor):
     Does the normal conv call, and then masks the output with the active_ex mask.
     """
     x = super(type(self), self).forward(x)
-    x *= _get_active_ex_or_ii(B=x.shape[0], D=x.shape[2], H=x.shape[3], W=x.shape[4])
+    x *= _get_active_ex_or_ii(B=x.shape[0], D=x.shape[2], H=x.shape[3], W=x.shape[4], device=x.device, dtype=x.dtype)
     # (BCDHW) *= (B1DHW), mask the output of conv
     return x
 
@@ -66,7 +66,9 @@ def einops_sp_bn_forward(self, x: torch.Tensor):
     Flatten the input, normalize it, and then reshape it back to the original shape.
     This has to be done to make the masking not affect the norm statistics.
     """
-    mask = _get_active_ex_or_ii(B=x.shape[0], D=x.shape[2], H=x.shape[3], W=x.shape[4])
+    mask = _get_active_ex_or_ii(
+        B=x.shape[0], D=x.shape[2], H=x.shape[3], W=x.shape[4], device=x.device, dtype=x.dtype
+    )
     # active_ex.squeeze(1).nonzero(as_tuple=True)  # ii: bi, di, hi, wi
     # ToDo: Test this re-arrange madness.
     #   Should normalize by sample now (not by batch, as we do instance norm and not batchnorm!)
@@ -95,7 +97,9 @@ def sp_bn_forward(self, x: torch.Tensor):
     """
 
     B, C = x.shape[0], x.shape[1]
-    mask = _get_active_ex_or_ii(B=x.shape[0], D=x.shape[2], H=x.shape[3], W=x.shape[4])
+    mask = _get_active_ex_or_ii(
+        B=x.shape[0], D=x.shape[2], H=x.shape[3], W=x.shape[4], device=x.device, dtype=x.dtype
+    )
     # active_ex.squeeze(1).nonzero(as_tuple=True)  # ii: bi, di, hi, wi
     #   Should normalize by sample now (not by batch, as we do instance norm and not batchnorm!)
     # x_pre_in = rearrange(x, "b c d h w -> b d h w c")
@@ -143,7 +147,9 @@ class SparseInstanceNorm3d(nn.InstanceNorm3d):
 
     def _apply_instance_norm(self, input):
         x = input
-        mask = _get_active_ex_or_ii(B=x.shape[0], D=x.shape[2], H=x.shape[3], W=x.shape[4])
+        mask = _get_active_ex_or_ii(
+            B=x.shape[0], D=x.shape[2], H=x.shape[3], W=x.shape[4], device=x.device, dtype=x.dtype
+        )
         n_active = torch.sum(mask, dim=(1, 2, 3, 4), keepdim=True)  # [B, 1, 1, 1, 1]
         foreground_sum = torch.sum(x * mask, dim=(2, 3, 4), keepdim=True)  # [B, C, 1, 1, 1]
         foreground_mean = foreground_sum / n_active  # B C 1 1 1
