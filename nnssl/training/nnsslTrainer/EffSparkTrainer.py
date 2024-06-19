@@ -62,6 +62,20 @@ class EffSparkMAETrainer_5ep(EffSparkMAETrainer):
         self.num_epochs = 5
 
 
+class EffSparkMAETrainer_5ep_BS6(EffSparkMAETrainer_5ep):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 6
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+
+
 class EffSparkMAETrainer_BS8_5ep(EffSparkMAETrainer):
     def __init__(
         self,
