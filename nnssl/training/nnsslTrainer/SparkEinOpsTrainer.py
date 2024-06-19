@@ -62,5 +62,5 @@ class EinOps_SparkMAETrainer_5ep_BS6(EinOps_SparkMAETrainer):
         device: device = ...,
     ):
         plan.configurations[configuration_name].batch_size = 6
-        self.num_epochs = 5
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        self.num_epochs = 5
