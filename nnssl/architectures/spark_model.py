@@ -194,7 +194,7 @@ class EfficientSpark3D(nn.Module):
                 # bcfff = self.densify_norms[i](bcfff)  # Why even norm?
                 mask_tokens = self.mask_tokens[i]
                 cur_shape = [bcfff.shape[0]] + list(bcfff.shape[2:])  # B H W D
-                cur_mask = _get_active_ex_or_ii(*cur_shape)
+                cur_mask = _get_active_ex_or_ii(*cur_shape, device=bcfff.device, dtype=bcfff.dtype)
                 densification_mask = mask_tokens * (1 - cur_mask)
                 bcfff = bcfff + densification_mask  # fill in empty (non-active) positions with [mask] tokens
                 # bcfff: torch.Tensor = self.densify_projs[i](bcfff)  -- No projection because Why do this at all?
