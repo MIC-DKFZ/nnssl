@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 import os
 from typing import List, Tuple, Union
 import matplotlib.pyplot as plt
@@ -52,7 +51,7 @@ def create_blocky_mask(tensor_size, block_size, sparsity_factor=0.75, rng_seed: 
     return small_mask
 
 
-class BaseMAETrainer(AbstractBaseTrainer, ABC):
+class BaseMAETrainer(AbstractBaseTrainer):
     def __init__(
         self,
         plan: Plan,
@@ -257,7 +256,6 @@ class BaseMAETrainer(AbstractBaseTrainer, ABC):
         return {"loss": l.detach().cpu().numpy()}
 
     def log_image_and_reco(self, img, reco, mask, loss, index) -> None:
-        return
         if self.local_rank == 0:
             filename = f"epoch_{self.current_epoch}_{index}.png"
             ax: list[plt.Axes]
@@ -308,7 +306,6 @@ class BaseMAETrainer(AbstractBaseTrainer, ABC):
     def log_qualitative_reconstruction_step(
         self,
     ):
-        return
         """For each sample in the validation dataloader,"""
         with torch.no_grad():
             for batch_id in range(len(self.recon_dataloader)):
