@@ -117,8 +117,10 @@ class SparK3D(nn.Module):
                     mask_tokens = self.mask_tokens[i].expand_as(bcfff)
                     cur_shape = [bcfff.shape[0]] + list(bcfff.shape[2:])  # B H W D
                     bcfff = torch.where(
-                        _get_active_ex_or_ii(*cur_shape).expand_as(bcfff) == 1, bcfff, mask_tokens,
-                        device=bcfff.device, dtype=bcfff.dtype
+                        _get_active_ex_or_ii(*cur_shape, device=bcfff.device, dtype=bcfff.dtype).expand_as(bcfff)
+                        == 1,
+                        bcfff,
+                        mask_tokens,
                     )  # fill in empty (non-active) positions with [mask] tokens
                     bcfff: torch.Tensor = self.densify_projs[i](bcfff)
                 to_dec.append(bcfff)
