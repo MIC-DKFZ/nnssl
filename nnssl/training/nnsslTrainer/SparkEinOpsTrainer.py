@@ -4,7 +4,7 @@ from torch import device
 from torch import nn
 from torch._C import device
 from nnssl.architectures.spark_model import SparK3D
-from nnssl.architectures.spark_utils import convert_to_spark_cnn
+from nnssl.architectures.spark_utils import convert_to_einops_spark_cnn
 from nnssl.experiment_planning.experiment_planners.plan import Plan
 from nnssl.training.nnsslTrainer.SparkTrainer import SparkMAETrainer
 from dynamic_network_architectures.architectures.unet import ResidualEncoderUNet
@@ -43,7 +43,7 @@ class EinOps_SparkMAETrainer(SparkMAETrainer):
             deep_supervision=False,
         )
 
-        spark_architecture = convert_to_spark_cnn(network.encoder)
+        spark_architecture = convert_to_einops_spark_cnn(network.encoder)
         network.encoder = spark_architecture
         actual_network = SparK3D(network, (160, 160, 160), self.use_mask_token)
 
