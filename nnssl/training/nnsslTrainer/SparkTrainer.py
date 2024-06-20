@@ -632,9 +632,8 @@ class SparkMAETrainer_5ep_BS6_mask60(SparkMAETrainer5ep):
         unpack_dataset: bool = True,
         device: torch.device = torch.device("cuda"),
     ):
-
+        plan.configurations[configuration_name].batch_size = 6
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
-        self.initial_lr = 5e-2
         self.mask_percentage: float = 0.6
 
 
@@ -649,7 +648,6 @@ class SparkMAETrainer_5ep_BS7_mask60(SparkMAETrainer5ep):
         unpack_dataset: bool = True,
         device: torch.device = torch.device("cuda"),
     ):
-
+        plan.configurations[configuration_name].batch_size = 7
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
-        self.initial_lr = 5e-2
         self.mask_percentage: float = 0.6
