@@ -63,7 +63,6 @@ class BaseMAETrainer(AbstractBaseTrainer):
     ):
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
         self.mask_percentage: float = 0.75
-        self.batch_size: int = 1
         self.im_output_folder = os.path.join(self.output_folder, "img_log")
         os.makedirs(self.im_output_folder, exist_ok=True)
         self.save_imgs_every_n_epochs = 50
