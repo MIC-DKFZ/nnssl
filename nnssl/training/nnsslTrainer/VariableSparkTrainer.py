@@ -1,15 +1,15 @@
 import torch
 from torch import nn
-from nnssl.architectures.spark_model import EfficientSpark3D
+from nnssl.architectures.spark_model import SparK3D
 from nnssl.architectures.spark_utils import convert_to_spark_cnn
 from nnssl.experiment_planning.experiment_planners.plan import Plan
 from nnssl.training.nnsslTrainer.BaseMAETrainer import create_blocky_mask
 from dynamic_network_architectures.architectures.unet import ResidualEncoderUNet
-from nnssl.training.nnsslTrainer.EffSparkTrainer import EffSparkMAETrainer
+from nnssl.training.nnsslTrainer.SparkTrainer import SparkMAETrainer
 import numpy as np
 
 
-class VariableEffSparkMAETrainer(EffSparkMAETrainer):
+class BaseVariableSparkMAETrainer(SparkMAETrainer):
     def __init__(
         self,
         plan: Plan,
@@ -19,7 +19,6 @@ class VariableEffSparkMAETrainer(EffSparkMAETrainer):
         unpack_dataset: bool = True,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 6
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
         self.mask_percentage = (0.6, 0.9)
         self.num_epochs = 52
@@ -71,12 +70,12 @@ class VariableEffSparkMAETrainer(EffSparkMAETrainer):
 
         spark_architecture = convert_to_spark_cnn(network.encoder)
         network.encoder = spark_architecture
-        actual_network = EfficientSpark3D(network, (160, 160, 160))
+        actual_network = SparK3D(network, (160, 160, 160))
 
         return actual_network
 
 
-class BigVariableEffSparkMAETrainer(VariableEffSparkMAETrainer):
+class BigVariableSparkMAETrainer(BaseVariableSparkMAETrainer):
     def __init__(
         self,
         plan: Plan,
@@ -88,8 +87,5 @@ class BigVariableEffSparkMAETrainer(VariableEffSparkMAETrainer):
     ):
         plan.configurations[configuration_name].batch_size = 48  # 6 * 8 (8 GPUs)
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
-        self.mask_percentage = (0.6, 0.9)
         self.num_epochs = 4000
-        self.mask_random_seed = np.random.RandomState(123)
         self.initial_lr = 3e-2  # Bit more as we increase batch size a lot
-
