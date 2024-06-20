@@ -51,3 +51,19 @@ class NoTokenSparkMAETrainer(SparkMAETrainer):
         actual_network = SparK3D(network, (160, 160, 160), use_mask_token=False)
 
         return actual_network
+
+
+class NoTokenSparkMAETrainer_5ep_BS6(NoTokenSparkMAETrainer):
+
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 6
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        self.num_epochs = 5
