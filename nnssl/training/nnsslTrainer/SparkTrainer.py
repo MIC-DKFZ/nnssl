@@ -177,9 +177,9 @@ class SparkMAETrainer(BaseMAETrainer):
             data = data.to(self.device, non_blocking=True)
             target = data
 
-            mask = self.mask_creation(
-                self.batch_size, self.config_plan.patch_size, self.mask_percentage
-            ).to(self.device, non_blocking=True)
+            mask = self.mask_creation(self.batch_size, self.config_plan.patch_size, self.mask_percentage).to(
+                self.device, non_blocking=True
+            )
             spark_utils._cur_active = mask
             # Autocast is a little bitch.
             # If the device_type is 'cpu' then it's slow as heck and needs to be disabledq.
@@ -619,3 +619,37 @@ class SparkMAETrainerBS7_lr_5e2(SparkMAETrainerBS7):
     ):
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
         self.initial_lr = 5e-2
+
+
+class SparkMAETrainerBS6_mask60(SparkMAETrainer5ep):
+
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        self.initial_lr = 5e-2
+        self.mask_percentage: float = 0.6
+
+
+class SparkMAETrainerBS7_mask60(SparkMAETrainer5ep):
+
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        self.initial_lr = 5e-2
+        self.mask_percentage: float = 0.6
