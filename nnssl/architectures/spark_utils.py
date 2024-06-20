@@ -35,6 +35,25 @@ def _get_active_ex_or_ii(B, D, H, W, device, dtype):
     return active_ex
 
 
+def _old_get_active_ex_or_ii(B, D, H, W):
+    """
+    This probably needs to be adapted. Right now the lowest level defines the mask, but we do it right now at the highest level.
+    Otherwise this enforces that the blocks will be quite large in the input (depending on downsampling).
+    """
+    mask_D, mask_H, mask_W = _cur_active.shape[2:]
+    # If we the resolution is smaller than our blocks
+    if D < mask_D and H < mask_H and W < mask_W:
+        return torch.ones(B, 1, D, H, W, dtype=_cur_active.dtype, device=_cur_active.device)
+    # If the resolution is larger than our blocks -?
+    d_repeat, h_repeat, w_repeat = D // _cur_active.shape[-3], H // _cur_active.shape[-2], W // _cur_active.shape[-1]
+    active_ex = (
+        _cur_active.repeat_interleave(d_repeat, dim=2)
+        .repeat_interleave(h_repeat, dim=3)
+        .repeat_interleave(w_repeat, dim=4)
+    )
+    return active_ex
+
+
 def sp_conv_forward(self, x: torch.Tensor):
     """
     Does the normal conv call, and then masks the output with the active_ex mask.
@@ -72,6 +91,33 @@ def einops_sp_bn_forward(self, x: torch.Tensor):
     mask = _get_active_ex_or_ii(
         B=x.shape[0], D=x.shape[2], H=x.shape[3], W=x.shape[4], device=x.device, dtype=x.dtype
     )
+    # active_ex.squeeze(1).nonzero(as_tuple=True)  # ii: bi, di, hi, wi
+    # ToDo: Test this re-arrange madness.
+    #   Should normalize by sample now (not by batch, as we do instance norm and not batchnorm!)
+    x_pre_in = rearrange(x, "b c d h w -> b d h w c")
+    mask = mask.squeeze(1)
+    L = mask.sum(dim=(1, 2, 3))[0]  # Same for all batch elements
+    mask_ids = mask.nonzero(as_tuple=True)
+    flat_values = x_pre_in[mask_ids]
+    ncl = rearrange(flat_values, "(b L) c -> b c L", b=x.shape[0], c=x.shape[1], L=int(L))  # (BCL) -> (BCL)
+    ncl = super(type(self), self).forward(ncl)  # use BN1d to normalize this flatten feature `nc`
+    ncl = rearrange(ncl, "b c L -> (b L) c")  # (BCL) -> (BCL)
+
+    x_postin = torch.zeros_like(x_pre_in, dtype=x_pre_in.dtype, device=x_pre_in.device)
+    x_postin[mask_ids] = ncl
+    x_postin = rearrange(x_postin, "b d h w c -> b c d h w")  # (BDHWC) -> (BCDHW)
+    # bcdhw = rearrange(
+    #     x_postbn, "b c (d h w)  -> b c d h w", d=x.shape[2], h=x.shape[3], w=x.shape[4]
+    # )  # reshape the normalized flatten feature back to the original shape
+    return x_postin
+
+
+def old_sp_in_forward(self, x: torch.Tensor):
+    """
+    Flatten the input, normalize it, and then reshape it back to the original shape.
+    This has to be done to make the masking not affect the norm statistics.
+    """
+    mask = _old_get_active_ex_or_ii(B=x.shape[0], D=x.shape[2], H=x.shape[3], W=x.shape[4])
     # active_ex.squeeze(1).nonzero(as_tuple=True)  # ii: bi, di, hi, wi
     # ToDo: Test this re-arrange madness.
     #   Should normalize by sample now (not by batch, as we do instance norm and not batchnorm!)
@@ -142,10 +188,8 @@ class einops_SparseInstanceNorm3d(nn.InstanceNorm1d):
 class SparseInstanceNorm3d(nn.InstanceNorm1d):
     forward = sp_bn_forward  # hack: override the forward function; see `sp_bn_forward` above for more details
 
-
-class SparseSyncBatchNorm3d(nn.SyncBatchNorm):
-    forward = sp_bn_forward  # hack: override the forward function; see `sp_bn_forward` above for more details
-
+class OldInstanceNorm3d(nn.InstanceNorm1d):
+    forward = old_sp_in_forward
 
 # def convert_to_spark_cnn(m: nn.Module, verbose=False, sbn=False):
 #     oup = m
@@ -365,14 +409,18 @@ if __name__ == "__main__":
     _cur_active = mask
     sp_in = SparseInstanceNorm3d(3, affine=True)
     einops_sp_in = einops_SparseInstanceNorm3d(3, affine=True)
+    old_in = OldInstanceNorm3d(3, affine=True)
     sparse_conv = SparseConv3d(3, 3, 3)
 
     for j in range(10):
         x = torch.randn(4, 3, 16, 16, 16)
         out_b = einops_sp_in(x)
         out_a = sp_in(x)
+        out_o = old_in(x)
         if torch.allclose(out_a, out_b):
             print(f"Passed at {j}")
+        if torch.allclose(out_a, out_o):
+            print(f"Passed old at {j}")
         else:
             print(f"Failed at {j}")
             diff = torch.sum(torch.abs(out_a - out_b))
