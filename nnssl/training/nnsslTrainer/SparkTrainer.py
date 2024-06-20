@@ -621,7 +621,7 @@ class SparkMAETrainerBS7_lr_5e2(SparkMAETrainerBS7):
         self.initial_lr = 5e-2
 
 
-class SparkMAETrainerBS6_mask60(SparkMAETrainer5ep):
+class SparkMAETrainer_5ep_BS6_mask60(SparkMAETrainer5ep):
 
     def __init__(
         self,
@@ -638,7 +638,7 @@ class SparkMAETrainerBS6_mask60(SparkMAETrainer5ep):
         self.mask_percentage: float = 0.6
 
 
-class SparkMAETrainerBS7_mask60(SparkMAETrainer5ep):
+class SparkMAETrainer_5ep_BS7_mask60(SparkMAETrainer5ep):
 
     def __init__(
         self,
