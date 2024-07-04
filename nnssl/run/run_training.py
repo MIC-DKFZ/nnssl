@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 import socket
 from typing import Type, Union, Optional
@@ -129,7 +130,7 @@ def maybe_load_checkpoint(
 
 def setup_ddp(rank, world_size):
     # initialize the process group
-    dist.init_process_group("nccl", rank=rank, world_size=world_size)
+    dist.init_process_group("nccl", rank=rank, world_size=world_size, timeout=datetime.timedelta(minutes=20))
 
 
 def cleanup_ddp():
