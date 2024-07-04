@@ -130,7 +130,8 @@ def maybe_load_checkpoint(
 
 def setup_ddp(rank, world_size):
     # initialize the process group
-    dist.init_process_group("nccl", rank=rank, world_size=world_size, timeout=datetime.timedelta(minutes=20))
+    # Unpacking actually takes about
+    dist.init_process_group("nccl", rank=rank, world_size=world_size, timeout=datetime.timedelta(minutes=25))
 
 
 def cleanup_ddp():
