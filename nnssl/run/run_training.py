@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import socket
 from typing import Type, Union, Optional
@@ -131,7 +131,7 @@ def maybe_load_checkpoint(
 def setup_ddp(rank, world_size):
     # initialize the process group
     # Unpacking actually takes about
-    dist.init_process_group("nccl", rank=rank, world_size=world_size, timeout=datetime.timedelta(minutes=25))
+    dist.init_process_group("nccl", rank=rank, world_size=world_size, timeout=timedelta(minutes=25))
 
 
 def cleanup_ddp():
