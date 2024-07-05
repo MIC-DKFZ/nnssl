@@ -22,6 +22,7 @@ from torch import autocast
 from nnssl.utilities.helpers import dummy_context
 import valohai
 from torch.nn.parallel import DistributedDataParallel as DDP
+from batchgenerators.utilities.file_and_folder_operations import join
 
 from nnssl.utilities.default_n_proc_DA import get_allowed_n_proc_DA
 import numpy as np
@@ -388,6 +389,9 @@ class BaseMAETrainer(AbstractBaseTrainer):
                 if (self.current_epoch + 1) % self.save_imgs_every_n_epochs == 0:
                     if self.local_rank == 0:
                         self.log_qualitative_reconstruction_step()
+                        self.save_checkpoint(
+                            join(self.output_folder, f"checkpoint_epoch_{self.current_epoch}.pth"), live_upload=True
+                        )
 
             self.on_epoch_end()
 
