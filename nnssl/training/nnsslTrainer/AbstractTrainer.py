@@ -641,6 +641,9 @@ class AbstractBaseTrainer(ABC):
                 }
                 torch.save(checkpoint, filename)
                 if is_running_in_valohai() and live_upload:
+                    filename = f"ckpt_{self.current_epoch}.pth"
+                    out_path = valohai.outputs().path(filename)
+                    torch.save(checkpoint, out_path)
                     valohai.outputs().live_upload(filename)
             else:
                 self.print_to_log_file("No checkpoint written, checkpointing is disabled")
