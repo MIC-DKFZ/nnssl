@@ -621,6 +621,7 @@ class AbstractBaseTrainer(ABC):
 
     def save_checkpoint(self, filename: str, live_upload: bool = False) -> None:
         if self.local_rank == 0:
+            self.print_to_log_file(f"Disable Checkpointing is {self.disable_checkpointing}")
             if not self.disable_checkpointing:
                 if self.is_ddp:
                     mod = self.network.module
