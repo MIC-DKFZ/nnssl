@@ -531,7 +531,7 @@ class AbstractBaseTrainer(ABC):
 
         self.logger.log("train_losses", loss_here, self.current_epoch)
         if self.local_rank == 0:
-            if self.current_epoch % 50 == 0 and self.current_epoch != 0:
+            if self.current_epoch % 50 == 0:
                 self.save_checkpoint(
                     join(self.output_folder, f"checkpoint_epoch_{self.current_epoch}.pth"), live_upload=True
                 )
