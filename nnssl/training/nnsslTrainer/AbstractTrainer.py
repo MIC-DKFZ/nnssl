@@ -532,9 +532,15 @@ class AbstractBaseTrainer(ABC):
         self.logger.log("train_losses", loss_here, self.current_epoch)
         if self.local_rank == 0:
             if self.current_epoch % 50 == 0:
+                self.print_to_log_file("Saving checkpoint...")
                 self.save_checkpoint(
                     join(self.output_folder, f"checkpoint_epoch_{self.current_epoch}.pth"), live_upload=True
                 )
+                if is_running_in_valohai():
+                    self.print_to_log_file("Uploading checkpoint...")
+                    valohai.outputs().live_upload(
+                        join(self.output_folder, f"checkpoint_epoch_{self.current_epoch}.pth")
+                    )
 
             with valohai.logger() as logger:
                 logger.log("train_loss", float(loss_here))

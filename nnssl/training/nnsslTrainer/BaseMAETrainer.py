@@ -389,9 +389,9 @@ class BaseMAETrainer(AbstractBaseTrainer):
                 if (self.current_epoch + 1) % self.save_imgs_every_n_epochs == 0:
                     if self.local_rank == 0:
                         self.log_qualitative_reconstruction_step()
-                        self.save_checkpoint(
-                            join(self.output_folder, f"checkpoint_epoch_{self.current_epoch}.pth"), live_upload=True
-                        )
+                        # self.save_checkpoint(
+                        #     join(self.output_folder, f"checkpoint_epoch_{self.current_epoch}.pth"), live_upload=True
+                        # )
 
             self.on_epoch_end()
 
