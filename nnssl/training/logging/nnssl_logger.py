@@ -122,7 +122,7 @@ class nnSSLLogger(object):
         min_length = min([len(i) for i in self.my_fantastic_logging.values()])
         assert max_length - min_length <= 1, "Lengths of logging items differ by more than 1. This is not supported."
         if max_length != min_length:
-            logger.warn(
+            logger.warning(
                 f"WARNING: Lengths of logging items are not equal. Truncating all to the length of the shortest item ({min_length})"
                 "This also sets the epoch number to the length to the minimum length -- Basically adding 1 epoch. This is a bit of a hack but it should work."
             )
