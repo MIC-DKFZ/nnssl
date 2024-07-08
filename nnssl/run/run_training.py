@@ -3,6 +3,8 @@ import os
 import socket
 from typing import Type, Union, Optional
 
+from loguru import logger
+
 import nnssl
 import torch.cuda
 import torch.distributed as dist
@@ -100,6 +102,7 @@ def maybe_load_checkpoint(
             "Cannot both continue a training AND load pretrained weights. Pretrained weights can only "
             "be used at the beginning of the training."
         )
+    logger.info("Attempting to continue training...")
     if continue_training:
         expected_checkpoint_file = join(nnunet_trainer.output_folder, "checkpoint_final.pth")
         if not isfile(expected_checkpoint_file):
@@ -112,7 +115,11 @@ def maybe_load_checkpoint(
                 f"WARNING: Cannot continue training because there seems to be no checkpoint available to "
                 f"continue from. Starting a new training..."
             )
-            expected_checkpoint_file = None
+            raise RuntimeError(
+                f"Cannot continue training because there seems to be no checkpoint available to continue from. Starting a new training..."
+            )
+        logger.info(f"Using {expected_checkpoint_file} as the starting checkpoint for training...")
+
     elif validation_only:
         expected_checkpoint_file = join(nnunet_trainer.output_folder, "checkpoint_final.pth")
         if not isfile(expected_checkpoint_file):
