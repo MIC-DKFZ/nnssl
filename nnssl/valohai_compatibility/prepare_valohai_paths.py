@@ -190,10 +190,10 @@ def mp_copy_del_files(source_path, target_path, n_processes=21):
 
 def copy_ckpt_if_it_exists(input_paths: str):
     all_ckpt_files = [f for f in os.listdir(input_paths) if f.endswith(".pth")]
-    assert len(all_ckpt_files) == 1, f"Found more than 1 checkpoint file: {all_ckpt_files} checkpoint files."
-    if len(ckpt_file) == 0:
+    if len(all_ckpt_files) == 0:
         logger.info("No checkpoint file found in the input folder.")
         return
+    assert len(all_ckpt_files) == 1, f"Found more than 1 checkpoint file: {all_ckpt_files} checkpoint files."
     ckpt_file = all_ckpt_files[0]
     some_json_file: str
     # All json files will get moved to the preprocessing folder and contain info about the model.
