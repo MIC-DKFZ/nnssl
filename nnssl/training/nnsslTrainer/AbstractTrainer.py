@@ -529,22 +529,9 @@ class AbstractBaseTrainer(ABC):
         else:
             loss_here = np.mean(outputs["loss"])
 
-        self.logger.log("train_losses", loss_here, self.current_epoch)
-        if self.local_rank == 0:
-            if self.current_epoch % 50 == 0:
-                self.print_to_log_file("Saving checkpoint...")
-                self.save_checkpoint(
-                    join(self.output_folder, f"checkpoint_epoch_{self.current_epoch}.pth"), live_upload=True
-                )
-                if is_running_in_valohai():
-                    self.print_to_log_file("Uploading checkpoint...")
-                    valohai.outputs().live_upload(
-                        join(self.output_folder, f"checkpoint_epoch_{self.current_epoch}.pth")
-                    )
-
-            with valohai.logger() as logger:
-                logger.log("train_loss", float(loss_here))
-                logger.log("epoch", int(self.current_epoch))
+        with valohai.logger() as logger:
+            logger.log("train_loss", float(loss_here))
+            logger.log("epoch", int(self.current_epoch))
 
     def on_validation_epoch_end(self, val_outputs: List[dict]):
         outputs_collated = collate_outputs(val_outputs)
@@ -587,6 +574,14 @@ class AbstractBaseTrainer(ABC):
         self.print_to_log_file(
             f"Epoch time: {np.round(self.logger.my_fantastic_logging['epoch_end_timestamps'][-1] - self.logger.my_fantastic_logging['epoch_start_timestamps'][-1], decimals=2)} s"
         )
+
+        # Save checkpoint every 50 epochs and liveupload if on valohai
+        if self.local_rank == 0:
+            if self.current_epoch % 50 == 0:
+                self.print_to_log_file("Saving checkpoint...")
+                self.save_checkpoint(
+                    join(self.output_folder, f"checkpoint_epoch_{self.current_epoch}.pth"), live_upload=True
+                )
 
         # handling periodic checkpointing
         current_epoch = self.current_epoch
