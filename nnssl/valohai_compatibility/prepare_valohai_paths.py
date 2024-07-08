@@ -191,24 +191,25 @@ def mp_copy_del_files(source_path, target_path, n_processes=21):
 def copy_ckpt_if_it_exists(input_paths: str):
     all_ckpt_files = [f for f in os.listdir(input_paths) if f.endswith(".pth")]
     assert len(all_ckpt_files) == 1, f"Found more than 1 checkpoint file: {all_ckpt_files} checkpoint files."
+    if len(ckpt_file) == 0:
+        logger.info("No checkpoint file found in the input folder.")
+        return
     ckpt_file = all_ckpt_files[0]
     some_json_file: str
     # All json files will get moved to the preprocessing folder and contain info about the model.
     some_json_file = [f for f in os.listdir(input_paths) if f.endswith(".json")][0]
-    if len(ckpt_file) > 0:
-        logger.info(f"Copying checkpoint file {ckpt_file}")
-        ckpt_file = ckpt_file[0]
-        base_target_path = os.environ.get("nnssl_results")
-        # We omit the actual filename as we just want: 1) DatasetName 2) Model__PlansName
-        target_path = some_json_file.split("__")[:-1]
-        fold_dir = "fold_all"
-        ckpt_filename = "checkpoint_latest.pth"
-        ckpt_path = os.path.join(input_paths, ckpt_file)
-        new_ckpt_path = os.path.join(base_target_path, *target_path, fold_dir, ckpt_filename)
-        Path(new_ckpt_path).mkdir(exist_ok=True, parents=True)  # Create all the necessary folders.
-        logger.info(f"Copying checkpoint from {ckpt_path} to {new_ckpt_path}.")
-        shutil.copy(ckpt_path, new_ckpt_path)
-        logger.info(f"Copying done.")
+    logger.info(f"Copying checkpoint file {ckpt_file}")
+    base_target_path = os.environ.get("nnssl_results")
+    # We omit the actual filename as we just want: 1) DatasetName 2) Model__PlansName
+    target_path = some_json_file.split("__")[:-1]
+    fold_dir = "fold_all"
+    ckpt_filename = "checkpoint_latest.pth"
+    ckpt_path = os.path.join(input_paths, ckpt_file)
+    new_ckpt_path = os.path.join(base_target_path, *target_path, fold_dir, ckpt_filename)
+    Path(new_ckpt_path).mkdir(exist_ok=True, parents=True)  # Create all the necessary folders.
+    logger.info(f"Copying checkpoint from {ckpt_path} to {new_ckpt_path}.")
+    shutil.copy(ckpt_path, new_ckpt_path)
+    logger.info(f"Copying done.")
 
 
 def prepare_training_paths_on_valohai():
