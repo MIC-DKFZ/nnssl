@@ -4,6 +4,7 @@ from batchgenerators.utilities.file_and_folder_operations import join
 matplotlib.use("agg")
 import seaborn as sns
 import matplotlib.pyplot as plt
+from loguru import logger
 
 
 class nnSSLLogger(object):
@@ -116,3 +117,16 @@ class nnSSLLogger(object):
 
     def load_checkpoint(self, checkpoint: dict):
         self.my_fantastic_logging = checkpoint
+        # Check that all logs are of the same length. If not we concat to the shortest length and return this length
+        max_length = max([len(i) for i in self.my_fantastic_logging.values()])
+        min_length = min([len(i) for i in self.my_fantastic_logging.values()])
+        assert max_length - min_length <= 1, "Lengths of logging items differ by more than 1. This is not supported."
+        if max_length != min_length:
+            logger.warn(
+                f"WARNING: Lengths of logging items are not equal. Truncating all to the length of the shortest item ({min_length})"
+                "This also sets the epoch number to the length to the minimum length -- Basically adding 1 epoch. This is a bit of a hack but it should work."
+            )
+
+        for key, value in self.my_fantastic_logging.items():
+            self.my_fantastic_logging[key] = value[:min_length]
+        return min_length

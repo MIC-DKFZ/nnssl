@@ -155,7 +155,9 @@ class SparkMAETrainer(BaseMAETrainer):
         self.my_init_kwargs = checkpoint["init_args"]
 
         self.current_epoch = checkpoint["current_epoch"]
-        self.logger.load_checkpoint(checkpoint["logging"])
+        min_epoch = self.logger.load_checkpoint(checkpoint["logging"])
+        # Apparently the val log is not written correctly when we currently save the checkpoint.
+        self.current_epoch = min_epoch
         self._best_ema = checkpoint["_best_ema"]
 
         # messing with state dict naming schemes. Facepalm.
