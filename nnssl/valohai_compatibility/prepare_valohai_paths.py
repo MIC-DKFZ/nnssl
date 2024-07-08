@@ -188,6 +188,29 @@ def mp_copy_del_files(source_path, target_path, n_processes=21):
         p.starmap(copy_del_files, src_target_pairs)
 
 
+def copy_ckpt_if_it_exists(input_paths: str):
+    all_ckpt_files = [f for f in os.listdir(input_paths) if f.endswith(".pth")]
+    assert len(all_ckpt_files) == 1, f"Found more than 1 checkpoint file: {all_ckpt_files} checkpoint files."
+    ckpt_file = all_ckpt_files[0]
+    some_json_file: str
+    # All json files will get moved to the preprocessing folder and contain info about the model.
+    some_json_file = [f for f in os.listdir(input_paths) if f.endswith(".json")][0]
+    if len(ckpt_file) > 0:
+        logger.info(f"Copying checkpoint file {ckpt_file}")
+        ckpt_file = ckpt_file[0]
+        base_target_path = os.environ.get("nnssl_results")
+        # We omit the actual filename as we just want: 1) DatasetName 2) Model__PlansName
+        target_path = some_json_file.split("__")[:-1]
+        fold_dir = "fold_all"
+        ckpt_filename = "checkpoint_latest.pth"
+        ckpt_path = os.path.join(input_paths, ckpt_file)
+        new_ckpt_path = os.path.join(base_target_path, *target_path, fold_dir, ckpt_filename)
+        Path(new_ckpt_path).mkdir(exist_ok=True, parents=True)  # Create all the necessary folders.
+        logger.info(f"Copying checkpoint from {ckpt_path} to {new_ckpt_path}.")
+        shutil.copy(ckpt_path, new_ckpt_path)
+        logger.info(f"Copying done.")
+
+
 def prepare_training_paths_on_valohai():
     if is_running_in_valohai():
         logger.info("Preparing paths for preprocessing on Valohai.")
@@ -202,6 +225,7 @@ def prepare_training_paths_on_valohai():
         os.environ["nnssl_results"] = nnunet_results
 
         input_paths = os.path.join(INPUT_ROOT, "pp-data")
+        copy_ckpt_if_it_exists(input_paths)
         logger.info(f"Size of downloaded files in {input_paths}: {measure_allocated_space_in_path(input_paths)} GB")
         logger.info(f"Copying/decompressing files from {input_paths} to {temp_pp_path}.")
         is_zipped = copy_to_target_and_maybe_decompress_files(input_paths, temp_pp_path)
