@@ -201,7 +201,7 @@ def copy_ckpt_if_it_exists(input_paths: str):
     logger.info(f"Copying checkpoint file {ckpt_file}")
     base_target_path = os.environ.get("nnssl_results")
     # We omit the actual filename as we just want: 1) DatasetName 2) Model__PlansName
-    target_path = some_json_file.split("__")[:-1]
+    target_path = some_json_file.split("__")[1:-1]  # need to skip nnssl_preprocessed key
     fold_dir = "fold_all"
     ckpt_filename = "checkpoint_latest.pth"
     ckpt_path = os.path.join(input_paths, ckpt_file)
