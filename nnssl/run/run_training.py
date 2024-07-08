@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta
 import os
+from pathlib import Path
+import shutil
 import socket
 from typing import Type, Union, Optional
 
@@ -91,6 +93,25 @@ def get_trainer_from_args(
     return nnssl_trainer
 
 
+def maybe_copy_ckpt_if_on_valohai(nnunet_output_folder: str):
+    if is_running_in_valohai():
+        from valohai.paths import get_inputs_path
+
+        INPUT_ROOT = get_inputs_path()
+        input_paths = os.path.join(INPUT_ROOT, "pp-data")
+        potential_ckpts = [c for c in os.listdir(input_paths) if c.endswith(".pth")]
+        assert (
+            len(potential_ckpts) == 1
+        ), f"Expected exactly one checkpoint file in {input_paths}, got {potential_ckpts}"
+        ckpt = potential_ckpts[0]
+        ckpt_path = os.path.join(input_paths, ckpt)
+        ckpt_target_path = join(nnunet_output_folder, "checkpoint_latest.pth")
+        Path(ckpt_target_path).parent.mkdir(exist_ok=True, parents=True)
+        logger.info("Copying checkpoint from Valohai input to nnUNet output folder...")
+        shutil.copy(ckpt_path, ckpt_target_path)
+        logger.info("Checkpoint copied.")
+
+
 def maybe_load_checkpoint(
     nnunet_trainer: AbstractBaseTrainer,
     continue_training: bool,
@@ -104,6 +125,7 @@ def maybe_load_checkpoint(
         )
     logger.info("Attempting to continue training...")
     if continue_training:
+        maybe_copy_ckpt_if_on_valohai(nnunet_trainer.output_folder)
         expected_checkpoint_file = join(nnunet_trainer.output_folder, "checkpoint_final.pth")
         if not isfile(expected_checkpoint_file):
             expected_checkpoint_file = join(nnunet_trainer.output_folder, "checkpoint_latest.pth")
@@ -372,7 +394,7 @@ def run_training_entry():
     if is_running_in_valohai():
         dataset_name = "737"  # This is always the ID for all datasets. No differentiattion at all.
         config = "3d_fullres"
-        prepare_training_paths_on_valohai()
+        prepare_training_paths_on_valohai(args.c)
     else:
         dataset_name = args.dataset_name_or_id
         config = args.configuration
