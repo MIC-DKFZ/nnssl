@@ -3,6 +3,7 @@ from torch import nn
 from nnssl.architectures.spark_model import SparK3D
 from nnssl.architectures.spark_utils import convert_to_spark_cnn
 from nnssl.experiment_planning.experiment_planners.plan import Plan
+from nnssl.training.lr_scheduler.polylr import ContinuedPolyLRSchedulerWithWarmup
 from nnssl.training.nnsslTrainer.BaseMAETrainer import create_blocky_mask
 from dynamic_network_architectures.architectures.unet import ResidualEncoderUNet
 from nnssl.training.nnsslTrainer.SparkTrainer import SparkMAETrainer
@@ -104,3 +105,32 @@ class BigVariableSparkMAETrainer(BaseVariableSparkMAETrainer):
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
         self.num_epochs = 4000
         self.initial_lr = 3e-2  # Bit more as we increase batch size a lot
+
+
+class BigVariableSparkMAETrainerContinue(BigVariableSparkMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        self.num_epochs = 5000  # Add 1k epochs to the previous.
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.SGD(
+            self.network.parameters(), self.initial_lr, weight_decay=self.weight_decay, momentum=0.99, nesterov=True
+        )
+        lr_scheduler = ContinuedPolyLRSchedulerWithWarmup(
+            optimizer,
+            start_epoch=self.current_epoch,
+            initial_lr=7e-3,
+            warmup_lr=1e-5,
+            final_lr=1e-5,
+            total_epochs=self.num_epochs,
+            warmup_epochs=50,
+        )
+        return optimizer, lr_scheduler
