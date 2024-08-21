@@ -24,7 +24,7 @@ nnssl_results = os.environ.get("nnssl_results")
 
 if nnssl_raw is None:
     print(
-        "nnssl_raw is not defined and nnU-Net can only be used on data for which preprocessed files "
+        "nnssl_raw is not defined and nnssl_raw can only be used on data for which preprocessed files "
         "are already present on your system. nnU-Net cannot be used for experiment planning and preprocessing like "
         "this. If this is not intended, please read documentation/setting_up_paths.md for information on how to set "
         "this up properly."

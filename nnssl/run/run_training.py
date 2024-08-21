@@ -123,8 +123,9 @@ def maybe_load_checkpoint(
             "Cannot both continue a training AND load pretrained weights. Pretrained weights can only "
             "be used at the beginning of the training."
         )
-    logger.info("Attempting to continue training...")
+
     if continue_training:
+        logger.info("Attempting to continue training...")
         maybe_copy_ckpt_if_on_valohai(nnunet_trainer.output_folder)
         expected_checkpoint_file = join(nnunet_trainer.output_folder, "checkpoint_final.pth")
         if not isfile(expected_checkpoint_file):
