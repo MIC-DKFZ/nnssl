@@ -136,6 +136,8 @@ class AbstractBaseTrainer(ABC):
         ### Some hyperparameters for you to fiddle with
         self.initial_lr = 1e-2
         self.weight_decay = 3e-5
+        self.momentum = 0.99
+        self.nesterov = True
         self.num_iterations_per_epoch = 250
         self.num_val_iterations_per_epoch = 50
         self.num_epochs = 1000
@@ -277,6 +279,7 @@ class AbstractBaseTrainer(ABC):
                 from torch.profiler import profile, record_function, ProfilerActivity
 
                 import cProfile, pstats
+
                 profiler = cProfile.Profile()
                 profiler.enable()
                 # with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
@@ -288,7 +291,7 @@ class AbstractBaseTrainer(ABC):
                     train_outputs.append(self.train_step(next(self.dataloader_train)))
                     if batch_id == 100:
                         profiler.disable()
-                        stats = pstats.Stats(profiler).sort_stats('cumtime')
+                        stats = pstats.Stats(profiler).sort_stats("cumtime")
                         stats.print_stats()
                         break
                 # print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
@@ -354,7 +357,11 @@ class AbstractBaseTrainer(ABC):
 
     def configure_optimizers(self):
         optimizer = torch.optim.SGD(
-            self.network.parameters(), self.initial_lr, weight_decay=self.weight_decay, momentum=0.99, nesterov=True
+            self.network.parameters(),
+            self.initial_lr,
+            weight_decay=self.weight_decay,
+            momentum=self.momentum,
+            nesterov=self.nesterov,
         )
         lr_scheduler = PolyLRScheduler(optimizer, self.initial_lr, self.num_epochs)
         return optimizer, lr_scheduler
@@ -620,7 +627,6 @@ class AbstractBaseTrainer(ABC):
 
     def save_checkpoint(self, filename: str, live_upload: bool = False) -> None:
         if self.local_rank == 0:
-            self.print_to_log_file(f"Disable Checkpointing is {self.disable_checkpointing}")
             if not self.disable_checkpointing:
                 if self.is_ddp:
                     mod = self.network.module
