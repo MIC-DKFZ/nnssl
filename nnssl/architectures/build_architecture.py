@@ -1,4 +1,5 @@
 from nnssl.architectures.get_network_from_plans import get_network_from_plans
+from nnssl.architectures.get_network_from_plans import PlainConvUNet, ResidualEncoderUNet
 from torch import nn
 
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
@@ -8,6 +9,7 @@ def build_network_architecture(
     config_plan: ConfigurationPlan,
     num_input_channels: int,
     num_output_channels: int,
+    encoder_only: bool = False,
 ) -> nn.Module:
     """
     This is where you build the architecture according to the plans. There is no obligation to use
@@ -28,9 +30,16 @@ def build_network_architecture(
     should be generated. label_manager takes care of all that for you.)
 
     """
-    return get_network_from_plans(
+    net = get_network_from_plans(
         configuration_plan=config_plan,
         num_input_channels=num_input_channels,
         num_output_channels=num_output_channels,
         deep_supervision=False,
     )
+    if encoder_only:
+        net: PlainConvUNet | ResidualEncoderUNet
+        try:
+            net = net.encoder
+        except AttributeError:
+            raise RuntimeError("Trying to get the 'encoder' of the network failed. Cannot return encoder only.")
+    return net
