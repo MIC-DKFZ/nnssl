@@ -124,6 +124,24 @@
                 "nnssl_raw": "/home/tassilowald/Data/Datasets/nnunetv2/nnUNet_raw",
                 "nnUNet_n_proc_DA": "0",
             }
+        },
+        {
+            "name": "SSL Train D741 ModelGenesisTrainer",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/nnssl/run/run_training.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "741",
+                "3d_fullres",
+                "-tr",
+                "ModelGenesisTrainer",
+            ],
+            "env": {
+                "nnssl_raw": "/home/tassilowald/Data/Datasets/nnunetv2/nnUNet_raw",
+                //"nnUNet_n_proc_DA": "0",
+            }
         }
     ]
 }
