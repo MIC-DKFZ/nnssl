@@ -11,13 +11,13 @@ from nnssl.ssl_data.data_augmentation.transforms_for_dummy_2d import Convert2DTo
 from nnssl.ssl_data.dataloading.data_loader_3d import nnsslCenterCropDataLoader3D
 from nnssl.ssl_data.dataloading.indexable_dataloader import IndexableSingleThreadedAugmenter
 from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
-from nnssl.training.loss.mse_loss import MSELoss
+from nnssl.training.loss.mse_loss import MAEMSELoss
 from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
 from torch import nn
 from batchgenerators.transforms.spatial_transforms import SpatialTransform, MirrorTransform
-from batchgenerators.dataloading.single_threaded_augmenter import SingleThreadedAugmenter
 from batchgenerators.transforms.abstract_transforms import AbstractTransform, Compose
 from batchgenerators.transforms.utility_transforms import NumpyToTensor
+from batchgenerators.dataloading.single_threaded_augmenter import SingleThreadedAugmenter
 from torch import autocast
 from nnssl.utilities.helpers import dummy_context
 import valohai
@@ -86,7 +86,7 @@ class BaseMAETrainer(AbstractBaseTrainer):
                 self.network = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.network)
                 self.network = DDP(self.network, device_ids=[self.local_rank], find_unused_parameters=True)
 
-            self.loss = self._build_loss()
+            self.loss = self.build_loss()
             self.was_initialized = True
         else:
             raise RuntimeError(
@@ -114,14 +114,14 @@ class BaseMAETrainer(AbstractBaseTrainer):
         mask = torch.stack(mask)[:, None, ...]  # Add channel dimension
         return mask
 
-    def _build_loss(self):
+    def build_loss(self):
         """
         This is where you build your loss function. You can use anything from torch.nn here.
         In general the MAE losses are only applied on regions where the mask is 0.
 
         :return:
         """
-        return MSELoss()
+        return MAEMSELoss()
 
     def build_architecture(
         self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int

@@ -2,7 +2,7 @@ from torch._C import device
 
 from nnssl.experiment_planning.experiment_planners.plan import Plan
 
-from nnssl.training.nnsslTrainer.BaseMAETrainer import BaseMAETrainer
+from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import BaseMAETrainer
 from torch import device
 
 

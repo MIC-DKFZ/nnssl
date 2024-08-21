@@ -6,7 +6,7 @@ from torch._C import device
 from nnssl.architectures.spark_model import SparK3D
 from nnssl.architectures.spark_utils import convert_to_einops_spark_cnn
 from nnssl.experiment_planning.experiment_planners.plan import Plan
-from nnssl.training.nnsslTrainer.SparkTrainer import SparkMAETrainer
+from nnssl.training.nnsslTrainer.masked_image_modeling.SparkTrainer import SparkMAETrainer
 from dynamic_network_architectures.architectures.unet import ResidualEncoderUNet
 
 

@@ -10,6 +10,7 @@ from copy import deepcopy
 from datetime import datetime
 from time import time, sleep
 from typing import Union, Tuple, List
+from tqdm import tqdm
 from valohai.config import is_running_in_valohai
 
 import valohai
@@ -141,7 +142,7 @@ class AbstractBaseTrainer(ABC):
         self.current_epoch = 0
 
         ### Dealing with labels/regions
-        self.num_input_channels = 1  # -> self.initialize()
+        self.num_input_channels = len(dataset_json["channel_names"])  # -> self.initialize()
         self.num_output_channels = 1  # Assign later depending on the ssl training scheme.
         self.network = None  # -> self._get_network()
         self.optimizer = self.lr_scheduler = None  # -> self.initialize
@@ -228,7 +229,7 @@ class AbstractBaseTrainer(ABC):
         pass
 
     @abstractmethod
-    def _build_loss(self):
+    def build_loss(self):
         pass
 
     @abstractmethod
@@ -255,7 +256,7 @@ class AbstractBaseTrainer(ABC):
                 self.network = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.network)
                 self.network = DDP(self.network, device_ids=[self.local_rank], find_unused_parameters=True)
 
-            self.loss = self._build_loss()
+            self.loss = self.build_loss()
             self.was_initialized = True
         else:
             raise RuntimeError(
@@ -272,8 +273,27 @@ class AbstractBaseTrainer(ABC):
 
                 self.on_train_epoch_start()
                 train_outputs = []
-                for batch_id in range(self.num_iterations_per_epoch):
+
+                from torch.profiler import profile, record_function, ProfilerActivity
+
+                import cProfile, pstats
+                profiler = cProfile.Profile()
+                profiler.enable()
+                # with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
+                for batch_id in tqdm(
+                    range(self.num_iterations_per_epoch),
+                    desc=f"Epoch {epoch}",
+                    disable=True if "LSF_JOBID" in os.environ else False,
+                ):
                     train_outputs.append(self.train_step(next(self.dataloader_train)))
+                    if batch_id == 100:
+                        profiler.disable()
+                        stats = pstats.Stats(profiler).sort_stats('cumtime')
+                        stats.print_stats()
+                        break
+                # print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
+                # sys.exit(0)
+
                 self.on_train_epoch_end(train_outputs)
 
                 with torch.no_grad():
@@ -443,7 +463,6 @@ class AbstractBaseTrainer(ABC):
         order_resampling_data: int = 3,
         order_resampling_seg: int = 1,
         border_val_seg: int = -1,
-        use_mask_for_norm: List[bool] = None,
     ) -> AbstractTransform:
         pass
 
@@ -451,10 +470,6 @@ class AbstractBaseTrainer(ABC):
     @abstractmethod
     def get_validation_transforms() -> AbstractTransform:
         pass
-        val_transforms = []
-        val_transforms.append(NumpyToTensor(["data"], "float"))
-        val_transforms = Compose(val_transforms)
-        return val_transforms
 
     def on_train_start(self):
         if not self.was_initialized:
@@ -541,7 +556,6 @@ class AbstractBaseTrainer(ABC):
         else:
             loss_here = np.mean(outputs_collated["loss"])
         self.logger.log("val_losses", loss_here, self.current_epoch)
-
 
     def on_train_epoch_start(self):
         self.network.train()
