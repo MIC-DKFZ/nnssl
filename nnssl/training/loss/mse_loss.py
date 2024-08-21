@@ -3,19 +3,6 @@ import torch
 from nnssl.training.loss.abstract_loss import AbstractLoss
 
 
-class MSELoss(AbstractLoss):
-    def __init__(self):
-        super().__init__()
-        self.loss = nn.MSELoss(reduction="none")
-
-    def forward(self, prediction: torch.Tensor, groundtruth: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-        """Can take any outputs,  ."""
-
-        # Mask = 1 represents not masked points
-        reconstruction_loss = torch.mean((prediction - groundtruth) ** 2)  # (B, X, Y, Z, C)
-        return reconstruction_loss
-
-
 class MAEMSELoss(AbstractLoss):
     def __init__(self):
         super().__init__()
