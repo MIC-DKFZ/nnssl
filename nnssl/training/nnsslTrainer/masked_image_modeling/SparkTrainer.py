@@ -6,7 +6,7 @@ from nnssl.architectures.spark_utils import convert_to_spark_cnn
 from nnssl.experiment_planning.experiment_planners.plan import Plan
 from nnssl.training.loss.spark_loss import SparkLoss
 from nnssl.training.lr_scheduler.polylr import PolyLRScheduler
-from nnssl.training.nnsslTrainer.BaseMAETrainer import BaseMAETrainer
+from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import BaseMAETrainer
 from torch import nn
 
 import valohai
@@ -36,7 +36,7 @@ class SparkMAETrainer(BaseMAETrainer):
         self.use_mask_token: bool = True
         self.network: SparK3D = ...
 
-    def _build_loss(self):
+    def build_loss(self):
         """
         This is where you build your loss function. You can use anything from torch.nn here
         :return:

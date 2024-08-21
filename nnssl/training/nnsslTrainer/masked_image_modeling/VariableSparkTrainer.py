@@ -4,9 +4,9 @@ from nnssl.architectures.spark_model import SparK3D
 from nnssl.architectures.spark_utils import convert_to_spark_cnn
 from nnssl.experiment_planning.experiment_planners.plan import Plan
 from nnssl.training.lr_scheduler.polylr import ContinuedPolyLRSchedulerWithWarmup
-from nnssl.training.nnsslTrainer.BaseMAETrainer import create_blocky_mask
+from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import create_blocky_mask
 from dynamic_network_architectures.architectures.unet import ResidualEncoderUNet
-from nnssl.training.nnsslTrainer.SparkTrainer import SparkMAETrainer
+from nnssl.training.nnsslTrainer.masked_image_modeling.SparkTrainer import SparkMAETrainer
 import numpy as np
 
 
