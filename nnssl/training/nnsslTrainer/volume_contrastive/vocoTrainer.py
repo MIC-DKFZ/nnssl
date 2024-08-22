@@ -87,11 +87,13 @@ class VoCoTrainer(AbstractBaseTrainer):
             lr=self.initial_lr,
             weight_decay=self.weight_decay,
         )
-        lr_scheduler = LinearWarmupCosineAnnealingLR(optimizer=optimizer,
-                                                     warmup_epochs=10,
-                                                     max_epochs=self.num_epochs,
-                                                     warmup_start_lr=self.initial_lr/100,
-                                                     eta_min=1e-6)
+        lr_scheduler = LinearWarmupCosineAnnealingLR(
+            optimizer=optimizer,
+            warmup_epochs=10,
+            max_epochs=self.num_epochs,
+            warmup_start_lr=self.initial_lr / 100,
+            eta_min=1e-6,
+        )
         return optimizer, lr_scheduler
 
     def build_loss(self) -> nn.Module:
@@ -116,33 +118,33 @@ class VoCoTrainer(AbstractBaseTrainer):
         patch_size_spatial = patch_size
         ignore_axes = None
 
-        tr_transforms.append(
-            SpatialTransform(
-                patch_size_spatial,
-                patch_center_dist_from_border=None,
-                do_elastic_deform=False,
-                alpha=(0, 0),
-                sigma=(0, 0),
-                do_rotation=True,
-                angle_x=rotation_for_DA["x"],
-                angle_y=rotation_for_DA["y"],
-                angle_z=rotation_for_DA["z"],
-                p_rot_per_axis=1,  # todo experiment with this
-                do_scale=True,
-                scale=(0.7, 1.4),
-                border_mode_data="constant",
-                border_cval_data=0,
-                order_data=order_resampling_data,
-                border_mode_seg="constant",
-                border_cval_seg=border_val_seg,
-                order_seg=order_resampling_seg,
-                random_crop=False,  # random cropping is part of our dataloaders
-                p_el_per_sample=0,
-                p_scale_per_sample=0.2,
-                p_rot_per_sample=0.2,
-                independent_scale_for_each_axis=False,  # todo experiment with this
-            )
-        )
+        # tr_transforms.append(
+        #     SpatialTransform(
+        #         patch_size_spatial,
+        #         patch_center_dist_from_border=None,
+        #         do_elastic_deform=False,
+        #         alpha=(0, 0),
+        #         sigma=(0, 0),
+        #         do_rotation=True,
+        #         angle_x=rotation_for_DA["x"],
+        #         angle_y=rotation_for_DA["y"],
+        #         angle_z=rotation_for_DA["z"],
+        #         p_rot_per_axis=1,  # todo experiment with this
+        #         do_scale=True,
+        #         scale=(0.7, 1.4),
+        #         border_mode_data="constant",
+        #         border_cval_data=0,
+        #         order_data=order_resampling_data,
+        #         border_mode_seg="constant",
+        #         border_cval_seg=border_val_seg,
+        #         order_seg=order_resampling_seg,
+        #         random_crop=False,  # random cropping is part of our dataloaders
+        #         p_el_per_sample=0,
+        #         p_scale_per_sample=0.2,
+        #         p_rot_per_sample=0.2,
+        #         independent_scale_for_each_axis=False,  # todo experiment with this
+        #     )
+        # )
 
         # --------------------------- VoCo Transformation --------------------------- #
         # All train augmentations are moved to the VoCoTransform class.
@@ -176,11 +178,7 @@ class VoCoTrainer(AbstractBaseTrainer):
             )
         )
 
-        val_transforms.append(
-            NumpyToTensor(
-                ["all_crops", "base_target_crop_overlaps"], "float"
-            )
-        )
+        val_transforms.append(NumpyToTensor(["all_crops", "base_target_crop_overlaps"], "float"))
         val_transforms = Compose(val_transforms)
         return val_transforms
 
@@ -210,7 +208,8 @@ class VoCoTrainer(AbstractBaseTrainer):
         # ----------------------- Validation data augmentations ---------------------- #
         val_transforms = self.get_validation_transforms()
 
-        dl_tr, dl_val = self.get_plain_dataloaders(initial_patch_size)
+        # We don't do non-90 degree rotations for the VoCo Trainer.
+        dl_tr, dl_val = self.get_plain_dataloaders(patch_size)
 
         allowed_num_processes = get_allowed_n_proc_DA()
         if allowed_num_processes == 0:
