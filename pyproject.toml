@@ -54,7 +54,8 @@ dependencies = [
     "einops",
     "loguru",
     "timm",
-    "lightning-bolts"
+    "lightning-bolts",
+    "pytest",
 ]
 
 [project.urls]
