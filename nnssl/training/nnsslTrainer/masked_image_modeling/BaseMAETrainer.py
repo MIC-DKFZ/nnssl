@@ -463,3 +463,18 @@ class BaseMAETrainer(AbstractBaseTrainer):
         val_transforms.append(NumpyToTensor(["data"], "float"))
         val_transforms = Compose(val_transforms)
         return val_transforms
+
+
+
+class BaseMAETrainer_BS6(BaseMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 6
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
