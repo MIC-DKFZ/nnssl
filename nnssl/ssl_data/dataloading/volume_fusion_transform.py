@@ -47,7 +47,7 @@ def _get_bboxes_within_image_bounds(
 
 def _overlay_bbox(
     image: np.ndarray,
-    values: np.ndarray,
+    values: tuple[float],
     xs: np.ndarray,
     ys: np.ndarray,
     zs: np.ndarray,
@@ -85,6 +85,7 @@ def mix_batch(
     :param vf_mixing_coefficients: The mixing coefficients to be used for the mixing within [0, 1] range
     """
     # Split the batch into two halves
+    vf_mixing_coefficients = np.array(vf_mixing_coefficients)
     batch_size = images.shape[0]
     half_batch = batch_size // 2
     foreground_images = images[:half_batch]
