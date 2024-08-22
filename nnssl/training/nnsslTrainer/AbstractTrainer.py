@@ -177,6 +177,8 @@ class AbstractBaseTrainer(ABC):
 
         ## DDP batch size and oversampling can differ between workers and needs adaptation
         # we need to change the batch size in DDP because we don't use any of those distributed samplers
+        # Todo: Should likely be moved to initialize() call, since it's not needed during init at all.
+        #   This also allows overriding previous batch_size settings easily.
         self._set_batch_size()
 
         self.was_initialized = False
