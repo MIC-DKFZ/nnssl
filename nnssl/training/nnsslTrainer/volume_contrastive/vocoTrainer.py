@@ -57,13 +57,14 @@ class VoCoTrainer(AbstractBaseTrainer):
 
         # BS1 == 6GB VRAM
         # --> 40GB VRAM fits BS8
+        # plan.configurations[configuration_name].batch_size = 1
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
         patch_size = self.config_plan.patch_size
 
         self.initial_lr = 1e-3
         self.weight_decay = 1e-2
 
-        self.voco_target_crop_count = 4  # Number of crops to sample from each image.
+        self.voco_target_crop_count = 5  # Number of crops to sample from each image.  Originally 4.
         self.pred_loss_weight = 1
         self.reg_loss_weight = 1
         # Size of crops in voxels.
@@ -311,7 +312,7 @@ class VoCoTrainer(AbstractBaseTrainer):
         return {"loss": l.detach().cpu().numpy()}
 
 
-class VoCoTrainer_BS8(VoCoTrainer):
+class VoCoTrainer_BS6(VoCoTrainer):
     def __init__(
         self,
         plan: Plan,
@@ -321,5 +322,5 @@ class VoCoTrainer_BS8(VoCoTrainer):
         unpack_dataset: bool = True,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
+        plan.configurations[configuration_name].batch_size = 6
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
