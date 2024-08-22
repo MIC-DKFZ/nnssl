@@ -335,7 +335,7 @@ class AbstractBaseTrainer(ABC):
                     successful = True
                 except IOError:
                     print(f"{datetime.fromtimestamp(timestamp)}: failed to log: ", sys.exc_info())
-                    sleep(0.5)
+                    # sleep(0.5)
                     ctr += 1
             if also_print_to_console:
                 print(*args)
@@ -385,7 +385,7 @@ class AbstractBaseTrainer(ABC):
             do_dummy_2d_data_aug,
             initial_patch_size,
             mirror_axes,
-        ) = configure_rotation_dummyDA_mirroring_and_inital_patch_size()
+        ) = configure_rotation_dummyDA_mirroring_and_inital_patch_size(patch_size)
         if do_dummy_2d_data_aug:
             self.print_to_log_file("Using dummy 2D data augmentation")
 
@@ -397,7 +397,6 @@ class AbstractBaseTrainer(ABC):
             do_dummy_2d_data_aug,
             order_resampling_data=3,
             order_resampling_seg=1,
-            use_mask_for_norm=self.config_plan.use_mask_for_norm,
         )
 
         # ----------------------- Validation data augmentations ---------------------- #
