@@ -1,10 +1,7 @@
 from typing import Sequence, Tuple
 from batchgenerators.transforms.abstract_transforms import AbstractTransform
 
-from einops import rearrange
 import numpy as np
-from loguru import logger
-import torch
 
 
 def _mix_image(
