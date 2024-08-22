@@ -276,26 +276,12 @@ class AbstractBaseTrainer(ABC):
                 self.on_train_epoch_start()
                 train_outputs = []
 
-                from torch.profiler import profile, record_function, ProfilerActivity
-
-                import cProfile, pstats
-
-                profiler = cProfile.Profile()
-                profiler.enable()
-                # with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
                 for batch_id in tqdm(
                     range(self.num_iterations_per_epoch),
                     desc=f"Epoch {epoch}",
                     disable=True if "LSF_JOBID" in os.environ else False,
                 ):
                     train_outputs.append(self.train_step(next(self.dataloader_train)))
-                    if batch_id == 100:
-                        profiler.disable()
-                        stats = pstats.Stats(profiler).sort_stats("cumtime")
-                        stats.print_stats()
-                        break
-                # print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
-                # sys.exit(0)
 
                 self.on_train_epoch_end(train_outputs)
 
