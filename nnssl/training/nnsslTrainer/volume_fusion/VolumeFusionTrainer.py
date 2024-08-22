@@ -73,7 +73,6 @@ class VolumeFusionTrainer(AbstractBaseTrainer):
         # hyperparameters from the nnUNet paper. This allows us to compare the methods
         # on a more equal footing. The hyperparameters from the paper are commented above.
 
-        plan.configurations[configuration_name].batch_size = 1  # 2  # For local testing only
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
         """
         Mis-FM predicts a (local) mixing factor between two images.
