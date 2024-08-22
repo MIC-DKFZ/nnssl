@@ -19,21 +19,6 @@ from batchgenerators.transforms.utility_transforms import NumpyToTensor
 
 
 class ModelGenesisTrainer(AbstractBaseTrainer):
-    def __init__(
-        self,
-        plan: Plan,
-        configuration_name: str,
-        fold: int,
-        dataset_json: dict,
-        unpack_dataset: bool = True,
-        device: torch.device = torch.device("cuda"),
-    ):
-        plan.configurations[configuration_name].patch_size = (128, 128, 128)  # Just for debugging
-        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
-        # self.weight_decay = 0
-        # self.initial_lr = 1e-2
-        # self.momentum = 0.9
-        # self.nesterov = False
 
     def initialize(self):
         if not self.was_initialized:
@@ -190,3 +175,18 @@ class ModelGenesisTrainer(AbstractBaseTrainer):
     @staticmethod
     def get_validation_transforms() -> AbstractTransform:
         return ModelGenesisTrainer.get_training_transforms()
+
+
+class ModelGenesisTrainer_BS6(ModelGenesisTrainer):
+
+    def __init__(
+            self,
+            plan: Plan,
+            configuration_name: str,
+            fold: int,
+            dataset_json: dict,
+            unpack_dataset: bool = True,
+            device: torch.device = torch.device("cuda"),
+        ):
+        plan.configurations[configuration_name].batch_size = 6
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
