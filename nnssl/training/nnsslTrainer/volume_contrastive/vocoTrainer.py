@@ -55,6 +55,8 @@ class VoCoTrainer(AbstractBaseTrainer):
         # I wish I could make patch_size and crop sizes bigger, but VRAM goes kaboom.
         self.voco_base_crop_count = (3, 3, 1)
 
+        # BS1 == 6GB VRAM
+        # --> 40GB VRAM fits BS8
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
         patch_size = self.config_plan.patch_size
 
@@ -307,3 +309,17 @@ class VoCoTrainer(AbstractBaseTrainer):
                 l = self.loss(base_embeddings, target_embeddings, gt_overlaps)
 
         return {"loss": l.detach().cpu().numpy()}
+
+
+class VoCoTrainer_BS8(VoCoTrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
