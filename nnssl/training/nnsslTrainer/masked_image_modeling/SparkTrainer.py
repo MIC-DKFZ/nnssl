@@ -656,3 +656,83 @@ class SparkMAETrainer_5ep_BS7_mask60(SparkMAETrainer5ep):
         plan.configurations[configuration_name].batch_size = 7
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
         self.mask_percentage: float = 0.6
+
+
+class SparkMAETrainer_BS6_250ep(SparkMAETrainer):
+
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 6
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        self.num_epochs = 250
+
+
+class SparkMAETrainer_BS6_500ep(SparkMAETrainer):
+
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 6
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        self.num_epochs = 500
+
+
+class SparkMAETrainer_BS6_1000ep(SparkMAETrainer):
+
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 6
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        self.num_epochs = 1000
+
+
+class SparkMAETrainer_BS6_2000ep(SparkMAETrainer):
+
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 6
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        self.num_epochs = 2000
+
+
+class SparkMAETrainer_BS6_4000ep(SparkMAETrainer):
+
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 6
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        self.num_epochs = 4000
