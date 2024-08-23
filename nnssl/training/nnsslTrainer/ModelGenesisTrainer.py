@@ -20,31 +20,6 @@ from batchgenerators.transforms.utility_transforms import NumpyToTensor
 
 class ModelGenesisTrainer(AbstractBaseTrainer):
 
-    def initialize(self):
-        if not self.was_initialized:
-            self.network = self.build_architecture(
-                self.config_plan, self.num_input_channels, self.num_output_channels
-            ).to(self.device)
-            # compile network for free speedup
-            if self._do_i_compile():
-                self.print_to_log_file("Using torch.compile...")
-                self.network = torch.compile(self.network)
-                self.print_to_log_file("Compile done.")
-
-            self.optimizer, self.lr_scheduler = self.configure_optimizers()
-            # if ddp, wrap in DDP wrapper
-            if self.is_ddp:
-                self.network = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.network)
-                self.network = DDP(self.network, device_ids=[self.local_rank], find_unused_parameters=True)
-
-            self.loss = self.build_loss()
-            self.was_initialized = True
-        else:
-            raise RuntimeError(
-                "You have called self.initialize even though the trainer was already initialized. "
-                "That should not happen."
-            )
-
     def build_loss(self):
         """
         This is where you build your loss function. You can use anything from torch.nn here.
@@ -142,27 +117,6 @@ class ModelGenesisTrainer(AbstractBaseTrainer):
 
         return {"loss": l.detach().cpu().numpy()}
 
-    def run_training(self):
-        self.on_train_start()
-        for epoch in range(self.current_epoch, self.num_epochs):
-            self.on_epoch_start()
-
-            self.on_train_epoch_start()
-            train_outputs = []
-            for batch_id in range(self.num_iterations_per_epoch):
-                train_outputs.append(self.train_step(next(self.dataloader_train)))
-            self.on_train_epoch_end(train_outputs)
-
-            with torch.no_grad():
-                self.on_validation_epoch_start()
-                val_outputs = []
-                for batch_id in range(self.num_val_iterations_per_epoch):
-                    val_batch = next(self.dataloader_val)
-                    val_outputs.append(self.validation_step(val_batch))
-                self.on_validation_epoch_end(val_outputs)
-            self.on_epoch_end()
-        self.on_train_end()
-
     @staticmethod
     def get_training_transforms() -> AbstractTransform:
         tr_transforms = []
@@ -180,13 +134,13 @@ class ModelGenesisTrainer(AbstractBaseTrainer):
 class ModelGenesisTrainer_BS6(ModelGenesisTrainer):
 
     def __init__(
-            self,
-            plan: Plan,
-            configuration_name: str,
-            fold: int,
-            dataset_json: dict,
-            unpack_dataset: bool = True,
-            device: torch.device = torch.device("cuda"),
-        ):
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
         plan.configurations[configuration_name].batch_size = 6
         super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
