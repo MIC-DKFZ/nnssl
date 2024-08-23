@@ -203,16 +203,6 @@ class VolumeFusionTrainer(AbstractBaseTrainer):
                 # del data
                 l = self.loss(output, label)
 
-            if self.grad_scaler is not None:
-                self.grad_scaler.scale(l).backward()
-                self.grad_scaler.unscale_(self.optimizer)
-                torch.nn.utils.clip_grad_norm_(self.network.parameters(), 12)
-                self.grad_scaler.step(self.optimizer)
-                self.grad_scaler.update()
-            else:
-                l.backward()
-                torch.nn.utils.clip_grad_norm_(self.network.parameters(), 12)
-                self.optimizer.step()
         return {"loss": l.detach().cpu().numpy()}
 
     def get_dataloaders(self):
