@@ -192,7 +192,7 @@ class VoCoTrainer(AbstractBaseTrainer):
         (
             rotation_for_DA,
             do_dummy_2d_data_aug,
-            initial_patch_size,
+            _,
             mirror_axes,
         ) = configure_rotation_dummyDA_mirroring_and_inital_patch_size(patch_size)
         if do_dummy_2d_data_aug:
@@ -207,9 +207,8 @@ class VoCoTrainer(AbstractBaseTrainer):
             order_resampling_data=3,
             order_resampling_seg=1,
         )
-
-        # ----------------------- Validation data augmentations ---------------------- #
         val_transforms = self.get_validation_transforms()
+        # ----------------------- Validation data augmentations ---------------------- #
 
         # We don't do non-90 degree rotations for the VoCo Trainer.
         dl_tr, dl_val = self.get_plain_dataloaders(patch_size)
