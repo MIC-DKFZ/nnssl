@@ -136,12 +136,12 @@ def unpack_dataset(
         logger.info(f"Allocated Space in /valohai/inputs: {measure_allocated_space_in_path(folder)} GB")
 
 
-def get_case_identifiers(folder: str) -> List[str]:
+def get_case_identifiers(folder: str, suffix: str = "npz") -> List[str]:
     """
     finds all npz files in the given folder and reconstructs the training case names from them
     """
     case_identifiers = [
-        i[:-4] for i in os.listdir(folder) if i.endswith("npz") and (i.find("segFromPrevStage") == -1)
+        i[:-4] for i in os.listdir(folder) if i.endswith(suffix) and (i.find("segFromPrevStage") == -1)
     ]
     return case_identifiers
 

@@ -747,6 +747,9 @@ class AbstractBaseTrainer(ABC):
         if not isfile(splits_file):
             self.print_to_log_file("Creating new 5-fold cross-validation split...")
             case_identifiers = get_case_identifiers(self.preprocessed_dataset_folder)
+            if len(case_identifiers) == 0:
+                case_identifiers = get_case_identifiers(self.preprocessed_dataset_folder, suffix="npy")
+                assert len(case_identifiers) > 0, f"No npz or npz found in {self.preprocessed_dataset_folder}"
             all_keys_sorted = sorted(list(np.sort(case_identifiers)))
             val_keys = sample(all_keys_sorted, int(50))
             train_keys = list(set(all_keys_sorted) - set(val_keys))
