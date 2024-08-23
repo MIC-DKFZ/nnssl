@@ -7,7 +7,6 @@ from torch.optim.adamw import AdamW
 from batchgenerators.dataloading.single_threaded_augmenter import SingleThreadedAugmenter
 from batchgenerators.transforms.abstract_transforms import AbstractTransform, Compose
 from batchgenerators.transforms.utility_transforms import NumpyToTensor
-from batchgenerators.transforms.spatial_transforms import SpatialTransform
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 
 from torch import autocast
