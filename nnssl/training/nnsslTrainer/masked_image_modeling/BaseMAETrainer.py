@@ -1,6 +1,7 @@
 import os
 from typing import List, Tuple, Union
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 from valohai.config import is_running_in_valohai
 
 import torch
@@ -70,29 +71,7 @@ class BaseMAETrainer(AbstractBaseTrainer):
 
     def initialize(self):
         self.recon_dataloader = self.get_qual_recon_dataloader()
-        if not self.was_initialized:
-            self.network = self.build_architecture(
-                self.config_plan, self.num_input_channels, self.num_output_channels
-            ).to(self.device)
-            # compile network for free speedup
-            if self._do_i_compile():
-                self.print_to_log_file("Using torch.compile...")
-                self.network = torch.compile(self.network)
-                self.print_to_log_file("Compile done.")
-
-            self.optimizer, self.lr_scheduler = self.configure_optimizers()
-            # if ddp, wrap in DDP wrapper
-            if self.is_ddp:
-                self.network = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.network)
-                self.network = DDP(self.network, device_ids=[self.local_rank], find_unused_parameters=True)
-
-            self.loss = self.build_loss()
-            self.was_initialized = True
-        else:
-            raise RuntimeError(
-                "You have called self.initialize even though the trainer was already initialized. "
-                "That should not happen."
-            )
+        super(BaseMAETrainer, self).initialize()
 
     @staticmethod
     def mask_creation(
@@ -374,7 +353,11 @@ class BaseMAETrainer(AbstractBaseTrainer):
 
                 self.on_train_epoch_start()
                 train_outputs = []
-                for batch_id in range(self.num_iterations_per_epoch):
+                for batch_id in tqdm(
+                    range(self.num_iterations_per_epoch),
+                    desc=f"Epoch {epoch}",
+                    disable=True if (("LSF_JOBID" in os.environ) or is_running_in_valohai()) else False,
+                ):
                     train_outputs.append(self.train_step(next(self.dataloader_train)))
                 self.on_train_epoch_end(train_outputs)
 
@@ -468,7 +451,6 @@ class BaseMAETrainer(AbstractBaseTrainer):
         val_transforms.append(NumpyToTensor(["data"], "float"))
         val_transforms = Compose(val_transforms)
         return val_transforms
-
 
 
 class BaseMAETrainer_BS6(BaseMAETrainer):
