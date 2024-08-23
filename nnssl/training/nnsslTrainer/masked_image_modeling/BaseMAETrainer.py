@@ -316,7 +316,7 @@ class BaseMAETrainer(AbstractBaseTrainer):
                     ]
                     self.log_img_slices(data, reconstruction, mask, l, batch_id)
 
-        return {"loss": l.detach().cpu().numpy()}
+        return
 
     def get_qual_recon_dataloader(self):
         # we use the patch size to determine whether we need 2D or 3D dataloaders. We also use it to determine whether
