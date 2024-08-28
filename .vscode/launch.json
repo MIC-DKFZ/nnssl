@@ -107,7 +107,7 @@
                 "SparkMAETrainer",
             ]
         },
-                {
+        {
             "name": "SSL Train D741 VoCoTrainer",
             "type": "debugpy",
             "request": "launch",
@@ -119,6 +119,25 @@
                 "3d_fullres",
                 "-tr",
                 "VoCoTrainer",
+            ],
+            "env": {
+                "nnssl_preprocessed": "/home/gregor/datasets/nnUNet_preprocessed",
+                "nnssl_results": "/home/gregor/SSL-nnUNet/results",
+                "nnUNet_n_proc_DA": "12",
+            }
+        },
+        {
+            "name": "SSL Train D741 SimCLRTrainer",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/nnssl/run/run_training.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "741",
+                "3d_fullres",
+                "-tr",
+                "SimCLRTrainer",
             ],
             "env": {
                 "nnssl_preprocessed": "/home/gregor/datasets/nnUNet_preprocessed",
