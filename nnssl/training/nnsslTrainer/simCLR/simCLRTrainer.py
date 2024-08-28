@@ -36,6 +36,14 @@ from nnssl.utilities.default_n_proc_DA import get_allowed_n_proc_DA
 
 
 class SimCLRTrainer(AbstractBaseTrainer):
+    """
+    TODO:
+    - implement data aug path for simclr
+        - check which standard transforms to keep
+    - re-use VoCoArchitecture (seems like no change necessary here, double-check)
+    - implement train/val steps (loss returns loss, accuracy) -> maybe track acc. similar to pseudo dice in nnUNet
+    - clean up, test runs
+    """
 
     def __init__(
         self,
