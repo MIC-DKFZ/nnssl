@@ -6,6 +6,9 @@ import torch.nn.functional as F
 
 class NTXentLoss(nn.Module):
     def __init__(self, batch_size, temperature, similarity_function, device=None):
+        """
+        Note: Not tested for DDP yet!
+        """
         super(NTXentLoss, self).__init__()
         self.batch_size = batch_size
         self.temperature = temperature
