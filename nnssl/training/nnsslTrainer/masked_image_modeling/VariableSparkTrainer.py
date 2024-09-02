@@ -91,6 +91,21 @@ class VariableSparkMAETrainer_5ep(BaseVariableSparkMAETrainer):
         self.num_epochs = 5
 
 
+class VariableSparkMAETrainer_BS6_ep1000(BaseVariableSparkMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        dataset_json: dict,
+        unpack_dataset: bool = True,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 6  # 6 * 8 (8 GPUs)
+        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        self.num_epochs = 1000
+
+
 class BigVariableSparkMAETrainer(BaseVariableSparkMAETrainer):
     def __init__(
         self,
