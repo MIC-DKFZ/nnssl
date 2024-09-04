@@ -7,9 +7,7 @@ from torch.optim.adamw import AdamW
 from batchgenerators.dataloading.single_threaded_augmenter import (
     SingleThreadedAugmenter,
 )
-from batchgenerators.transforms.abstract_transforms import AbstractTransform, Compose
-from batchgenerators.transforms.utility_transforms import NumpyToTensor
-from batchgenerators.transforms.spatial_transforms import SpatialTransform
+
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 
 from torch import autocast
@@ -18,18 +16,15 @@ from nnssl.architectures.voco_architecture import VoCoArchitecture
 from nnssl.training.loss.contrastive_loss import NTXentLoss
 from nnssl.utilities.helpers import dummy_context
 
-
-from einops import rearrange
-
-
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.ssl_data.configure_basic_dummyDA import (
     configure_rotation_dummyDA_mirroring_and_inital_patch_size,
 )
-from nnssl.ssl_data.dataloading.voco_transform import VocoTransform
 from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
 
-
+from batchgeneratorsv2.transforms.base.basic_transform import BasicTransform
+from nnunetv2.training.nnUNetTrainer.nnUNetTrainer import nnUNetTrainer
+from nnssl.ssl_data.dataloading.simclr_transform import SimCLRTransform
 from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
 
 from nnssl.utilities.default_n_proc_DA import get_allowed_n_proc_DA
@@ -38,11 +33,11 @@ from nnssl.utilities.default_n_proc_DA import get_allowed_n_proc_DA
 class SimCLRTrainer(AbstractBaseTrainer):
     """
     TODO:
-    - implement data aug path for simclr
-        - check which standard transforms to keep
-    - re-use VoCoArchitecture (seems like no change necessary here, double-check)
-    - implement train/val steps (loss returns loss, accuracy) -> maybe track acc. similar to pseudo dice in nnUNet
-    - clean up, test runs
+    - implement data aug path for simclr [x]
+        - check which standard transforms to keep [x] - went with default nnUNet transforms fow now
+    - re-use VoCoArchitecture (seems like no change necessary here, double-check) [x]
+    - implement train/val steps (loss returns loss, accuracy) -> maybe track acc. similar to pseudo dice in nnUNet [x] - not tracking yet
+    - clean up, test runs [ ]
     """
 
     def __init__(
@@ -63,20 +58,6 @@ class SimCLRTrainer(AbstractBaseTrainer):
 
         self.initial_lr = 1e-3
         self.weight_decay = 1e-2
-
-        # VoCo vars for debugging:
-        patch_size = self.config_plan.patch_size
-        self.voco_base_crop_count = (3, 3, 1)
-        self.voco_target_crop_count = (
-            5  # Number of crops to sample from each image.  Originally 4.
-        )
-        self.pred_loss_weight = 1
-        self.reg_loss_weight = 1
-        self.voco_crop_size = (
-            patch_size[0] // self.voco_base_crop_count[0],
-            patch_size[1] // self.voco_base_crop_count[1],
-            patch_size[2] // self.voco_base_crop_count[2],
-        )
 
     def configure_optimizers(self):
         optimizer = AdamW(
@@ -105,90 +86,51 @@ class SimCLRTrainer(AbstractBaseTrainer):
     def get_training_transforms(
         self,
         patch_size: Union[np.ndarray, Tuple[int]],
-        rotation_for_DA: dict,
+        rotation_for_DA,
+        deep_supervision_scales: Union[List, Tuple, None],
         mirror_axes: Tuple[int, ...],
         do_dummy_2d_data_aug: bool,
-        order_resampling_data: int = 3,
-        order_resampling_seg: int = 1,
-        border_val_seg: int = -1,
-    ) -> AbstractTransform:
-        tr_transforms = []
+        use_mask_for_norm: List[bool] = None,
+        is_cascaded: bool = False,
+        foreground_labels: Union[Tuple[int, ...], List[int]] = None,
+        regions: List[Union[List[int], Tuple[int, ...], int]] = None,
+        ignore_label: int = None,
+    ) -> BasicTransform:
 
-        if do_dummy_2d_data_aug:
-            raise NotImplementedError(
-                "We don't do dummy 2d aug here anymore. Data should be isotropic!"
-            )
+        # rename = RenameTransform(in_key="data", out_key="image", delete_old=True)
 
-        patch_size_spatial = patch_size
-        ignore_axes = None
-
-        # tr_transforms.append(
-        #     SpatialTransform(
-        #         patch_size_spatial,
-        #         patch_center_dist_from_border=None,
-        #         do_elastic_deform=False,
-        #         alpha=(0, 0),
-        #         sigma=(0, 0),
-        #         do_rotation=True,
-        #         angle_x=rotation_for_DA["x"],
-        #         angle_y=rotation_for_DA["y"],
-        #         angle_z=rotation_for_DA["z"],
-        #         p_rot_per_axis=1,  # todo experiment with this
-        #         do_scale=True,
-        #         scale=(0.7, 1.4),
-        #         border_mode_data="constant",
-        #         border_cval_data=0,
-        #         order_data=order_resampling_data,
-        #         border_mode_seg="constant",
-        #         border_cval_seg=border_val_seg,
-        #         order_seg=order_resampling_seg,
-        #         random_crop=False,  # random cropping is part of our dataloaders
-        #         p_el_per_sample=0,
-        #         p_scale_per_sample=0.2,
-        #         p_rot_per_sample=0.2,
-        #         independent_scale_for_each_axis=False,  # todo experiment with this
-        #     )
-        # )
-
-        # --------------------------- VoCo Transformation --------------------------- #
-        # All train augmentations are moved to the VoCoTransform class.
-        #   This should help the crops to be more variable and hopefully makes the network better.
-        tr_transforms.append(
-            VocoTransform(
-                voco_base_crop_count=self.voco_base_crop_count,
-                voco_crop_size=self.voco_crop_size,
-                aug="train",
-                voco_target_crop_count=self.voco_target_crop_count,
-                data_key="data",
-            )
+        default_training_transforms = nnUNetTrainer.get_training_transforms(
+            patch_size,
+            rotation_for_DA["x"],
+            deep_supervision_scales,
+            mirror_axes,
+            do_dummy_2d_data_aug,
+            use_mask_for_norm,
+            is_cascaded,
+            foreground_labels,
+            regions,
+            ignore_label,
         )
-        # From here on out we are working with base crops and target crops!
+        # return SimCLRTransform(ComposeTransforms([rename, default_training_transforms]))
+        return SimCLRTransform(default_training_transforms)
 
-        tr_transforms.append(
-            NumpyToTensor(["all_crops", "base_target_crop_overlaps"], "float")
+    def get_validation_transforms(
+        self,
+        deep_supervision_scales: Union[List, Tuple, None],
+        is_cascaded: bool = False,
+        foreground_labels: Union[Tuple[int, ...], List[int]] = None,
+        regions: List[Union[List[int], Tuple[int, ...], int]] = None,
+        ignore_label: int = None,
+    ) -> BasicTransform:
+
+        default_validation_transforms = nnUNetTrainer.get_validation_transforms(
+            deep_supervision_scales,
+            is_cascaded,
+            foreground_labels,
+            regions,
+            ignore_label,
         )
-        tr_transforms = Compose(tr_transforms)
-        return tr_transforms
-
-    def get_validation_transforms(self) -> AbstractTransform:
-        val_transforms = []
-
-        # --------------------------- VoCo Transformation --------------------------- #
-        val_transforms.append(
-            VocoTransform(
-                voco_base_crop_count=self.voco_base_crop_count,
-                voco_crop_size=self.voco_crop_size,
-                aug="none",
-                voco_target_crop_count=self.voco_target_crop_count,
-                data_key="data",
-            )
-        )
-
-        val_transforms.append(
-            NumpyToTensor(["all_crops", "base_target_crop_overlaps"], "float")
-        )
-        val_transforms = Compose(val_transforms)
-        return val_transforms
+        return SimCLRTransform(default_validation_transforms)
 
     def get_dataloaders(self):
         # we use the patch size to determine whether we need 2D or 3D dataloaders. We also use it to determine whether
@@ -207,14 +149,24 @@ class SimCLRTrainer(AbstractBaseTrainer):
         tr_transforms = self.get_training_transforms(
             patch_size,
             rotation_for_DA,
+            None,
             mirror_axes,
             do_dummy_2d_data_aug,
-            order_resampling_data=3,
-            order_resampling_seg=1,
+            use_mask_for_norm=self.config_plan.use_mask_for_norm,
+            is_cascaded=False,
+            foreground_labels=None,
+            regions=None,
+            ignore_label=None,
         )
 
         # ----------------------- Validation data augmentations ---------------------- #
-        val_transforms = self.get_validation_transforms()
+        val_transforms = self.get_validation_transforms(
+            None,
+            is_cascaded=False,
+            foreground_labels=None,
+            regions=None,
+            ignore_label=None,
+        )
 
         # We don't do non-90 degree rotations for the VoCo Trainer.
         dl_tr, dl_val = self.get_plain_dataloaders(patch_size)
@@ -262,13 +214,7 @@ class SimCLRTrainer(AbstractBaseTrainer):
         architecture = VoCoArchitecture(encoder, config_plan)
         return architecture
 
-    def train_step(self, batch: dict) -> dict:
-        all_crops = batch["all_crops"]
-        NBASE = batch["base_crop_index"]
-        gt_overlaps = batch["base_target_crop_overlaps"]
-
-        all_crops = all_crops.to(self.device, non_blocking=True)
-        gt_overlaps = gt_overlaps.to(self.device, non_blocking=True)
+    def train_step(self, batch: Tuple[dict, dict]) -> dict:
 
         self.optimizer.zero_grad(set_to_none=True)
         # Autocast is a little bitch.
@@ -280,16 +226,20 @@ class SimCLRTrainer(AbstractBaseTrainer):
             if self.device.type == "cuda"
             else dummy_context()
         ):
-            emeddings = self.network(all_crops)
-            base_embeddings = rearrange(
-                emeddings[:NBASE], "(b NBASE) c -> b NBASE c", b=self.batch_size
+
+            z_i = self.network(
+                batch["image_i"].unsqueeze(1).to(self.device, non_blocking=True)
             )
-            target_embeddings = rearrange(
-                emeddings[NBASE:], "(b nTARGET) c -> b nTARGET c", b=self.batch_size
+            z_j = self.network(
+                batch["image_j"].unsqueeze(1).to(self.device, non_blocking=True)
             )
 
+            # Normalize prior to contrastive loss
+            z_i = nn.functional.normalize(z_i, dim=1)
+            z_j = nn.functional.normalize(z_j, dim=1)
+
             # del data
-            l = self.loss(base_embeddings, target_embeddings, gt_overlaps)
+            l, acc = self.loss(z_i, z_j)
 
         if self.grad_scaler is not None:
             self.grad_scaler.scale(l).backward()
@@ -304,12 +254,6 @@ class SimCLRTrainer(AbstractBaseTrainer):
         return {"loss": l.detach().cpu().numpy()}
 
     def validation_step(self, batch: dict) -> dict:
-        all_crops = batch["all_crops"]
-        NBASE = batch["base_crop_index"]
-        gt_overlaps = batch["base_target_crop_overlaps"]
-
-        all_crops = all_crops.to(self.device, non_blocking=True)
-        gt_overlaps = gt_overlaps.to(self.device, non_blocking=True)
 
         # Autocast is a little bitch.
         # If the device_type is 'cpu' then it's slow as heck and needs to be disabled.
@@ -321,17 +265,18 @@ class SimCLRTrainer(AbstractBaseTrainer):
                 if self.device.type == "cuda"
                 else dummy_context()
             ):
-                emeddings = self.network(all_crops)
-                base_embeddings = emeddings[:NBASE]
-                target_embeddings = emeddings[NBASE:]
-                base_embeddings = rearrange(
-                    emeddings[:NBASE], "(b NBASE) c -> b NBASE c ", b=self.batch_size
+                z_i = self.network(
+                    batch["image_i"].unsqueeze(1).to(self.device, non_blocking=True)
                 )
-                target_embeddings = rearrange(
-                    emeddings[NBASE:], "(b nTARGET) c -> b nTARGET c", b=self.batch_size
+                z_j = self.network(
+                    batch["image_j"].unsqueeze(1).to(self.device, non_blocking=True)
                 )
 
+                # Normalize prior to contrastive loss
+                z_i = nn.functional.normalize(z_i, dim=1)
+                z_j = nn.functional.normalize(z_j, dim=1)
+
                 # del data
-                l = self.loss(base_embeddings, target_embeddings, gt_overlaps)
+                l, acc = self.loss(z_i, z_j)
 
         return {"loss": l.detach().cpu().numpy()}
