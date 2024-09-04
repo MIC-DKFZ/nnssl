@@ -37,6 +37,8 @@ class SimCLRTrainer(AbstractBaseTrainer):
         - check which standard transforms to keep [x] - went with default nnUNet transforms fow now
     - re-use VoCoArchitecture (seems like no change necessary here, double-check) [x]
     - implement train/val steps (loss returns loss, accuracy) -> maybe track acc. similar to pseudo dice in nnUNet [x] - not tracking yet
+    - re-implement similar to VoCoTransform (need more sub-crops, and random crops in general) [ ]
+    - maybe force partial overlaps between crops [ ]
     - clean up, test runs [ ]
     """
 
@@ -251,6 +253,9 @@ class SimCLRTrainer(AbstractBaseTrainer):
             l.backward()
             # torch.nn.utils.clip_grad_norm_(self.network.parameters(), 12)
             self.optimizer.step()
+
+        print(f"Train loss: {l.detach().cpu().numpy()} - accuracy: {acc}")
+
         return {"loss": l.detach().cpu().numpy()}
 
     def validation_step(self, batch: dict) -> dict:
@@ -278,5 +283,6 @@ class SimCLRTrainer(AbstractBaseTrainer):
 
                 # del data
                 l, acc = self.loss(z_i, z_j)
+                print(f"Val loss: {l.detach().cpu().numpy()} - accuracy: {acc}")
 
         return {"loss": l.detach().cpu().numpy()}
