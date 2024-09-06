@@ -23,6 +23,9 @@ from nnssl.ssl_data.configure_basic_dummyDA import (
 from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
 
 from batchgeneratorsv2.transforms.base.basic_transform import BasicTransform
+from batchgenerators.transforms.abstract_transforms import AbstractTransform, Compose
+from batchgenerators.transforms.utility_transforms import NumpyToTensor
+
 from nnunetv2.training.nnUNetTrainer.nnUNetTrainer import nnUNetTrainer
 from nnssl.ssl_data.dataloading.simclr_transform import SimCLRTransform
 from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
@@ -51,12 +54,18 @@ class SimCLRTrainer(AbstractBaseTrainer):
         unpack_dataset: bool = True,
         device: torch.device = torch.device("cuda"),
     ):
-        # Volume Contrastive uses this patch size, but prolly because of the crops
-        # plan.configurations[configuration_name].patch_size = (192, 192, 64)
+        # Let's use the same patch size as VoCo
+
+        plan.configurations[configuration_name].patch_size = (192, 192, 64)
+        plan.configurations[configuration_name].batch_size = 4  # TODO: test larger bs
+
         super().__init__(
             plan, configuration_name, fold, dataset_json, unpack_dataset, device
         )
         self.batch_size = plan.configurations[configuration_name].batch_size
+        self.num_crops_per_image = 1
+        self.crop_size = (64, 64, 64)
+        self.min_crop_overlap = 0.5
 
         self.initial_lr = 1e-3
         self.weight_decay = 1e-2
@@ -88,33 +97,37 @@ class SimCLRTrainer(AbstractBaseTrainer):
     def get_training_transforms(
         self,
         patch_size: Union[np.ndarray, Tuple[int]],
-        rotation_for_DA,
-        deep_supervision_scales: Union[List, Tuple, None],
+        rotation_for_DA: dict,
         mirror_axes: Tuple[int, ...],
         do_dummy_2d_data_aug: bool,
-        use_mask_for_norm: List[bool] = None,
-        is_cascaded: bool = False,
-        foreground_labels: Union[Tuple[int, ...], List[int]] = None,
-        regions: List[Union[List[int], Tuple[int, ...], int]] = None,
-        ignore_label: int = None,
-    ) -> BasicTransform:
+        order_resampling_data: int = 3,
+        order_resampling_seg: int = 1,
+        border_val_seg: int = -1,
+    ) -> AbstractTransform:
+        tr_transforms = []
 
-        # rename = RenameTransform(in_key="data", out_key="image", delete_old=True)
+        if do_dummy_2d_data_aug:
+            raise NotImplementedError(
+                "We don't do dummy 2d aug here anymore. Data should be isotropic!"
+            )
 
-        default_training_transforms = nnUNetTrainer.get_training_transforms(
-            patch_size,
-            rotation_for_DA["x"],
-            deep_supervision_scales,
-            mirror_axes,
-            do_dummy_2d_data_aug,
-            use_mask_for_norm,
-            is_cascaded,
-            foreground_labels,
-            regions,
-            ignore_label,
+        # --------------------------- SimCLR Transformation --------------------------- #
+        # All train augmentations are moved to the SimCLR Transform class.
+
+        tr_transforms.append(
+            SimCLRTransform(
+                crop_size=self.crop_size,
+                aug="train",
+                crop_count_per_image=self.num_crops_per_image,
+                min_overlap_ratio=self.min_crop_overlap,
+                data_key="data",
+            )
         )
-        # return SimCLRTransform(ComposeTransforms([rename, default_training_transforms]))
-        return SimCLRTransform(default_training_transforms)
+        # From here on out we are working with reference and overlapping crops!
+
+        tr_transforms.append(NumpyToTensor(["all_crops"], "float"))
+        tr_transforms = Compose(tr_transforms)
+        return tr_transforms
 
     def get_validation_transforms(
         self,
