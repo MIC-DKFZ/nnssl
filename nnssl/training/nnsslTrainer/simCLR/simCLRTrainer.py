@@ -129,23 +129,23 @@ class SimCLRTrainer(AbstractBaseTrainer):
         tr_transforms = Compose(tr_transforms)
         return tr_transforms
 
-    def get_validation_transforms(
-        self,
-        deep_supervision_scales: Union[List, Tuple, None],
-        is_cascaded: bool = False,
-        foreground_labels: Union[Tuple[int, ...], List[int]] = None,
-        regions: List[Union[List[int], Tuple[int, ...], int]] = None,
-        ignore_label: int = None,
-    ) -> BasicTransform:
+    def get_validation_transforms(self) -> AbstractTransform:
+        val_transforms = []
 
-        default_validation_transforms = nnUNetTrainer.get_validation_transforms(
-            deep_supervision_scales,
-            is_cascaded,
-            foreground_labels,
-            regions,
-            ignore_label,
+        # --------------------------- VoCo Transformation --------------------------- #
+        val_transforms.append(
+            SimCLRTransform(
+                crop_size=self.crop_size,
+                aug="none",
+                crop_count_per_image=self.num_crops_per_image,
+                min_overlap_ratio=self.min_crop_overlap,
+                data_key="data",
+            )
         )
-        return SimCLRTransform(default_validation_transforms)
+
+        val_transforms.append(NumpyToTensor(["all_crops"], "float"))
+        val_transforms = Compose(val_transforms)
+        return val_transforms
 
     def get_dataloaders(self):
         # we use the patch size to determine whether we need 2D or 3D dataloaders. We also use it to determine whether
@@ -164,24 +164,14 @@ class SimCLRTrainer(AbstractBaseTrainer):
         tr_transforms = self.get_training_transforms(
             patch_size,
             rotation_for_DA,
-            None,
             mirror_axes,
             do_dummy_2d_data_aug,
-            use_mask_for_norm=self.config_plan.use_mask_for_norm,
-            is_cascaded=False,
-            foreground_labels=None,
-            regions=None,
-            ignore_label=None,
+            order_resampling_data=3,
+            order_resampling_seg=1,
         )
 
         # ----------------------- Validation data augmentations ---------------------- #
-        val_transforms = self.get_validation_transforms(
-            None,
-            is_cascaded=False,
-            foreground_labels=None,
-            regions=None,
-            ignore_label=None,
-        )
+        val_transforms = self.get_validation_transforms()
 
         # We don't do non-90 degree rotations for the VoCo Trainer.
         dl_tr, dl_val = self.get_plain_dataloaders(patch_size)
