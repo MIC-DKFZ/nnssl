@@ -58,13 +58,13 @@ class SimCLRTrainer(AbstractBaseTrainer):
         # Let's use the same patch size as VoCo
 
         plan.configurations[configuration_name].patch_size = (192, 192, 64)
-        plan.configurations[configuration_name].batch_size = 4  # TODO: test larger bs
+        plan.configurations[configuration_name].batch_size = 2  # TODO: test larger bs
 
         super().__init__(
             plan, configuration_name, fold, dataset_json, unpack_dataset, device
         )
         self.batch_size = plan.configurations[configuration_name].batch_size
-        self.num_crops_per_image = 1
+        self.num_crops_per_image = 3
         self.crop_size = (64, 64, 64)
         self.min_crop_overlap = 0.5
 
@@ -89,7 +89,7 @@ class SimCLRTrainer(AbstractBaseTrainer):
     def build_loss(self) -> nn.Module:
         """Implements the standard contrastive loss."""
         return NTXentLoss(
-            batch_size=self.batch_size,
+            batch_size=self.batch_size * self.num_crops_per_image,
             temperature=0.5,
             similarity_function="cosine",
             device=self.device,
@@ -237,16 +237,17 @@ class SimCLRTrainer(AbstractBaseTrainer):
             else dummy_context()
         ):
             all_crop_embeddings = self.network(all_crops)
-            z_i_embeddings = rearrange(
-                all_crop_embeddings[:NREF], "(b NREF) c -> b NREF c", b=self.batch_size
-            )
-            z_j_embeddings = rearrange(
-                all_crop_embeddings[NREF:], "(b NREF) c -> b NREF c", b=self.batch_size
-            )
+            # This rearrange below isn't necessary, but would come in handy when doing more involved contrastive tasks.
+            # z_i_embeddings = rearrange(
+            #     all_crop_embeddings[:NREF], "(b NREF) c -> b NREF c", b=self.batch_size
+            # )
+            # z_j_embeddings = rearrange(
+            #     all_crop_embeddings[NREF:], "(b NREF) c -> b NREF c", b=self.batch_size
+            # )
 
             # Normalize prior to contrastive loss
-            z_i_embeddings = nn.functional.normalize(z_i_embeddings, dim=1)
-            z_j_embeddings = nn.functional.normalize(z_j_embeddings, dim=1)
+            z_i_embeddings = nn.functional.normalize(all_crop_embeddings[:NREF], dim=1)
+            z_j_embeddings = nn.functional.normalize(all_crop_embeddings[NREF:], dim=1)
 
             # del data
             l, acc = self.loss(z_i_embeddings, z_j_embeddings)
@@ -283,20 +284,25 @@ class SimCLRTrainer(AbstractBaseTrainer):
                 else dummy_context()
             ):
                 all_crop_embeddings = self.network(all_crops)
-                z_i_embeddings = rearrange(
-                    all_crop_embeddings[:NREF],
-                    "(b NREF) c -> b NREF c",
-                    b=self.batch_size,
-                )
-                z_j_embeddings = rearrange(
-                    all_crop_embeddings[NREF:],
-                    "(b NREF) c -> b NREF c",
-                    b=self.batch_size,
-                )
+                # This rearrange below isn't necessary, but would come in handy when doing more involved contrastive tasks.
+                # z_i_embeddings = rearrange(
+                #     all_crop_embeddings[:NREF],
+                #     "(b NREF) c -> b NREF c",
+                #     b=self.batch_size,
+                # )
+                # z_j_embeddings = rearrange(
+                #     all_crop_embeddings[NREF:],
+                #     "(b NREF) c -> b NREF c",
+                #     b=self.batch_size,
+                # )
 
                 # Normalize prior to contrastive loss
-                z_i_embeddings = nn.functional.normalize(z_i_embeddings, dim=1)
-                z_j_embeddings = nn.functional.normalize(z_j_embeddings, dim=1)
+                z_i_embeddings = nn.functional.normalize(
+                    all_crop_embeddings[:NREF], dim=1
+                )
+                z_j_embeddings = nn.functional.normalize(
+                    all_crop_embeddings[NREF:], dim=1
+                )
 
                 # del data
                 l, acc = self.loss(z_i_embeddings, z_j_embeddings)
