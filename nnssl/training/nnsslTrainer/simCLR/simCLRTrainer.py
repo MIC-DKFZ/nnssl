@@ -7,6 +7,7 @@ from torch.optim.adamw import AdamW
 from batchgenerators.dataloading.single_threaded_augmenter import (
     SingleThreadedAugmenter,
 )
+from einops import rearrange
 
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 
@@ -220,6 +221,10 @@ class SimCLRTrainer(AbstractBaseTrainer):
         return architecture
 
     def train_step(self, batch: Tuple[dict, dict]) -> dict:
+        all_crops = batch["all_crops"]
+        NREF = batch["reference_crop_index"]
+
+        all_crops = all_crops.to(self.device, non_blocking=True)
 
         self.optimizer.zero_grad(set_to_none=True)
         # Autocast is a little bitch.
@@ -231,20 +236,20 @@ class SimCLRTrainer(AbstractBaseTrainer):
             if self.device.type == "cuda"
             else dummy_context()
         ):
-
-            z_i = self.network(
-                batch["image_i"].unsqueeze(1).to(self.device, non_blocking=True)
+            all_crop_embeddings = self.network(all_crops)
+            z_i_embeddings = rearrange(
+                all_crop_embeddings[:NREF], "(b NREF) c -> b NREF c", b=self.batch_size
             )
-            z_j = self.network(
-                batch["image_j"].unsqueeze(1).to(self.device, non_blocking=True)
+            z_j_embeddings = rearrange(
+                all_crop_embeddings[NREF:], "(b NREF) c -> b NREF c", b=self.batch_size
             )
 
             # Normalize prior to contrastive loss
-            z_i = nn.functional.normalize(z_i, dim=1)
-            z_j = nn.functional.normalize(z_j, dim=1)
+            z_i_embeddings = nn.functional.normalize(z_i_embeddings, dim=1)
+            z_j_embeddings = nn.functional.normalize(z_j_embeddings, dim=1)
 
             # del data
-            l, acc = self.loss(z_i, z_j)
+            l, acc = self.loss(z_i_embeddings, z_j_embeddings)
 
         if self.grad_scaler is not None:
             self.grad_scaler.scale(l).backward()
@@ -262,6 +267,10 @@ class SimCLRTrainer(AbstractBaseTrainer):
         return {"loss": l.detach().cpu().numpy()}
 
     def validation_step(self, batch: dict) -> dict:
+        all_crops = batch["all_crops"]
+        NREF = batch["reference_crop_index"]
+
+        all_crops = all_crops.to(self.device, non_blocking=True)
 
         # Autocast is a little bitch.
         # If the device_type is 'cpu' then it's slow as heck and needs to be disabled.
@@ -273,19 +282,24 @@ class SimCLRTrainer(AbstractBaseTrainer):
                 if self.device.type == "cuda"
                 else dummy_context()
             ):
-                z_i = self.network(
-                    batch["image_i"].unsqueeze(1).to(self.device, non_blocking=True)
+                all_crop_embeddings = self.network(all_crops)
+                z_i_embeddings = rearrange(
+                    all_crop_embeddings[:NREF],
+                    "(b NREF) c -> b NREF c",
+                    b=self.batch_size,
                 )
-                z_j = self.network(
-                    batch["image_j"].unsqueeze(1).to(self.device, non_blocking=True)
+                z_j_embeddings = rearrange(
+                    all_crop_embeddings[NREF:],
+                    "(b NREF) c -> b NREF c",
+                    b=self.batch_size,
                 )
 
                 # Normalize prior to contrastive loss
-                z_i = nn.functional.normalize(z_i, dim=1)
-                z_j = nn.functional.normalize(z_j, dim=1)
+                z_i_embeddings = nn.functional.normalize(z_i_embeddings, dim=1)
+                z_j_embeddings = nn.functional.normalize(z_j_embeddings, dim=1)
 
                 # del data
-                l, acc = self.loss(z_i, z_j)
+                l, acc = self.loss(z_i_embeddings, z_j_embeddings)
                 print(f"Val loss: {l.detach().cpu().numpy()} - accuracy: {acc}")
 
         return {"loss": l.detach().cpu().numpy()}
