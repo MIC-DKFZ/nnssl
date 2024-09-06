@@ -29,7 +29,7 @@ from loguru import logger
 import torch
 
 
-class SimCLRTransform(AbstractTransform):
+class SimCLRTransform_deprecated(AbstractTransform):
     def __init__(self, transforms):
         """
         The SimCLR Transform takes the regular transforms and applies them to the same data twice.
@@ -48,18 +48,16 @@ class SimCLRTransform(AbstractTransform):
         return {"image_i": xi["image"], "image_j": xj["image"]}
 
 
-class SimCLRTransformVocoStyle(AbstractTransform):
+class SimCLRTransform(AbstractTransform):
     def __init__(
         self,
         crop_size: Tuple[int, int, int],
         aug: Literal["train", "none"] = "train",
         crop_count_per_image: int = 1,
-        overlap_ratio: float = 0.5,
+        min_overlap_ratio: float = 0.5,
         data_key="data",
     ):
         """
-
-
         The SimCLR Transform takes a volume splits it into partially overlapping crops.
         The base crops are non-overlapping and form the basis for comparison with the target crops.
         The target crop(s) are partially overlapping with the base crops.
@@ -72,7 +70,13 @@ class SimCLRTransformVocoStyle(AbstractTransform):
         self.data_key = data_key
         self.crop_count_per_image = crop_count_per_image
         self.crop_size = crop_size
-        self.overlap_ratio = overlap_ratio
+        self.min_overlap_ratio = min_overlap_ratio
+
+        self.min_overlap_per_axis = (
+            int(crop_size[0] * min_overlap_ratio),
+            int(crop_size[1] * min_overlap_ratio),
+            int(crop_size[2] * min_overlap_ratio),
+        )
 
         self.aug: str = aug
         # Normally we would like to know which axes have the same spacing -- Otherwise rotating the crop will not work.
@@ -119,113 +123,154 @@ class SimCLRTransformVocoStyle(AbstractTransform):
                 ]
             )
 
-    def get_base_crops(self, data):
+    def get_reference_crops(self, data):
         """
-        Splits the data into base crops.
-        Returns all crops.
+        Splits the data into reference crops.
+        Returns all crops and offsets so overlapping crops can be made.
+        Note:
+        In this form, multiple crops per image can from close proximity - this might lead to false negatives in the contrastive loss,
+        but shouldn't be much of an issue.
 
         :param data: [B, C, X, Y, Z] data to split into base crops.
-        :return: [B, N_subcrops, C, X_subcrop, Y_subcrop, Z_subcrop] base crops
+        :return: [B, N_CROPS_PER_IMAGE, C, X_subcrop, Y_subcrop, Z_subcrop] reference crops, [B, N_CROPS_PER_IMAGE, 3] reference offsets
         """
-        base_crops = []
-        for i in range(self.voco_base_crop_count[0]):
-            for j in range(self.voco_base_crop_count[1]):
-                for k in range(self.voco_base_crop_count[2]):
-                    crop = data[
-                        :,
-                        :,
-                        i * self.voco_crop_size[0] : (i + 1) * self.voco_crop_size[0],
-                        j * self.voco_crop_size[1] : (j + 1) * self.voco_crop_size[1],
-                        k * self.voco_crop_size[2] : (k + 1) * self.voco_crop_size[2],
-                    ]
-                    base_crops.append(crop)
-        return np.stack(base_crops, axis=1)
-
-    def get_target_crops(self, data: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-        """
-        Defines a random crop that is partially overlapping with some of the base crops.
-        :return: [B, N_subcrops, C, X_subcrop, Y_subcrop, Z_subcrop], overlaps [N_target_crop, N_base_crop]
-        """
-
-        image_wise_crop = []
-        image_wise_overlaps = []
-        # For each image in batch -- data shape: [B, C, X, Y, Z]
-        for big_crop in data:
-            target_crops, target_overlaps = [], []
-            for _ in range(self.voco_target_crop_count):
-                crop_size = self.voco_crop_size
-                x_offset = np.random.randint(0, (big_crop.shape[1] - crop_size[0]) + 1)
-                y_offset = np.random.randint(0, (big_crop.shape[2] - crop_size[1]) + 1)
-                z_offset = np.random.randint(0, (big_crop.shape[3] - crop_size[2]) + 1)
-
-                crop = big_crop[
+        offsets = np.zeros((data.shape[0], self.crop_count_per_image, 3))
+        reference_crops = []
+        for b in range(data.shape[0]):
+            per_image_crops = []
+            for i in range(self.crop_count_per_image):
+                x_offset = np.random.randint(0, (data.shape[2] - self.crop_size[0]) + 1)
+                y_offset = np.random.randint(0, (data.shape[3] - self.crop_size[1]) + 1)
+                z_offset = np.random.randint(0, (data.shape[4] - self.crop_size[2]) + 1)
+                crop = data[
+                    b,
                     :,
-                    x_offset : x_offset + crop_size[0],
-                    y_offset : y_offset + crop_size[1],
-                    z_offset : z_offset + crop_size[2],
+                    x_offset : x_offset + self.crop_size[0],
+                    y_offset : y_offset + self.crop_size[1],
+                    z_offset : z_offset + self.crop_size[2],
                 ]
-                target_crops.append(crop)
+                per_image_crops.append(crop)
+                offsets[b, i, :] = [x_offset, y_offset, z_offset]
+            reference_crops.append(np.stack(per_image_crops, axis=0))
 
-                total_volume = crop_size[0] * crop_size[1] * crop_size[2]
+        return np.stack(reference_crops, axis=0), offsets
 
-                # Calculate overlap with base crops
-                target_base_crop_overlaps = []
-                for bbox in self.bounding_boxes:
-                    overlap_x = max(
-                        0,
-                        min(x_offset + crop_size[0], bbox[3]) - max(x_offset, bbox[0]),
-                    )
-                    overlap_y = max(
-                        0,
-                        min(y_offset + crop_size[1], bbox[4]) - max(y_offset, bbox[1]),
-                    )
-                    overlap_z = max(
-                        0,
-                        min(z_offset + crop_size[2], bbox[5]) - max(z_offset, bbox[2]),
-                    )
-                    overlap_volume = overlap_x * overlap_y * overlap_z
-                    overlap_ratio = overlap_volume / total_volume
-                    target_base_crop_overlaps.append(overlap_ratio)
-                target_overlaps.append(np.array(target_base_crop_overlaps))
-            image_wise_crop.append(np.stack(target_crops, axis=0))
-            image_wise_overlaps.append(
-                np.stack(target_overlaps, axis=0)
-            )  # [N_target_subcrops, N_base_subcrops]
+    def get_overlapping_crops(self, data, reference_offsets):
+        # Create overlapping crops while respecting array boundaries.
+        overlapping_offsets = np.zeros((data.shape[0], self.crop_count_per_image, 3))
+        overlapping_crops = []
+        for b in range(data.shape[0]):
+            per_image_crops = []
+            for i in range(self.crop_count_per_image):
+                x_offset_min = max(
+                    0, reference_offsets[b, i, 0] - self.min_overlap_per_axis[0]
+                )
+                x_offset_max = min(
+                    data.shape[2] - self.crop_size[0],
+                    reference_offsets[b, i, 0] + self.min_overlap_per_axis[0],
+                )
 
-        return np.stack(image_wise_crop, axis=0), np.stack(image_wise_overlaps, axis=0)
+                y_offset_min = max(
+                    0, reference_offsets[b, i, 1] - self.min_overlap_per_axis[1]
+                )
+                y_offset_max = min(
+                    data.shape[3] - self.crop_size[1],
+                    reference_offsets[b, i, 1] + self.min_overlap_per_axis[1],
+                )
+
+                z_offset_min = max(
+                    0, reference_offsets[b, i, 2] - self.min_overlap_per_axis[2]
+                )
+                z_offset_max = min(
+                    data.shape[4] - self.crop_size[2],
+                    reference_offsets[b, i, 2] + self.min_overlap_per_axis[2],
+                )
+
+                # Sampling new offsets for each axis while ensuring the minimum overlap
+                new_x_offset = np.random.randint(x_offset_min, x_offset_max + 1)
+                new_y_offset = np.random.randint(y_offset_min, y_offset_max + 1)
+                new_z_offset = np.random.randint(z_offset_min, z_offset_max + 1)
+
+                crop = data[
+                    b,
+                    :,
+                    new_x_offset : new_x_offset + self.crop_size[0],
+                    new_y_offset : new_y_offset + self.crop_size[1],
+                    new_z_offset : new_z_offset + self.crop_size[2],
+                ]
+                per_image_crops.append(crop)
+                overlapping_offsets[b, i, :] = [
+                    new_x_offset,
+                    new_y_offset,
+                    new_z_offset,
+                ]
+            overlapping_crops.append(np.stack(per_image_crops, axis=0))
+
+        return np.stack(overlapping_crops, axis=0), overlapping_offsets
 
     def __call__(self, **data_dict):
         data = data_dict.get(self.data_key)
         if data is None:
             raise ValueError(f"No data found for key {self.data_key}")
 
-        base_crops = self.get_base_crops(
+        reference_crops, reference_offsets = self.get_reference_crops(
             data
-        )  # [B, N_base_subcrops, C, X_subcrop, Y_subcrop, Z_subcrop]
-        target_crops, gt_overlap = self.get_target_crops(data)
-        # target_crops: [B, N_target_subcrops, C, X_subcrop, Y_subcrop, Z_subcrop]
-        # gt_overlap: [B, N_target_subcrops, N_base_subcrops]
-        B = base_crops.shape[0]
+        )  # [B, N_CROPS_PER_IMAGE, C, X_subcrop, Y_subcrop, Z_subcrop], [B, N_CROPS_PER_IMAGE, 3]
+
+        overlapping_crops, overlapping_offsets = self.get_overlapping_crops(
+            data, reference_offsets
+        )  # [B, N_CROPS_PER_IMAGE, C, X_subcrop, Y_subcrop, Z_subcrop], [B, N_CROPS_PER_IMAGE, 3]
+
+        assert np.all(
+            np.max(np.abs(overlapping_offsets - reference_offsets), axis=(0, 1))
+            < self.crop_size
+        ), "Overlapping offsets are in the expected range!"
+
+        # target_crops, gt_overlap = self.get_target_crops(data)
+        # # target_crops: [B, N_target_subcrops, C, X_subcrop, Y_subcrop, Z_subcrop]
+        # # gt_overlap: [B, N_target_subcrops, N_base_subcrops]
+        B = reference_crops.shape[0]
+        n_crops_per_image = reference_crops.shape[1]
+
+        reference_crop_index = (
+            B * n_crops_per_image
+        )  # Should be B * N_CROPS_PER_IMAGE anyway
+
+        # Flatten for potential transform and later concat
+        reference_crops = rearrange(reference_crops, "b n c x y z  -> (b n) c x y z")
+        overlapping_crops = rearrange(
+            overlapping_crops, "b n c x y z  -> (b n) c x y z"
+        )
+
         if self.aug == "train":
-            base_crops = rearrange(base_crops, "b n c x y z  -> (b n) c x y z")
-            base_crops = self.crop_augmentations(**{"data": base_crops, "seg": None})[
-                "data"
-            ]
-            base_crops = rearrange(base_crops, "(b n) c x y z -> b n c x y z", b=B)
-            target_crops = rearrange(target_crops, "b n c x y z -> (b n) c x y z")
-            target_crops = self.crop_augmentations(
-                **{"data": target_crops, "seg": None}
+            reference_crops = self.crop_augmentations(
+                **{"data": reference_crops, "seg": None}
             )["data"]
-            target_crops = rearrange(target_crops, "(b n) c x y z -> b n c x y z", b=B)
+            overlapping_crops = self.crop_augmentations(
+                **{"data": overlapping_crops, "seg": None}
+            )["data"]
 
-        base_crops_flat = rearrange(base_crops, "b n c x y z -> (b n) c x y z")
-        target_crops_flat = rearrange(target_crops, "b n c x y z -> (b n) c x y z")
-        joint_crops_flat = np.concatenate([base_crops_flat, target_crops_flat], axis=0)
-        base_crop_index = base_crops_flat.shape[0]
+        joint_crops_flat = np.concatenate([reference_crops, overlapping_crops], axis=0)
 
-        data_dict["all_crops"] = joint_crops_flat
-        data_dict["base_crop_index"] = base_crop_index
-        # data_dict["base_crops"] = base_crops
-        # data_dict["target_crops"] = target_crops
-        data_dict["base_target_crop_overlaps"] = gt_overlap
-        return data_dict
+        batch = {
+            "all_crops": joint_crops_flat,
+            "reference_crop_index": reference_crop_index,
+            "batch_size": B,
+            "n_crops_per_image": n_crops_per_image,
+        }
+
+        return batch
+
+
+if __name__ == "__main__":
+    test_volume = np.random.rand(2, 1, 192, 192, 64)
+    inp_dict = {"data": test_volume}
+    trafo = SimCLRTransform(
+        crop_size=(64, 64, 64),
+        data_key="data",
+        aug="train",
+        crop_count_per_image=3,
+        min_overlap_ratio=0.5,
+    )
+    res = trafo(**inp_dict)
+    print(res["reference_crop_index"])
