@@ -41,9 +41,16 @@ class SimCLRTrainer(AbstractBaseTrainer):
         - check which standard transforms to keep [x] - went with default nnUNet transforms fow now
     - re-use VoCoArchitecture (seems like no change necessary here, double-check) [x]
     - implement train/val steps (loss returns loss, accuracy) -> maybe track acc. similar to pseudo dice in nnUNet [x] - not tracking yet
-    - re-implement similar to VoCoTransform (need more sub-crops, and random crops in general) [ ]
-    - maybe force partial overlaps between crops [ ]
-    - clean up, test runs [ ]
+    - re-implement similar to VoCoTransform (need more sub-crops, and random crops in general) [x]
+    - maybe force partial overlaps between crops [x]
+    - clean up, test runs [x]
+
+    Memory consumption & batch/s on 4090:
+    - batch_size 4, num_crops_per_image 3, crop_size (64, 64, 64): 9.55 GB & 5.3 batches/s
+    - batch_size 8, num_crops_per_image 3, crop_size (64, 64, 64): 15.4 GB & 2.9 batches/s
+    - batch_size 16, num_crops_per_image 3, crop_size (64, 64, 64): 23.5 GB & 1.08 batches/s
+    - batch_size 32, num_crops_per_image 2, crop_size (64, 64, 64): >24.5 GB (OoM)
+    - batch_size 32, num_crops_per_image 1, crop_size (64, 64, 64): 19.3 GB & 2.2 batches/s
     """
 
     def __init__(
@@ -55,16 +62,15 @@ class SimCLRTrainer(AbstractBaseTrainer):
         unpack_dataset: bool = True,
         device: torch.device = torch.device("cuda"),
     ):
-        # Let's use the same patch size as VoCo
-
+        # Let's use the same initial patch size and crop size as for VoCo
         plan.configurations[configuration_name].patch_size = (192, 192, 64)
-        plan.configurations[configuration_name].batch_size = 2  # TODO: test larger bs
+        plan.configurations[configuration_name].batch_size = 32  # TODO: test larger bs
 
         super().__init__(
             plan, configuration_name, fold, dataset_json, unpack_dataset, device
         )
         self.batch_size = plan.configurations[configuration_name].batch_size
-        self.num_crops_per_image = 3
+        self.num_crops_per_image = 1
         self.crop_size = (64, 64, 64)
         self.min_crop_overlap = 0.5
 
@@ -221,10 +227,16 @@ class SimCLRTrainer(AbstractBaseTrainer):
         return architecture
 
     def train_step(self, batch: Tuple[dict, dict]) -> dict:
+
         all_crops = batch["all_crops"]
         NREF = batch["reference_crop_index"]
 
         all_crops = all_crops.to(self.device, non_blocking=True)
+
+        if torch.isnan(all_crops).any():
+            print("NaN values found in input data!")
+        if torch.isinf(all_crops).any():
+            print("Infinity values found in input data!")
 
         self.optimizer.zero_grad(set_to_none=True)
         # Autocast is a little bitch.
@@ -237,6 +249,9 @@ class SimCLRTrainer(AbstractBaseTrainer):
             else dummy_context()
         ):
             all_crop_embeddings = self.network(all_crops)
+            if torch.isnan(all_crop_embeddings).any():
+                print("NaN values found in embeddings!")
+
             # This rearrange below isn't necessary, but would come in handy when doing more involved contrastive tasks.
             # z_i_embeddings = rearrange(
             #     all_crop_embeddings[:NREF], "(b NREF) c -> b NREF c", b=self.batch_size
@@ -255,15 +270,19 @@ class SimCLRTrainer(AbstractBaseTrainer):
         if self.grad_scaler is not None:
             self.grad_scaler.scale(l).backward()
             self.grad_scaler.unscale_(self.optimizer)
-            # torch.nn.utils.clip_grad_norm_(self.network.parameters(), 12)
+            # for name, param in self.network.named_parameters():
+            #     if param.grad is not None:
+            #         if param.grad.norm() > 1:
+            #             print(f"{name}: gradient norm: {param.grad.norm()}")
+            torch.nn.utils.clip_grad_norm_(self.network.parameters(), 0.1)
             self.grad_scaler.step(self.optimizer)
             self.grad_scaler.update()
         else:
             l.backward()
-            # torch.nn.utils.clip_grad_norm_(self.network.parameters(), 12)
+            torch.nn.utils.clip_grad_norm_(self.network.parameters(), 0.1)
             self.optimizer.step()
 
-        print(f"Train loss: {l.detach().cpu().numpy()} - accuracy: {acc}")
+        # print(f"Train loss: {l.detach().cpu().numpy()} - accuracy: {acc}")
 
         return {"loss": l.detach().cpu().numpy()}
 
@@ -306,6 +325,6 @@ class SimCLRTrainer(AbstractBaseTrainer):
 
                 # del data
                 l, acc = self.loss(z_i_embeddings, z_j_embeddings)
-                print(f"Val loss: {l.detach().cpu().numpy()} - accuracy: {acc}")
+                # print(f"Val loss: {l.detach().cpu().numpy()} - accuracy: {acc}")
 
         return {"loss": l.detach().cpu().numpy()}
