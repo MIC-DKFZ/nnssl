@@ -38,11 +38,8 @@ def main():
     strong_magnet_pats = get_strong_magnet_patients(all_pats)
     valohai_dataset = get_subsets_of_interest(strong_magnet_pats)
 
-    n_total_used = 0
-    n_total = len(data_id_to_info_json)
-
     all_ids = []
-    all_pats = []
+    all_pats_out = []
 
     for key, val in valohai_dataset.__dict__.items():
         logger.info(f"Working on {key}")
@@ -55,11 +52,11 @@ def main():
 
                 if filter_mri_case(data_id_to_info_json[pat]["path"]) is not None:
                     all_ids.append(data_id_to_info_json[pat])
-                    all_pats.append(pat)
+                    all_pats_out.append(pat)
 
     if is_running_in_valohai():
         save_json(all_ids, f"/valohai/outputs/all_ids.json")
-        save_json(all_pats, f"/valohai/outputs/all_pats.json")
+        save_json(all_pats_out, f"/valohai/outputs/all_pats.json")
 
     return
 
