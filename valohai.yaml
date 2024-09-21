@@ -21,7 +21,7 @@
     image: pytorch/pytorch:2.2.0-cuda12.1-cudnn8-runtime
     command:
       - pip install .
-      - python ./nnssl/scripts/fine_grained_vh_inputs.py
+      - python ./nnssl/scripts/fine_grained_vh_inputs_for_plotting.py
       # - python ./fiona/nnssl/valohai_tester.py
     inputs:
     - name: all-data
