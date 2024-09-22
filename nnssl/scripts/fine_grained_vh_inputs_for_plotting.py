@@ -19,7 +19,7 @@ def main():
     # Series Dict contains series_UID to path to file.
     logger.info("Starting to create Valohai inputs.")
     if is_running_in_valohai():
-        data_id_to_info_json: dict[str, dict] = get_valohai_series_dict()
+        data_id_to_info_json: dict[str, dict] = get_valohai_series_dict("all-data")
     else:
         data_id_to_info_json = create_local_series_dict()
 
