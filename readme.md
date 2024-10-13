@@ -30,8 +30,8 @@ Similarly to nnU-Net you need to preprocess data before training. To do so you n
 1. Create a dataset in the [nnU-Net dataset format](https://github.com/MIC-DKFZ/nnUNet/blob/master/documentation/dataset_format.md). This means you need a `dataset.json` and a folder termed `imagesTr` which holds all the images. A `labelsTr` directory is not necessary (but if present it will be ignored). The `dataset.json` can be very simple, as it currently is only used as a remnant from nnU-Net. It will be removed in future versions. In the meanwhile the json provided below could be used if .
 2. Run the preprocessing script `nnssl_plan_and_preprocess -d <Dataset ID>` with the respective dataset ID as an argument. The preprocessed data will be stored in the `nnssl_preprocessed` directory.
 
+#### Example of a dataset.json
 ```json
-// dataset.json
 {
   "channel_names": {"0": "someMRI"},
   "description": "Unlabeled set of datapoints that are used for pre-text task pretraining",
