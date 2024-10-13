@@ -261,7 +261,7 @@ def prepare_preprocessing_paths_on_valohai(dataset_id: int):
                 "description": "Unlabeled set of datapoints that are used for pre-text task pretraining",
                 "file_ending": ".nii.gz",
                 "licence": "Proprietary -- do not touch without permission",
-                "name": "Somem Floy Images",
+                "name": "Some Images",
                 "numTraining": 0,
                 "release": "0.0",
             }
