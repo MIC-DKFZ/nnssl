@@ -1,4 +1,6 @@
-# nnSSL
+![nnSSL](assets/images/nnSSL.png)
+
+
 This is the repository associated for the paper `Revisiting MAE pre-training for 3D medical image segmentation
 ` currently under review for ICLR 2025.
 It contains the code for the experiments conducted in the paper and will be made public after the review process.
