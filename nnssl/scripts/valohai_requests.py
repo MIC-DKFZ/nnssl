@@ -123,6 +123,55 @@ def maybe_create_new_dataset_version(
     return response
 
 
+def get_all_prev_dataset_version(dataset_version_id: str) -> set[str]:
+    url = f"https://app.valohai.com/api/v0/dataset-versions/{dataset_version_id}/"
+    response = requests.get(url, headers=get_auth_header())
+    if response.status_code != 200:
+        raise Exception(f"Error getting dataset versions. Status code: {response.status_code}")
+    dataset_content = response.json()
+    if dataset_content["previous_version"] is None:
+        return set(dataset_version_id)
+    else:
+        all_prev_ids = get_all_prev_dataset_version(dataset_content["previous_version"])
+        all_prev_ids.add(dataset_version_id)
+        return all_prev_ids
+
+
+def get_dataset_versions(dataset_id: str) -> dict:
+    url = f"https://app.valohai.com/api/v0/datasets/{dataset_id}#versions"
+    response = requests.get(url, headers=get_auth_header())
+    if response.status_code != 200:
+        raise Exception(f"Error getting dataset versions. Status code: {response.status_code}")
+    dataset_content = response.json()
+    latest_version = dataset_content["latest_version"]
+    all_versions = get_all_prev_dataset_version(latest_version["id"])
+    return dataset_content["results"]
+
+
+def get_name_from_datum_uid(datum_uids: list[str]) -> list[str]:
+    all_infos = []
+    for datum_uid in datum_uids:
+        url = f"https://app.valohai.com/api/v0/data/{datum_uid}"
+        response = requests.get(url, headers=get_auth_header())
+        all_infos.append(response.json()["name"])
+    return all_infos
+
+
+def get_datum_uids_in_dataset_content(dataset_version_id: str) -> list[str]:
+    url = f"https://app.valohai.com/api/v0/dataset-versions/{dataset_version_id}"
+
+    # Make the API request to get the dataset version's files
+    response = requests.get(url, headers=get_auth_header())
+
+    # Check if the request was successful
+    if response.status_code == 200:
+        # Parse the JSON response
+        dataset_files = response.json()["files"]
+        dataset_uids = [df["datum"] for df in dataset_files]
+        return dataset_uids
+    raise Exception(f"Error getting dataset content. Status code: {response.status_code}")
+
+
 def convert_andrei_adtop_to_lookup(andrei_adopt_output: list[dict]) -> dict[str, dict]:
     """Converts the output of get_andrei_adopt_output to a lookup table."""
     lookup = {}

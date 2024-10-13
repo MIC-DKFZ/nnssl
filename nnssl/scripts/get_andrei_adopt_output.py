@@ -1,3 +1,4 @@
+from nnssl.scripts.fine_grained_vh_inputs import get_meta_data_df
 from nnssl.scripts.valohai_requests import get_execution_output, get_valohai_projects, get_valohai_stores
 
 
@@ -8,6 +9,15 @@ def main():
     all_pats = get_execution_output(execution_id)
     # all_csvs =
     # create_dataset_from_execution_output(all_pats)
+
+    pre_filter_patients = [ap["name"] for ap in all_pats]
+    pre_filter_patients = [ap for ap in pre_filter_patients if ap.endswith(".nii.gz")]
+    patients_seriesinstance_uids = [pat_used.split("/")[1].replace(".nii.gz", "") for pat_used in pre_filter_patients]
+
+    all_pats = get_meta_data_df()
+
+    used_pats = all_pats[all_pats["seriesinstanceuid"].isin(patients_seriesinstance_uids)]
+    used_pats.to_csv("pre_filter_pats.csv")
 
     data_to_pat_uuids: dict[str, str] = {}
     for pat in all_pats:

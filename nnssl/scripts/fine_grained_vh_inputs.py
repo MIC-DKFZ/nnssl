@@ -57,6 +57,20 @@ def get_patients_from_df(data_df: pd.DataFrame, n: int | None = None) -> list[st
     return filenames
 
 
+def get_patients_with_meta_data_from_df(data_df: pd.DataFrame, n: int | None = None) -> dict[str:dict]:
+    """
+    Choose the first n files from the meta data file
+    :param meta_data_path:
+    :param n: Get only the first n files (If None, get all)
+    :return:
+    """
+    filenames = data_df["seriesinstanceuid"].tolist()
+    data_df = data_df.to_dict(orient="records")
+    if n is not None:
+        filenames = filenames[:n]
+    return {f: data_df[i] for i, f in enumerate(filenames)}
+
+
 def get_meta_data_df() -> pd.DataFrame:
     meta_dict_path: str
     if is_running_in_valohai():

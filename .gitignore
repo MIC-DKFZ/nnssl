@@ -112,6 +112,8 @@ ENV/
 *.png
 *.jpg
 *.jpeg
+*.csv
+*.ipynb
 
 *.model
 
