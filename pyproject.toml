@@ -56,7 +56,8 @@ dependencies = [
     "timm",
     "lightning-bolts",
     "pytest",
-    "nnunetv2"
+    "nnunetv2",
+    "blosc2>=3.0.0b1"
 ]
 
 [project.urls]
