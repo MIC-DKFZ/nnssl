@@ -7,7 +7,7 @@ import os
 def main():
     s3_bucket_path = "s3://floy-data/clean-data/external/fiona/mr-head-full/"
     # Defining it as input would probably download the data to the valohai instance?
-    #   So maybe define as input directly but 
+    #   So maybe define as input directly but
     print("Hello world from valohai!")
 
     print("Listing files in s3 bucket")

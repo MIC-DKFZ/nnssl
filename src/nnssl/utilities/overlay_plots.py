@@ -24,7 +24,7 @@ from nnssl.imageio.base_reader_writer import BaseReaderWriter
 from nnssl.imageio.reader_writer_registry import determine_reader_writer_from_dataset_json
 from nnssl.paths import nnssl_raw, nnssl_preprocessed
 from nnssl.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
-from nnssl.utilities.utils import get_filenames_of_train_images
+from nnssl.data.utils import get_train_dataset
 
 color_cycle = (
     "000000",
@@ -165,7 +165,7 @@ def generate_overlays_from_raw(
     dataset_name = maybe_convert_to_dataset_name(dataset_name_or_id)
     folder = join(nnssl_raw, dataset_name)
     dataset_json = load_json(join(folder, "dataset.json"))
-    dataset = get_filenames_of_train_images(folder, dataset_json)
+    dataset = get_train_dataset(folder, dataset_json)
 
     image_files = [v["images"][channel_idx] for v in dataset.values()]
     seg_files = [v["label"] for v in dataset.values()]

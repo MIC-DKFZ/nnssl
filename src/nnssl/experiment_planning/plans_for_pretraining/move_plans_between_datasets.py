@@ -7,7 +7,7 @@ from nnssl.imageio.reader_writer_registry import determine_reader_writer_from_da
 from nnssl.paths import nnssl_preprocessed, nnssl_raw
 from nnssl.utilities.file_path_utilities import maybe_convert_to_dataset_name
 from nnssl.utilities.plans_handling.plans_handler import PlansManager
-from nnssl.utilities.utils import get_filenames_of_train_images_and_targets
+from nnssl.data.utils import get_filenames_of_train_images_and_targets
 
 
 def move_plans_between_datasets(

@@ -21,13 +21,15 @@ import numpy as np
 from batchgenerators.utilities.file_and_folder_operations import *
 
 
+from nnssl.data.raw_dataset import Dataset
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.paths import nnssl_preprocessed, nnssl_raw
 from nnssl.preprocessing.cropping.cropping import crop_to_nonzero
 from nnssl.preprocessing.normalization.normalization_schemes import apply_normalization
 from nnssl.preprocessing.resampling.default_resampling import compute_new_shape, get_resampling_scheme
+from nnssl.training.dataloading.dataset import nnUNetDatasetBlosc2
 from nnssl.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
-from nnssl.utilities.utils import get_filenames_of_train_images
+from nnssl.data.utils import get_train_dataset
 
 
 def normalize(
@@ -110,8 +112,18 @@ def preprocess_and_save(
     data, data_properties = rw.read_images(image_files)
     data = preprocess_case(data, data_properties, plan, config_plan, verbose)
     # print('dtypes', data.dtype, seg.dtype)
-    np.savez_compressed(output_filename_truncated + ".npz", data=data)
-    write_pickle(data_properties, output_filename_truncated + ".pkl")
+    # ToDo introduce BloscV2 here.
+    block_size_data, chunk_size_data = nnUNetDatasetBlosc2.comp_blosc2_params(
+        data.shape, tuple(config_plan.patch_size), data.itemsize
+    )
+
+    nnUNetDatasetBlosc2.save_case(
+        data,
+        data_properties,
+        output_filename_truncated,
+        chunks=chunk_size_data,
+        blocks=block_size_data,
+    )
 
 
 def default_preprocess(
@@ -142,6 +154,9 @@ def default_preprocess(
         print(config_plan)
 
     dataset_json_file = join(nnssl_preprocessed, dataset_name, "dataset.json")
+    # ToDo: If the dataset.json does not exist, we create one with images used from imagesTr
+    #   If this imagesTr does not exist -> error
+    # If the dataset.json holds "images_info" we use the paths from there and ignore potential imagesTr
     dataset_json = load_json(dataset_json_file)
     if "labels" in dataset_json.keys():
         dataset_json.pop("labels")  # Remove the labels from the dataset.json
@@ -153,7 +168,7 @@ def default_preprocess(
 
     maybe_mkdir_p(output_directory)
 
-    dataset = get_filenames_of_train_images(join(nnssl_raw, dataset_name), dataset_json)
+    dataset: Dataset = get_train_dataset(join(nnssl_raw, dataset_name), dataset_json)
 
     # identifiers = [os.path.basename(i[:-len(dataset_json['file_ending'])]) for i in seg_fnames]
     # output_filenames_truncated = [join(output_directory, i) for i in identifiers]
@@ -165,14 +180,13 @@ def default_preprocess(
         config_plan=config_plan,
         verbose=verbose,
     )
-    all_keys = list(dataset.keys())
-    output_filenames = [join(output_directory, i) for i in all_keys]
-    all_images = [dataset[i]["images"] for i in all_keys]
+    output_filenames = [join(output_directory, os.path.basename(i)) for i in dataset]
+    all_images = dataset
     if num_processes > 1:
         with multiprocessing.get_context("spawn").Pool(num_processes) as p:
-            r = p.starmap(preprocess_and_save_partial, zip(output_filenames, all_images))
+            r = p.starmap(preprocess_and_save_partial, zip(output_filenames, [[i] for i in all_images]))
     else:
-        r = [preprocess_and_save_partial(out_fn, imgs) for out_fn, imgs in zip(output_filenames, all_images)]
+        r = [preprocess_and_save_partial(out_fn, [imgs]) for out_fn, imgs in zip(output_filenames, all_images)]
 
     return
 

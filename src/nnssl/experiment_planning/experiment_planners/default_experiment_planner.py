@@ -19,7 +19,7 @@ from nnssl.preprocessing.normalization.map_channel_name_to_normalization import 
 from nnssl.preprocessing.resampling.default_resampling import resample_data_or_seg_to_shape, compute_new_shape
 from nnssl.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
 from nnssl.utilities.json_export import recursive_fix_for_json_export
-from nnssl.utilities.utils import get_filenames_of_train_images
+from nnssl.data.utils import get_train_dataset
 
 
 class ExperimentPlanner(object):
@@ -43,7 +43,7 @@ class ExperimentPlanner(object):
         preprocessed_folder = join(nnssl_preprocessed, self.dataset_name)
         self.dataset_json = load_json(join(self.raw_dataset_folder, "dataset.json"))
         self.dataset_json["labels"] = {"background": "0"}
-        self.dataset = get_filenames_of_train_images(self.raw_dataset_folder, self.dataset_json)
+        self.dataset = get_train_dataset(self.raw_dataset_folder, self.dataset_json)
 
         # load dataset fingerprint
         if not isfile(join(preprocessed_folder, "dataset_fingerprint.json")):
@@ -87,7 +87,7 @@ class ExperimentPlanner(object):
         self.plans = None
 
     def determine_reader_writer(self):
-        example_image = self.dataset[self.dataset.keys().__iter__().__next__()]["images"][0]
+        example_image = self.dataset[0]
         return determine_reader_writer_from_dataset_json(self.dataset_json, example_image)
 
     @staticmethod
@@ -463,6 +463,10 @@ class ExperimentPlanner(object):
         # per file.
         shutil.copy(
             join(self.raw_dataset_folder, "dataset.json"), join(nnssl_preprocessed, self.dataset_name, "dataset.json")
+        )
+        shutil.copy(
+            join(self.raw_dataset_folder, "pretrain_data.json"),
+            join(nnssl_preprocessed, self.dataset_name, "pretrain_data.json"),
         )
 
         # json is stupid and I hate it... "Object of type int64 is not JSON serializable" -> my ass

@@ -11,7 +11,7 @@ from nnssl.imageio.reader_writer_registry import determine_reader_writer_from_da
 from nnssl.paths import nnssl_raw, nnssl_preprocessed
 from batchgenerators.utilities.file_and_folder_operations import load_json, join, save_json, isfile, maybe_mkdir_p
 from nnssl.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
-from nnssl.utilities.utils import get_filenames_of_train_images
+from nnssl.data.utils import get_train_dataset
 from nnssl.experiment_planning.dataset_fingerprint.utils import analyze_case
 
 
@@ -34,7 +34,7 @@ def setup_dataset_fingerprint_extractor(
     input_folder = join(nnssl_raw, dataset_name)
     dataset_json = load_json(join(input_folder, "dataset.json"))
 
-    dataset = get_filenames_of_train_images(input_folder, dataset_json)
+    dataset = get_train_dataset(input_folder, dataset_json)
     return dataset_name, num_processes, dataset_json, dataset
 
 
@@ -88,17 +88,13 @@ def default_dataset_fingerprint_extraction(
     properties_file = join(preprocessed_output_folder, "dataset_fingerprint.json")
 
     if not isfile(properties_file) or overwrite_existing:
-        reader_writer_class = determine_reader_writer_from_dataset_json(
-            dataset_json, dataset[next(iter(dataset))]["images"][0]
-        )
+        reader_writer_class = determine_reader_writer_from_dataset_json(dataset_json, dataset.get_all_image_paths()[0])
         analyze_case_partial = partial(analyze_case, reader_writer_class=reader_writer_class)
-
         if num_processes > 1:
             with multiprocessing.get_context("spawn").Pool(num_processes) as p:
-                imgs = [dataset[k]["images"] for k in dataset.keys()]
-                results = list(tqdm(p.imap(analyze_case_partial, imgs)))
+                results = list(tqdm(p.imap(analyze_case_partial, [[k] for k in dataset.get_all_image_paths()])))
         else:
-            results = [analyze_case(dataset[k]["images"], reader_writer_class) for k in tqdm(dataset.keys())]
+            results = [analyze_case([k], reader_writer_class) for k in tqdm(dataset)]
 
         shapes_after_crop = [r[0] for r in results]
         spacings = [r[1] for r in results]

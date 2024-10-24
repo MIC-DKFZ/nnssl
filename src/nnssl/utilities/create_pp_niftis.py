@@ -4,12 +4,13 @@ from tabnanny import verbose
 
 import numpy as np
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
-from nnssl.utilities.utils import get_filenames_of_train_images
+from nnssl.data.utils import get_train_dataset
 from batchgenerators.utilities.file_and_folder_operations import *
 from nnssl.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
 import SimpleITK as sitk
 
 nnssl_preprocessed = os.environ["nnssl_preprocessed"]
+
 
 def convert_npzs_to_nifti_im(npz_file: str, config_plan: ConfigurationPlan) -> sitk.Image:
     spacing = config_plan.spacing

@@ -25,7 +25,7 @@ from batchgenerators.utilities.file_and_folder_operations import *
 from nnssl.imageio.base_reader_writer import BaseReaderWriter
 from nnssl.imageio.reader_writer_registry import determine_reader_writer_from_dataset_json
 from nnssl.paths import nnssl_raw
-from nnssl.utilities.utils import get_filenames_of_train_images
+from nnssl.data.utils import get_train_dataset
 
 
 def check_image_cases(
@@ -68,7 +68,7 @@ def verify_dataset_without_labels_integrity(folder: str, num_processes: int = 8)
     """
     assert isfile(join(folder, "dataset.json")), f"There needs to be a dataset.json file in folder, folder={folder}"
     dataset_json = load_json(join(folder, "dataset.json"))
-    dataset = get_filenames_of_train_images(folder, dataset_json)
+    dataset = get_train_dataset(folder, dataset_json)
     image_files = [v["images"] for v in dataset.values()]
     reader_writer_class = determine_reader_writer_from_dataset_json(dataset_json, image_files[0])
 
