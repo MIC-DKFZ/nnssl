@@ -24,6 +24,26 @@ class AssociatedMasks:
 
 
 @dataclass
+class IndependentImage:
+    dataset_index: int
+    dataset_name: str
+    session_id: int | str
+    subject_id: str
+    image_name: str
+    image_path: str
+    image_modality: str
+    associated_masks: AssociatedMasks = None
+
+    dataset_info: dict = None
+    subject_info: dict = None
+    session_info: dict = None
+    image_info: dict = None
+
+    def get_output_path(self) -> str:
+        return f"{self.dataset_name}/{self.subject_id}/{self.session_id}/{self.image_name}"
+
+
+@dataclass
 class Image:
     name: str
     image_path: str
@@ -34,7 +54,7 @@ class Image:
 
 @dataclass
 class Session:
-    session_id: int
+    session_id: int | str
     session_info: dict = None
     images: list[Image] = field(default_factory=list)
 
@@ -42,20 +62,21 @@ class Session:
 @dataclass
 class Subject:
     subject_id: str
-    sessions: list[Session] = field(default_factory=list)
+    sessions: dict[str, Session] = field(default_factory=dict)
     subject_info: dict = None
 
 
 @dataclass
 class Dataset:
-    name: str
-    id: int
-    subjects: list[Subject] = field(default_factory=list)
+    dataset_index: int
+    name: str | None = None
+    dataset_info: dict = None
+    subjects: dict[str, Subject] = field(default_factory=dict)
 
     def get_all_images(self) -> list[Image]:
         images = []
-        for subject in self.subjects:
-            for session in subject.sessions:
+        for subject in self.subjects.values():
+            for session in subject.sessions.values():
                 images.extend(session.images)
         return images
 
@@ -64,3 +85,44 @@ class Dataset:
 
     def to_dict(self):
         return recursive_dataclass_to_dict(self)
+
+    def to_independent_images(self) -> list[IndependentImage]:
+        """
+        Convert the dataset to a list of independent images.
+        This allows for easier splitting and preprocessing of the dataset.
+        """
+        images = []
+        for subject_id, subject in self.subjects.items():
+            for session_id, session in subject.sessions.items():
+                for img in session.images:
+                    images.append(
+                        IndependentImage(
+                            dataset_index=self.dataset_index,
+                            dataset_name=self.name,
+                            session_id=session_id,
+                            subject_id=subject_id,
+                            image_name=img.name,
+                            image_path=img.image_path,
+                            image_modality=img.modality,
+                            associated_masks=img.associated_masks,
+                            dataset_info=self.dataset_info,
+                            subject_info=subject.subject_info,
+                            session_info=session.session_info,
+                            image_info=img.image_info,
+                        )
+                    )
+        return images
+
+    @staticmethod
+    def from_dict(data: dict) -> "Dataset":
+        ds = Dataset(dataset_index=data["dataset_index"], name=data.get("name", None))
+        for subject_id, subject in data["subjects"].items():
+            s = Subject(subject_id)
+            s.subject_info = subject.get("subject_info", None)
+            for session_id, session in subject["sessions"].items():
+                sess = Session(session_id)
+                sess.session_info = session.get("session_info", None)
+                sess.images = [Image(**img) for img in session["images"]]
+                s.sessions[session_id] = sess
+            ds.subjects[subject_id] = s
+        return ds

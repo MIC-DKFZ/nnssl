@@ -16,7 +16,7 @@
             "name": "SSL Preprocess D741",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/nnssl/experiment_planning/plan_and_preprocess_entrypoints.py",
+            "program": "${workspaceFolder}/src/nnssl/experiment_planning/plan_and_preprocess_entrypoints.py",
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [

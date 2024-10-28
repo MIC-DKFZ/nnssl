@@ -213,6 +213,8 @@ class FixedResEncUNetPlanner(ExperimentPlanner):
             "unet_max_num_features": self.UNet_max_features_3d if len(spacing) == 3 else self.UNet_max_features_2d,
             "resampling_fn_data": resampling_data.__name__,
             "resampling_fn_data_kwargs": resampling_data_kwargs,
+            "resampling_fn_mask": resampling_seg.__name__,
+            "resampling_fn_mask_kwargs": resampling_seg_kwargs,
             "batch_dice": False,
         }
 
