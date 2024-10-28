@@ -445,7 +445,8 @@ class ExperimentPlanner(object):
         new_median_shape_transposed = new_median_shape[transpose_forward]
 
         approximate_n_voxels_dataset = float(
-            np.prod(new_median_shape_transposed, dtype=np.float64) * self.dataset_json["numTraining"]
+            np.prod(new_median_shape_transposed, dtype=np.float64)
+            * len(self.dataset_fingerprint["shapes_after_crop"])
         )
         # only run 3d if this is a 3d dataset
         if new_median_shape_transposed[0] != 1:
