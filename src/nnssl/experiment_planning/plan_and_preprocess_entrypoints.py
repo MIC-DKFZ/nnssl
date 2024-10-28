@@ -63,7 +63,7 @@ def extract_fingerprint_entry():
         "Recommended for cluster environments",
     )
     args, unrecognized_args = parser.parse_known_args()
-    extract_fingerprints(args.d, args.fpe, args.np, args.verify_dataset_integrity, args.clean, args.verbose)
+    extract_fingerprints([args.d], args.fpe, args.np, args.verify_dataset_integrity, args.clean, args.verbose)
 
 
 def plan_experiment_entry():
