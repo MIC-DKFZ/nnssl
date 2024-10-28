@@ -44,6 +44,8 @@ class ConfigurationPlan:
     unet_max_num_features: int
     resampling_fn_data: str
     resampling_fn_data_kwargs: dict[str, Any]
+    resampling_fn_mask: str
+    resampling_fn_mask_kwargs: dict[str, Any]
 
     def __getitem__(self, key):
         return getattr(self, key)

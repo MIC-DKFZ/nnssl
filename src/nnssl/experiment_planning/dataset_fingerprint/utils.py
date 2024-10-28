@@ -19,7 +19,7 @@ def analyze_case(
     # Downside is that we need to do this twice (once here and once during preprocessing). Upside is that we don't
     # need to save the cropped data anymore. Given that cropping is not too expensive it makes sense to do it this
     # way. This is only possible because we are now using our new input/output interface.
-    data_cropped, seg_cropped, bbox = crop_to_nonzero(images, seg=None)
+    data_cropped, seg_cropped, bbox = crop_to_nonzero(images, masks=None)
     shape_after_crop = data_cropped.shape[1:]
     relative_size_after_cropping = np.prod(shape_after_crop) / np.prod(shape_before_crop)
 

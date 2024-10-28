@@ -6,6 +6,9 @@ from batchgenerators.utilities.file_and_folder_operations import save_json
 from tqdm import tqdm
 import SimpleITK as sitk
 
+from nnssl.data.raw_dataset import Dataset, Image, Session, Subject
+from nnssl.ssl_data.dataloading.nnssl_dataset import nnsslDataset
+
 
 def main():
     path_to_raw_dataset = "/mnt/cluster-data-all/t006d/big_brain/OASIS3"
@@ -60,5 +63,26 @@ def main():
         save_json(dataset_json, dataset_dir / "dataset.json")
 
 
+def add_pretrain_json():
+    path_to_data = "/home/tassilowald/Data/Datasets/nnunetv2/nnssl_raw/Dataset741_Small_OASIS3_T1_only"
+    image_path = Path(path_to_data) / "imagesTr"
+    images = [p for p in os.listdir(image_path) if p.endswith(".nii.gz")]
+    pretrain_dataset = Dataset(name="Dataset741_Small_OASIS3_T1_only", dataset_index=741)
+    for image in tqdm(images):
+        subject = image.split("_")[0]
+        session = image.split("_")[1].split("-")[1]
+        modality = image.split("_")[-1].split(".")[0]
+        if subject not in pretrain_dataset.subjects:
+            pretrain_dataset.subjects[subject] = Subject(subject)
+        if session not in pretrain_dataset.subjects[subject].sessions:
+            pretrain_dataset.subjects[subject].sessions[session] = Session(session_id=session, images=[])
+        pretrain_dataset.subjects[subject].sessions[session].images.append(
+            Image(name=image, image_path=str(image_path / image), modality=modality)
+        )
+    pretrain_json = pretrain_dataset.to_dict()
+    save_json(pretrain_json, str(Path(path_to_data) / "pretrain_data.json"), indent=4, sort_keys=True)
+
+
 if __name__ == "__main__":
-    main()
+    # main()
+    add_pretrain_json()

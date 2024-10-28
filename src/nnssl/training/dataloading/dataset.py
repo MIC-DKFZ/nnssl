@@ -1,14 +1,10 @@
 import os
-import warnings
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from functools import lru_cache
 from typing import List, Union, Type, Tuple
 
 import numpy as np
 import blosc2
-import shutil
-from blosc2 import Filter, Codec
 
 from batchgenerators.utilities.file_and_folder_operations import join, load_pickle, isfile, write_pickle, subfiles
 from nnunetv2.configuration import default_num_processes
@@ -16,7 +12,7 @@ from nnunetv2.training.dataloading.utils import unpack_dataset
 import math
 
 
-class nnUNetBaseDataset(ABC):
+class nnSSLBaseDataset(ABC):
     """
     Defines the interface
     """
@@ -56,40 +52,13 @@ class nnUNetBaseDataset(ABC):
         pass
 
 
-class nnUNetDatasetNumpy(nnUNetBaseDataset):
+class nnSSLDatasetNumpy(nnSSLBaseDataset):
     def load_case(self, identifier):
-        data_npy_file = join(self.source_folder, identifier + ".npy")
-        if not isfile(data_npy_file):
-            data = np.load(join(self.source_folder, identifier + ".npz"))["data"]
-        else:
-            data = np.load(data_npy_file, mmap_mode="r")
-
-        seg_npy_file = join(self.source_folder, identifier + "_seg.npy")
-        if not isfile(seg_npy_file):
-            seg = np.load(join(self.source_folder, identifier + ".npz"))["seg"]
-        else:
-            seg = np.load(seg_npy_file, mmap_mode="r")
-
-        if self.folder_with_segs_from_previous_stage is not None:
-            prev_seg_npy_file = join(self.folder_with_segs_from_previous_stage, identifier + ".npy")
-            if isfile(prev_seg_npy_file):
-                seg_prev = np.load(prev_seg_npy_file, "r")
-            else:
-                seg_prev = np.load(join(self.folder_with_segs_from_previous_stage, identifier + ".npz"))["seg"]
-        else:
-            seg_prev = None
-
-        properties = load_pickle(join(self.source_folder, identifier + ".pkl"))
-        return data, seg, seg_prev, properties
+        raise NotImplementedError
 
     @staticmethod
     def save_case(data: np.ndarray, seg: np.ndarray, properties: dict, output_filename_truncated: str):
-        np.savez_compressed(output_filename_truncated + ".npz", data=data, seg=seg)
-        write_pickle(properties, output_filename_truncated + ".pkl")
-
-    @staticmethod
-    def save_seg(seg: np.ndarray, output_filename_truncated: str):
-        np.savez_compressed(output_filename_truncated + ".npz", seg=seg)
+        raise NotImplementedError
 
     @staticmethod
     def get_identifiers(folder: str) -> List[str]:
@@ -103,10 +72,10 @@ class nnUNetDatasetNumpy(nnUNetBaseDataset):
     def unpack_dataset(
         folder: str, overwrite_existing: bool = False, num_processes: int = default_num_processes, verify: bool = True
     ):
-        return unpack_dataset(folder, True, overwrite_existing, num_processes, verify)
+        raise NotImplementedError
 
 
-class nnUNetDatasetBlosc2(nnUNetBaseDataset):
+class nnSSLDatasetBlosc2(nnSSLBaseDataset):
     def __init__(self, folder: str, identifiers: List[str] = None, folder_with_segs_from_previous_stage: str = None):
         super().__init__(folder, identifiers, folder_with_segs_from_previous_stage)
         blosc2.set_nthreads(1)
@@ -119,22 +88,32 @@ class nnUNetDatasetBlosc2(nnUNetBaseDataset):
         data_b2nd_file = join(self.source_folder, identifier + ".b2nd")
         data = blosc2.open(urlpath=data_b2nd_file, mode="r", dparams=dparams, mmap_mode="r")
 
-        if self.folder_with_segs_from_previous_stage is not None:
-            prev_seg_b2nd_file = join(self.folder_with_segs_from_previous_stage, identifier + ".b2nd")
-            seg_prev = blosc2.open(urlpath=prev_seg_b2nd_file, mode="r", dparams=dparams, mmap_mode="r")
+        anon_b2nd_file = join(self.source_folder, identifier + "__anon.b2nd")
+        if isfile(anon_b2nd_file):
+            anon = blosc2.open(urlpath=anon_b2nd_file, mode="r", dparams=dparams, mmap_mode="r")
         else:
-            seg_prev = None
+            anon = None
+
+        deface_b2nd_file = join(self.source_folder, identifier + "__deface.b2nd")
+        if isfile(deface_b2nd_file):
+            deface = blosc2.open(urlpath=deface_b2nd_file, mode="r", dparams=dparams, mmap_mode="r")
+        else:
+            deface = None
 
         properties = load_pickle(join(self.source_folder, identifier + ".pkl"))
-        return data, seg_prev, properties
+        return data, anon, deface, properties
 
     @staticmethod
     def save_case(
         data: np.ndarray,
+        anon_mask: np.ndarray | None,
+        deface_mask: np.ndarray | None,
         properties: dict,
         output_filename_truncated: str,
         chunks=None,
         blocks=None,
+        chunks_seg=None,
+        blocks_seg=None,
         clevel: int = 8,
         codec=blosc2.Codec.ZSTD,
     ):
@@ -150,6 +129,7 @@ class nnUNetDatasetBlosc2(nnUNetBaseDataset):
             # 'splitmode': blosc2.SplitMode.ALWAYS_SPLIT,
             "clevel": clevel,
         }
+        blosc2.Frame()
         blosc2.asarray(
             np.ascontiguousarray(data),
             urlpath=output_filename_truncated + ".b2nd",
@@ -158,11 +138,28 @@ class nnUNetDatasetBlosc2(nnUNetBaseDataset):
             cparams=cparams,
             mmap_mode="w+",
         )
-        write_pickle(properties, output_filename_truncated + ".pkl")
 
-    @staticmethod
-    def save_seg(seg: np.ndarray, output_filename_truncated: str, chunks_seg=None, blocks_seg=None):
-        blosc2.asarray(seg, urlpath=output_filename_truncated + ".b2nd", chunks=chunks_seg, blocks=blocks_seg)
+        if anon_mask is not None:
+            blosc2.asarray(
+                np.ascontiguousarray(anon_mask),
+                urlpath=output_filename_truncated + "__anon.b2nd",
+                chunks=chunks_seg,
+                blocks=blocks_seg,
+                cparams=cparams,
+                mmap_mode="w+",
+            )
+
+        if deface_mask is not None:
+            blosc2.asarray(
+                np.ascontiguousarray(deface_mask),
+                urlpath=output_filename_truncated + "__deface.b2nd",
+                chunks=chunks_seg,
+                blocks=blocks_seg,
+                cparams=cparams,
+                mmap_mode="w+",
+            )
+
+        write_pickle(properties, output_filename_truncated + ".pkl")
 
     @staticmethod
     def get_identifiers(folder: str) -> List[str]:
@@ -265,10 +262,10 @@ class nnUNetDatasetBlosc2(nnUNetBaseDataset):
         return tuple(block_size), tuple(chunk_size)
 
 
-file_ending_dataset_mapping = {"npz": nnUNetDatasetNumpy, "b2nd": nnUNetDatasetBlosc2}
+file_ending_dataset_mapping = {"npz": nnSSLDatasetNumpy, "b2nd": nnSSLDatasetBlosc2}
 
 
-def infer_dataset_class(folder: str) -> Union[Type[nnUNetDatasetBlosc2], Type[nnUNetDatasetNumpy]]:
+def infer_dataset_class(folder: str) -> Union[Type[nnSSLDatasetBlosc2], Type[nnSSLDatasetNumpy]]:
     file_endings = set([os.path.basename(i).split(".")[-1] for i in subfiles(folder, join=False)])
     if "pkl" in file_endings:
         file_endings.remove("pkl")

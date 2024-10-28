@@ -11,6 +11,7 @@ from dynamic_network_architectures.architectures.unet import PlainConvUNet, Resi
 from dynamic_network_architectures.building_blocks.helper import convert_dim_to_conv_op, get_matching_instancenorm
 
 from nnssl.configuration import ANISO_THRESHOLD
+from nnssl.data.raw_dataset import Dataset
 from nnssl.experiment_planning.experiment_planners.network_topology import get_pool_and_conv_props
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.imageio.reader_writer_registry import determine_reader_writer_from_dataset_json
@@ -43,7 +44,7 @@ class ExperimentPlanner(object):
         preprocessed_folder = join(nnssl_preprocessed, self.dataset_name)
         self.dataset_json = load_json(join(self.raw_dataset_folder, "dataset.json"))
         self.dataset_json["labels"] = {"background": "0"}
-        self.dataset = get_train_dataset(self.raw_dataset_folder, self.dataset_json)
+        self.dataset: Dataset = get_train_dataset(self.raw_dataset_folder, self.dataset_json)
 
         # load dataset fingerprint
         if not isfile(join(preprocessed_folder, "dataset_fingerprint.json")):
@@ -87,7 +88,7 @@ class ExperimentPlanner(object):
         self.plans = None
 
     def determine_reader_writer(self):
-        example_image = self.dataset[0]
+        example_image = self.dataset.get_all_image_paths()[0]
         return determine_reader_writer_from_dataset_json(self.dataset_json, example_image)
 
     @staticmethod
@@ -409,6 +410,8 @@ class ExperimentPlanner(object):
             "unet_max_num_features": self.UNet_max_features_3d if len(spacing) == 3 else self.UNet_max_features_2d,
             "resampling_fn_data": resampling_data.__name__,
             "resampling_fn_data_kwargs": resampling_data_kwargs,
+            "resampling_fn_mask": resampling_seg.__name__,
+            "resampling_fn_mask_kwargs": resampling_seg_kwargs,
             "batch_dice": False,
         }
 

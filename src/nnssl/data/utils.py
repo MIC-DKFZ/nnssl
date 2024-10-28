@@ -60,20 +60,11 @@ def get_dataset_from_pretrain_data(pretrain_data: dict, dataset_name: str, datas
     return dataset
 
 
-
-
 def get_pretrain_json_or_create_new(raw_dataset_folder: str) -> dict:
     """Create a pretrain json file if one does not exist given the nnU-Net dataset format."""
     expected_pretrain_json_path = join(raw_dataset_folder, "pretrain_data.json")
     if os.path.exists(expected_pretrain_json_path):
         return load_json(join(raw_dataset_folder, "pretrain_data.json"))
-    elif os.path.exists(join(raw_dataset_folder, "dataset.json")) and os.path.exists(
-        join(raw_dataset_folder, "imagesTr")
-    ):
-        logger.warning(
-            f"'pretrain_data.json' does not exist in {raw_dataset_folder}. Creating a new one dervied from 'dataset.json'."
-        )
-        return create_pretrain_json_of_nnunet_dataset(raw_dataset_folder)
     else:
         raise FileNotFoundError("dataset.json or imagesTr folder does not exist in the given folder")
 
@@ -82,16 +73,9 @@ def get_train_dataset(raw_dataset_folder: str, dataset_json: dict = None) -> Dat
     """
     Returns a list of all dataset paths, containing paths to the actual files.
     """
-    dataset_name = os.path.basename(raw_dataset_folder)
-    dataset_id = int(dataset_name.split("_")[0][-3:])
-    pretrain_data = get_pretrain_json_or_create_new(raw_dataset_folder)
-    image_paths: str = get_dataset_from_pretrain_data(
-        pretrain_data=pretrain_data, dataset_name=dataset_name, dataset_id=dataset_id
-    )
-
-    abs_image_paths = [join(os.path.dirname(raw_dataset_folder), ip) for ip in image_paths]
-
-    return abs_image_paths
+    pretrain_dataset = get_pretrain_json_or_create_new(raw_dataset_folder)
+    dataset = Dataset.from_dict(pretrain_dataset)
+    return dataset
 
 
 if __name__ == "__main__":
