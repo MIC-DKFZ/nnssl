@@ -182,6 +182,8 @@ def default_preprocess(
     dataset_name_or_id: Union[int, str],
     configuration_name: str,
     plans_identifier: str,
+    part: int,
+    total_parts: int,
     num_processes: int,
     verbose: bool = True,
 ):
@@ -233,6 +235,12 @@ def default_preprocess(
         verbose=verbose,
     )
     all_independent_images: list[IndependentImage] = dataset.to_independent_images()
+    # ------------------- Optional new splitting into sub-parts ------------------ #
+    if total_parts > 1:
+        total_images = len(all_independent_images)
+        images_per_part = total_images // total_parts
+        all_independent_images = all_independent_images[part * images_per_part : (part + 1) * images_per_part]
+
     if num_processes > 1:
         with multiprocessing.get_context("spawn").Pool(num_processes) as p:
             r = p.map(preprocess_and_save_partial, all_independent_images)

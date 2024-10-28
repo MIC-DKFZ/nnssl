@@ -167,6 +167,20 @@ def preprocess_entry():
         "from 3d_fullres. Configurations that do not exist for some dataset will be skipped.",
     )
     parser.add_argument(
+        "-part",
+        type=int,
+        default=0,
+        required=False,
+        help="[OPTIONAL] Defines which of the evenly sized chunks to process. Must be < `-total_parts`",
+    )
+    parser.add_argument(
+        "-total_parts",
+        type=int,
+        default=1,
+        required=False,
+        help="[OPTIONAL] This is used for parallelization. Allows to split preprocessing in non-overlapping evenly chunked parts.",
+    )
+    parser.add_argument(
         "-np",
         type=int,
         nargs="+",
@@ -197,7 +211,15 @@ def preprocess_entry():
         np = {default_np[c] if c in default_np.keys() else 4 for c in args.c}
     else:
         np = args.np
-    preprocess(args.d, args.plans_name, configurations=args.c, num_processes=np, verbose=args.verbose)
+    preprocess(
+        args.d,
+        args.plans_name,
+        part=args.part,
+        total_parts=args.total_parts,
+        configurations=args.c,
+        num_processes=np,
+        verbose=args.verbose,
+    )
 
 
 def plan_and_preprocess_entry():
@@ -316,6 +338,20 @@ def plan_and_preprocess_entry():
         "from 3d_fullres. Configurations that do not exist for some dataset will be skipped.",
     )
     parser.add_argument(
+        "-part",
+        type=int,
+        default=0,
+        required=False,
+        help="[OPTIONAL] Defines which of the evenly sized chunks to process. Must be < `-total_parts`",
+    )
+    parser.add_argument(
+        "-total_parts",
+        type=int,
+        default=1,
+        required=False,
+        help="[OPTIONAL] This is used for parallelization. Allows to split preprocessing in non-overlapping evenly chunked parts.",
+    )
+    parser.add_argument(
         "-np",
         type=int,
         nargs="+",
@@ -400,7 +436,15 @@ def plan_and_preprocess_entry():
     # preprocessing
     if not args.no_pp:
         print("Preprocessing...")
-        preprocess(dataset_id, args.overwrite_plans_name, args.c, np, args.verbose)
+        preprocess(
+            dataset_id,
+            args.overwrite_plans_name,
+            args.c,
+            part=args.part,
+            total_parts=args.total_parts,
+            num_processes=args.np,
+            verbose=args.verbose,
+        )
 
     if is_running_in_valohai():
         plans_json = {
