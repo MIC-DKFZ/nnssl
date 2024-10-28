@@ -138,7 +138,7 @@ def preprocess_and_save(
     image_path = image.image_path
     data, data_properties = rw.read_images([image_path])
     if image.associated_masks is not None:
-        masks = [rw.read_images([v]) for v in image.associated_masks.values() if v is not None]
+        masks = [rw.read_seg(v)[0] for v in image.associated_masks.values() if v is not None]
     else:
         masks = None
     data, masks = preprocess_case(data, masks, data_properties, plan, config_plan, verbose)
