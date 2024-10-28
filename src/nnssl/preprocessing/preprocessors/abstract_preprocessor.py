@@ -12,10 +12,11 @@ class PreprocessorProtocol(Protocol):
         dataset_name_or_id: Union[int, str],
         configuration_name: str,
         plans_identifier: str,
+        part: int,
+        total_parts: int,
         num_processes: int,
         verbose: bool = True,
-    ) -> None:
-        ...
+    ) -> None: ...
 
 
 class Preprocessors(Enum):

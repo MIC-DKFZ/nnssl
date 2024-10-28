@@ -128,6 +128,8 @@ def preprocess_dataset(
     dataset_id: int,
     plans_identifier: str = "nnsslPlans",
     configurations: Union[Tuple[str], List[str]] = ("3d_fullres"),
+    part: int = 0,
+    total_parts: int = 1,
     num_processes: Sequence[int] = (4,),
     verbose: bool = False,
 ) -> None:
@@ -157,15 +159,17 @@ def preprocess_dataset(
             continue
         config = plan.configurations[c]
         preprocessor: PreprocessorProtocol = get_preprocessor(config.preprocessor_name)
-        preprocessor(dataset_id, c, plans_identifier, num_processes=n)
+        preprocessor(dataset_id, c, plans_identifier, part, total_parts, num_processes=n)
 
 
 def preprocess(
     dataset_ids: List[int],
     plans_identifier: str = "nnsslPlans",
+    part: int = 0,
+    total_parts: int = 1,
     configurations: Union[Tuple[str], List[str]] = ("3d_fullres"),
     num_processes: Union[int, Tuple[int, ...], List[int]] = (4),
     verbose: bool = False,
 ):
     for d in dataset_ids:
-        preprocess_dataset(d, plans_identifier, configurations, num_processes, verbose)
+        preprocess_dataset(d, plans_identifier, configurations, part, total_parts, num_processes, verbose)
