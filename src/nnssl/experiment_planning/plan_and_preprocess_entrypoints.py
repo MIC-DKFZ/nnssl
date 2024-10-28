@@ -437,12 +437,12 @@ def plan_and_preprocess_entry():
     if not args.no_pp:
         print("Preprocessing...")
         preprocess(
-            dataset_id,
-            args.overwrite_plans_name,
-            args.c,
+            dataset_ids=dataset_id,
+            plans_identifier=args.overwrite_plans_name,
+            configurations=args.c,
             part=args.part,
             total_parts=args.total_parts,
-            num_processes=args.np,
+            num_processes=np,
             verbose=args.verbose,
         )
 
