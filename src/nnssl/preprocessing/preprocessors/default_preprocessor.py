@@ -242,7 +242,6 @@ def default_preprocess(
         images_per_part = total_images // total_parts
         all_independent_images = all_independent_images[part * images_per_part : (part + 1) * images_per_part]
 
-    num_processes = 1
     if num_processes > 1:
         with multiprocessing.get_context("spawn").Pool(num_processes) as p:
             r = p.map(preprocess_and_save_partial, all_independent_images)
