@@ -1,8 +1,17 @@
 from dataclasses import dataclass, asdict, field
+import os
 from typing import Literal, Sequence
 
 
 associated_masks = Literal["anonymization_mask", "anatomy_mask"]
+
+
+def resolve_relative_paths(pot_rel_path: str) -> str:
+    """Resolve relative paths."""
+    path_beginning = pot_rel_path.split("/")[0]
+    if path_beginning.startswith("$"):
+        return pot_rel_path.replace(path_beginning, os.environ(path_beginning[1:]))
+    return pot_rel_path
 
 
 def recursive_dataclass_to_dict(dataclass_instance):
@@ -123,6 +132,11 @@ class Dataset:
                 sess = Session(session_id)
                 sess.session_info = session.get("session_info", None)
                 sess.images = [Image(**img) for img in session["images"]]
+                for img in sess.images:
+                    img.image_path = resolve_relative_paths(img.image_path)
+                    for k, v in img.associated_masks.items():
+                        if img.associated_masks[k] is not None:
+                            img.associated_masks[k] = resolve_relative_paths(v)
                 s.sessions[session_id] = sess
             ds.subjects[subject_id] = s
         return ds
