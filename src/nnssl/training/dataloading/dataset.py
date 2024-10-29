@@ -129,7 +129,6 @@ class nnSSLDatasetBlosc2(nnSSLBaseDataset):
             # 'splitmode': blosc2.SplitMode.ALWAYS_SPLIT,
             "clevel": clevel,
         }
-        blosc2.Frame()
         blosc2.asarray(
             np.ascontiguousarray(data),
             urlpath=output_filename_truncated + ".b2nd",
