@@ -10,7 +10,7 @@ def resolve_relative_paths(pot_rel_path: str) -> str:
     """Resolve relative paths."""
     path_beginning = pot_rel_path.split("/")[0]
     if path_beginning.startswith("$"):
-        return pot_rel_path.replace(path_beginning, os.environ(path_beginning[1:]))
+        return pot_rel_path.replace(path_beginning, os.environ[path_beginning[1:]])
     return pot_rel_path
 
 

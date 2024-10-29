@@ -70,7 +70,7 @@ def preprocess_case(
             assert (
                 data.shape[1:] == mask.shape[1:]
             ), "Shape mismatch between image and associated masks. Please fix your dataset and make use of the --verify_dataset_integrity flag to ensure everything is correct"
-        masks = np.copy(masks)
+        masks = [np.copy(mask) for mask in masks]
 
     has_masks = masks is not None
 

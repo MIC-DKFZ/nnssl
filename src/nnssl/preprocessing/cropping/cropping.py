@@ -35,16 +35,14 @@ def crop_to_nonzero(data, masks: list[np.ndarray] | None = None, nonzero_label=-
 
     slicer = bounding_box_to_slice(bbox)
     data = data[tuple([slice(None), *slicer])]
-
-    if masks is not None:
-
-        masks = [mask[tuple([slice(None), *slicer])] for mask in masks]
-
     nonzero_mask = nonzero_mask[slicer][None]
+
+    slicer = (slice(None),) + slicer
     if masks is not None:
-        for mask in masks:
-            mask = mask[slicer]
-            mask[(mask == 0) & (~nonzero_mask)] = nonzero_label
+        for cnt, mask in enumerate(masks):
+            masks[cnt] = mask[slicer]
+            masks[cnt][(masks[cnt] == 0) & (~nonzero_mask)] = nonzero_label
+
     else:
         masks = [np.where(nonzero_mask, np.int8(0), np.int8(nonzero_label))]
     return data, masks, bbox
