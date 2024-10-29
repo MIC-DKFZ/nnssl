@@ -113,7 +113,9 @@ class Dataset:
                             image_name=img.name,
                             image_path=img.image_path,
                             image_modality=img.modality,
-                            associated_masks=img.associated_masks,
+                            associated_masks=AssociatedMasks(
+                                img.associated_masks.anonymization_mask, img.associated_masks.anatomy_mask
+                            ),
                             dataset_info=self.dataset_info,
                             subject_info=subject.subject_info,
                             session_info=session.session_info,
@@ -134,9 +136,12 @@ class Dataset:
                 sess.images = [Image(**img) for img in session["images"]]
                 for img in sess.images:
                     img.image_path = resolve_relative_paths(img.image_path)
-                    for k, v in img.associated_masks.items():
-                        if img.associated_masks[k] is not None:
-                            img.associated_masks[k] = resolve_relative_paths(v)
+                    if img.associated_masks is not None:
+                        assoc_mask = AssociatedMasks()
+                        for k, v in img.associated_masks.items():
+                            if img.associated_masks[k] is not None:
+                                assoc_mask[k] = resolve_relative_paths(v)
+                        img.associated_masks
                 s.sessions[session_id] = sess
             ds.subjects[subject_id] = s
         return ds
