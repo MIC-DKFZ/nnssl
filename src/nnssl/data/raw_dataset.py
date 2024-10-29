@@ -49,7 +49,15 @@ class IndependentImage:
     image_info: dict = None
 
     def get_output_path(self) -> str:
-        return f"{self.dataset_name}/{self.subject_id}/{self.session_id}/{self.image_name}"
+        if self.image_name.endswith(".nii"):
+            image_name_wo_extension = self.image_name.replace(".nii", "")
+        elif self.image_name.endswith(".nii.gz"):
+            image_name_wo_extension = self.image_name.replace(".nii.gz", "")
+        elif self.image_name.endswith(".nrrd"):
+            image_name_wo_extension = self.image_name.replace(".nrrd", "")
+        else:
+            raise NotImplementedError("Only nii, nii.gz and nrrd files are supported.")
+        return f"{self.dataset_name}/{self.subject_id}/{self.session_id}/{image_name_wo_extension}"
 
 
 @dataclass
@@ -138,10 +146,13 @@ class Dataset:
                     img.image_path = resolve_relative_paths(img.image_path)
                     if img.associated_masks is not None:
                         assoc_mask = AssociatedMasks()
-                        for k, v in img.associated_masks.items():
-                            if img.associated_masks[k] is not None:
-                                assoc_mask[k] = resolve_relative_paths(v)
-                        img.associated_masks
+                        if img.associated_masks["anatomy_mask"] is not None:
+                            assoc_mask.anatomy_mask = resolve_relative_paths(img.associated_masks["anatomy_mask"])
+                        if img.associated_masks["anonymization_mask"] is not None:
+                            assoc_mask.anonymization_mask = resolve_relative_paths(
+                                img.associated_masks["anonymization_mask"]
+                            )
+                        img.associated_masks = assoc_mask
                 s.sessions[session_id] = sess
             ds.subjects[subject_id] = s
         return ds
