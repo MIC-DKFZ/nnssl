@@ -11,6 +11,7 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
+from dataclasses import asdict
 from functools import partial
 import multiprocessing
 from pathlib import Path
@@ -138,7 +139,7 @@ def preprocess_and_save(
     image_path = image.image_path
     data, data_properties = rw.read_images([image_path])
     if image.associated_masks is not None:
-        masks = [rw.read_seg(v)[0] for v in image.associated_masks.values() if v is not None]
+        masks = [rw.read_seg(v)[0] for v in asdict(image.associated_masks).values() if v is not None]
     else:
         masks = None
     data, masks = preprocess_case(data, masks, data_properties, plan, config_plan, verbose)
@@ -241,6 +242,7 @@ def default_preprocess(
         images_per_part = total_images // total_parts
         all_independent_images = all_independent_images[part * images_per_part : (part + 1) * images_per_part]
 
+    num_processes = 1
     if num_processes > 1:
         with multiprocessing.get_context("spawn").Pool(num_processes) as p:
             r = p.map(preprocess_and_save_partial, all_independent_images)
