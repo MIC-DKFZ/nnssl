@@ -218,8 +218,8 @@ def default_preprocess(
 
     output_directory = join(nnssl_preprocessed, dataset_name, config_plan.data_identifier)
 
-    if isdir(output_directory):
-        shutil.rmtree(output_directory)
+    # if isdir(output_directory):
+    #     shutil.rmtree(output_directory)
 
     maybe_mkdir_p(output_directory)
 
