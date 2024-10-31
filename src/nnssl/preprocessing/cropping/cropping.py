@@ -38,7 +38,7 @@ def crop_to_nonzero(data, masks: list[np.ndarray] | None = None, nonzero_label=-
     nonzero_mask = nonzero_mask[slicer][None]
 
     slicer = (slice(None),) + slicer
-    if masks is not None:
+    if masks is not None and len(masks) > 0:
         for cnt, mask in enumerate(masks):
             masks[cnt] = mask[slicer]
             masks[cnt][(masks[cnt] == 0) & (~nonzero_mask)] = nonzero_label

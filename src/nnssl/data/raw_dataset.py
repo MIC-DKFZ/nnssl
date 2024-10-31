@@ -112,24 +112,43 @@ class Dataset:
         for subject_id, subject in self.subjects.items():
             for session_id, session in subject.sessions.items():
                 for img in session.images:
-                    images.append(
-                        IndependentImage(
-                            dataset_index=self.dataset_index,
-                            dataset_name=self.name,
-                            session_id=session_id,
-                            subject_id=subject_id,
-                            image_name=img.name,
-                            image_path=img.image_path,
-                            image_modality=img.modality,
-                            associated_masks=AssociatedMasks(
-                                img.associated_masks.anonymization_mask, img.associated_masks.anatomy_mask
-                            ),
-                            dataset_info=self.dataset_info,
-                            subject_info=subject.subject_info,
-                            session_info=session.session_info,
-                            image_info=img.image_info,
+                    assoc_mask = img.associated_masks
+                    if assoc_mask is not None:
+                        images.append(
+                            IndependentImage(
+                                dataset_index=self.dataset_index,
+                                dataset_name=self.name,
+                                session_id=session_id,
+                                subject_id=subject_id,
+                                image_name=img.name,
+                                image_path=img.image_path,
+                                image_modality=img.modality,
+                                associated_masks=AssociatedMasks(
+                                    img.associated_masks.anonymization_mask, img.associated_masks.anatomy_mask
+                                ),
+                                dataset_info=self.dataset_info,
+                                subject_info=subject.subject_info,
+                                session_info=session.session_info,
+                                image_info=img.image_info,
+                            )
                         )
-                    )
+                    else:
+                        images.append(
+                            IndependentImage(
+                                dataset_index=self.dataset_index,
+                                dataset_name=self.name,
+                                session_id=session_id,
+                                subject_id=subject_id,
+                                image_name=img.name,
+                                image_path=img.image_path,
+                                image_modality=img.modality,
+                                associated_masks=AssociatedMasks(),
+                                dataset_info=self.dataset_info,
+                                subject_info=subject.subject_info,
+                                session_info=session.session_info,
+                                image_info=img.image_info,
+                            )
+                        )
         return images
 
     @staticmethod
