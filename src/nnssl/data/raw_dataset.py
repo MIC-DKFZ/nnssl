@@ -56,8 +56,12 @@ class IndependentImage:
         elif self.image_name.endswith(".nrrd"):
             image_name_wo_extension = self.image_name.replace(".nrrd", "")
         else:
-            raise NotImplementedError("Only nii, nii.gz and nrrd files are supported.")
+            image_name_wo_extension = self.image_name
+            # raise NotImplementedError("Only nii, nii.gz and nrrd files are supported.")
         return f"{self.dataset_name}/{self.subject_id}/{self.session_id}/{image_name_wo_extension}"
+
+    def get_unique_id(self) -> str:
+        return f"{self.dataset_index}__{self.subject_id}__{self.session_id}__{self.image_name}"
 
 
 @dataclass
@@ -100,8 +104,47 @@ class Dataset:
     def get_all_image_paths(self) -> list[str]:
         return [img.image_path for img in self.get_all_images()]
 
-    def to_dict(self):
+    def to_dict(self, relative_paths: bool = False):
+        if relative_paths:
+            self.make_paths_relative()
         return recursive_dataclass_to_dict(self)
+
+    def _change_extension_of_path(self, path: str, new_extension: str) -> str:
+        if path.endswith(".nii.gz"):
+            return path.replace(".nii.gz", new_extension)
+        elif path.endswith(".nii"):
+            return path.replace(".nii", new_extension)
+        elif path.endswith(".nrrd"):
+            return path.replace(".nrrd", new_extension)
+        else:
+            raise NotImplementedError("Only nii, nii.gz and nrrd files are supported.")
+
+    def update_extension(self, new_extension: str) -> None:
+        for subject in self.subjects.values():
+            for session in subject.sessions.values():
+                for img in session.images:
+                    img.image_path = self._change_extension_of_path(img.image_path, new_extension)
+                    if img.associated_masks is not None:
+                        for k, v in asdict(img.associated_masks).items():
+                            setattr(img.associated_masks, k, self._change_extension_of_path(v, new_extension))
+
+    def _absolute_to_relative_path(self, path) -> str:
+        # Relevant paths are nnssl_raw, nnssl_pp, E132Rohdaten, E132Projekte
+        for env_path in ["nnssl_raw", "nnssl_preprocessed", "E132Rohdaten", "E132Projekte"]:
+            if path.startswith(os.environ[env_path]):
+                return path.replace(os.environ[env_path], f"${env_path}")
+        return path
+
+    def make_paths_relative(self) -> None:
+        for subject in self.subjects.values():
+            for session in subject.sessions.values():
+                for img in session.images:
+                    img.image_path = self._absolute_to_relative_path(img.image_path)
+                    if img.associated_masks is not None:
+                        for k, v in asdict(img.associated_masks).items():
+                            if v is None:
+                                continue
+                            setattr(img.associated_masks, k, self._absolute_to_relative_path(v))
 
     def to_independent_images(self) -> list[IndependentImage]:
         """
