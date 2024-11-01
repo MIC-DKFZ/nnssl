@@ -11,6 +11,7 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
+from copy import deepcopy
 from dataclasses import asdict
 from functools import partial
 import multiprocessing
@@ -208,7 +209,7 @@ def default_preprocess(
         print(f"Preprocessing the following configuration: {configuration_name}")
         print(config_plan)
 
-    dataset_json_file = join(nnssl_preprocessed, dataset_name, "dataset.json")
+    dataset_json_file = join(nnssl_raw, dataset_name, "dataset.json")
     # ToDo: If the dataset.json does not exist, we create one with images used from imagesTr
     #   If this imagesTr does not exist -> error
     # If the dataset.json holds "images_info" we use the paths from there and ignore potential imagesTr
@@ -226,7 +227,9 @@ def default_preprocess(
     dataset: Dataset = get_train_dataset(join(nnssl_raw, dataset_name), dataset_json)
     # identifiers = [os.path.basename(i[:-len(dataset_json['file_ending'])]) for i in seg_fnames]
     # output_filenames_truncated = [join(output_directory, i) for i in identifiers]
-
+    pp_dataset = deepcopy(dataset)
+    pp_dataset.update_extension(new_extension=".b2nd")
+    save_json(pp_dataset.to_dict(relative_paths=True), join(nnssl_preprocessed, dataset_name, "pretrain_data.json"))
     # multiprocessing magic.
     preprocess_and_save_partial = partial(
         preprocess_and_save,
