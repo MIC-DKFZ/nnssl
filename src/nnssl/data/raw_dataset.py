@@ -110,6 +110,8 @@ class Dataset:
         return recursive_dataclass_to_dict(self)
 
     def _change_extension_of_path(self, path: str, new_extension: str) -> str:
+        if path is None:
+            return None
         if path.endswith(".nii.gz"):
             return path.replace(".nii.gz", new_extension)
         elif path.endswith(".nii"):
