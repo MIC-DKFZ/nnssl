@@ -20,7 +20,7 @@ class NoTokenSparkMAETrainer(SparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, pretrain_dataset, device)
+        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, pretrain_json, device)
         self.mask_percentage: float = 0.75
         self.loss: SparkLoss
         self.stop_at_nans = True
@@ -62,11 +62,11 @@ class NoTokenSparkMAETrainer_BS6_1000ep(NoTokenSparkMAETrainer):
         configuration_name: str,
         fold: int,
         dataset_json: dict,
-        pretrain_dataset: dict,
+        pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].batch_size = 6
-        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_dataset, device)
+        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, device)
         self.num_epochs = 1000
 
 
@@ -78,9 +78,9 @@ class NoTokenSparkMAETrainer_5ep_BS6(NoTokenSparkMAETrainer):
         configuration_name: str,
         fold: int,
         dataset_json: dict,
-        pretrain_dataset: dict,
+        pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].batch_size = 6
-        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_dataset, device)
+        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, device)
         self.num_epochs = 5
