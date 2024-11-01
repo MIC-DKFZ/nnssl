@@ -4,13 +4,15 @@ from typing import Union, Tuple
 from batchgenerators.dataloading.data_loader import DataLoader
 import numpy as np
 from batchgenerators.utilities.file_and_folder_operations import *
-from nnssl.ssl_data.dataloading.nnssl_dataset import nnsslDataset
+
+from nnssl.training.dataloading.dataset import nnSSLDatasetBlosc2
 
 
 class nnsslDataLoaderBase(DataLoader, ABC):
+
     def __init__(
         self,
-        data: nnsslDataset,
+        data: nnSSLDatasetBlosc2,
         batch_size: int,
         patch_size: Union[List[int], Tuple[int, ...], np.ndarray],
         final_patch_size: Union[List[int], Tuple[int, ...], np.ndarray],
@@ -19,13 +21,13 @@ class nnsslDataLoaderBase(DataLoader, ABC):
     ):
         super().__init__(data, batch_size, 1, None, True, False, True, sampling_probabilities)
 
-        assert isinstance(data, nnsslDataset), "nnSSLDataLoaderBase only supports nnsslDatasets."
-        self.indices = list(data.keys())
+        assert isinstance(data, nnSSLDatasetBlosc2), "nnSSLDataLoaderBase only supports nnsslDatasets."
+        self.indices = list(data.image_identifiers)
 
-        self._data: nnsslDataset  # Set in the super class
+        self._data: nnSSLDatasetBlosc2  # Set in the super class
         self.final_patch_size = final_patch_size
         self.patch_size = patch_size
-        self.list_of_keys = list(self._data.keys())
+        # self.list_of_keys = list(self._data.keys())
         # need_to_pad denotes by how much we need to pad the data so that if we sample a patch of size final_patch_size
         # (which is what the network will get) these patches will also cover the border of the images
         self.need_to_pad = (np.array(patch_size) - np.array(final_patch_size)).astype(int)
@@ -40,7 +42,7 @@ class nnsslDataLoaderBase(DataLoader, ABC):
 
     def determine_shapes(self):
         # load one case
-        data, _ = self._data.load_case(self.indices[0])
+        data, _, _, _ = self._data.load_case(self.indices[0])
         num_color_channels = data.shape[0]
         data_shape = (self.batch_size, num_color_channels, *self.patch_size)
         return data_shape

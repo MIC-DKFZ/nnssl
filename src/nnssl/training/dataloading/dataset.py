@@ -8,8 +8,9 @@ import blosc2
 
 from batchgenerators.utilities.file_and_folder_operations import join, load_pickle, isfile, write_pickle, subfiles
 from nnunetv2.configuration import default_num_processes
-from nnunetv2.training.dataloading.utils import unpack_dataset
 import math
+
+from nnssl.data.raw_dataset import Dataset, IndependentImage, Subject
 
 
 class nnSSLBaseDataset(ABC):
@@ -17,19 +18,27 @@ class nnSSLBaseDataset(ABC):
     Defines the interface
     """
 
-    def __init__(self, folder: str, identifiers: List[str] = None, folder_with_segs_from_previous_stage: str = None):
+    def __init__(self, dataset_dir: str, dataset: Dataset, subject_identifiers: List[str] = None):
+        """
+        Receives a dataset object that is created by loading the `pretrain_data.json`.
+        This dataset object holds all the necessary info to load the data from disk.
+
+        The subject_identifier are additional infos that determine which subjects are included in this dataset - All others are discarded.
+        """
         super().__init__()
         # print('loading dataset')
-        if identifiers is None:
-            identifiers = self.get_identifiers(folder)
-        identifiers.sort()
 
-        self.source_folder = folder
-        self.folder_with_segs_from_previous_stage = folder_with_segs_from_previous_stage
-        self.identifiers = identifiers
+        self.dataset_dir: str = dataset_dir
+        self.subject_identifiers = subject_identifiers
+        self.dataset = deepcopy(dataset)
+        self.dataset.subjects = {k: subj for k, subj in dataset.subjects.items() if subj.subject_id in subject_identifiers}
+        all_images: list[IndependentImage] = self.dataset.to_independent_images()
 
-    def __getitem__(self, identifier):
-        return self.load_case(identifier)
+        self.image_dataset = {im.get_unique_id(): im for im in all_images}
+        self.image_identifiers = list(self.image_dataset.keys())
+
+    def __getitem__(self, image_identifier):
+        return self.load_case(image_identifier)
 
     @abstractmethod
     def load_case(self, identifier):
@@ -44,70 +53,49 @@ class nnSSLBaseDataset(ABC):
     @abstractmethod
     def get_identifiers(folder: str) -> List[str]:
         pass
-
-    @staticmethod
-    def unpack_dataset(
-        folder: str, overwrite_existing: bool = False, num_processes: int = default_num_processes, verify: bool = True
-    ):
-        pass
-
-
-class nnSSLDatasetNumpy(nnSSLBaseDataset):
-    def load_case(self, identifier):
-        raise NotImplementedError
-
-    @staticmethod
-    def save_case(data: np.ndarray, seg: np.ndarray, properties: dict, output_filename_truncated: str):
-        raise NotImplementedError
-
-    @staticmethod
-    def get_identifiers(folder: str) -> List[str]:
-        """
-        returns all identifiers in the preprocessed data folder
-        """
-        case_identifiers = [i[:-4] for i in os.listdir(folder) if i.endswith("npz")]
-        return case_identifiers
-
-    @staticmethod
-    def unpack_dataset(
-        folder: str, overwrite_existing: bool = False, num_processes: int = default_num_processes, verify: bool = True
-    ):
-        raise NotImplementedError
 
 
 class nnSSLDatasetBlosc2(nnSSLBaseDataset):
-    def __init__(self, folder: str, identifiers: List[str] = None, folder_with_segs_from_previous_stage: str = None):
-        super().__init__(folder, identifiers, folder_with_segs_from_previous_stage)
+
+    def __init__(self, dataset_dir: str, dataset: Dataset, subject_identifiers: List[str] = None):
+        """
+        This is a dataset that allows loading data saved in blosc2 format.
+        It will hold a
+        """
+        super().__init__(dataset_dir, dataset, subject_identifiers)
         blosc2.set_nthreads(1)
 
-    def __getitem__(self, identifier):
-        return self.load_case(identifier)
+    def __getitem__(self, image_identifier):
+        return self.load_case(image_identifier)
 
-    def load_case(self, identifier):
+    def load_case(self, image_identifier):
         dparams = {"nthreads": 1}
-        data_b2nd_file = join(self.source_folder, identifier + ".b2nd")
+        img: IndependentImage
+        img = self.image_dataset[image_identifier]
+        output_path = img.get_output_path()
+        data_b2nd_file = join(self.dataset_dir, output_path + ".b2nd")
         data = blosc2.open(urlpath=data_b2nd_file, mode="r", dparams=dparams, mmap_mode="r")
 
-        anon_b2nd_file = join(self.source_folder, identifier + "__anon.b2nd")
+        anon_b2nd_file = join(self.dataset_dir, output_path + "__anon.b2nd")
         if isfile(anon_b2nd_file):
             anon = blosc2.open(urlpath=anon_b2nd_file, mode="r", dparams=dparams, mmap_mode="r")
         else:
             anon = None
 
-        deface_b2nd_file = join(self.source_folder, identifier + "__deface.b2nd")
-        if isfile(deface_b2nd_file):
-            deface = blosc2.open(urlpath=deface_b2nd_file, mode="r", dparams=dparams, mmap_mode="r")
+        anat_b2nd_file = join(self.dataset_dir, output_path + "__anat.b2nd")
+        if isfile(anat_b2nd_file):
+            anat = blosc2.open(urlpath=anat_b2nd_file, mode="r", dparams=dparams, mmap_mode="r")
         else:
-            deface = None
+            anat = None
 
-        properties = load_pickle(join(self.source_folder, identifier + ".pkl"))
-        return data, anon, deface, properties
+        properties = load_pickle(join(self.dataset_dir, output_path + ".pkl"))
+        return data, anon, anat, properties
 
     @staticmethod
     def save_case(
         data: np.ndarray,
         anon_mask: np.ndarray | None,
-        deface_mask: np.ndarray | None,
+        anat_mask: np.ndarray | None,
         properties: dict,
         output_filename_truncated: str,
         chunks=None,
@@ -148,10 +136,10 @@ class nnSSLDatasetBlosc2(nnSSLBaseDataset):
                 mmap_mode="w+",
             )
 
-        if deface_mask is not None:
+        if anat_mask is not None:
             blosc2.asarray(
-                np.ascontiguousarray(deface_mask),
-                urlpath=output_filename_truncated + "__deface.b2nd",
+                np.ascontiguousarray(anat_mask),
+                urlpath=output_filename_truncated + "__anat.b2nd",
                 chunks=chunks_seg,
                 blocks=blocks_seg,
                 cparams=cparams,
@@ -165,14 +153,9 @@ class nnSSLDatasetBlosc2(nnSSLBaseDataset):
         """
         returns all identifiers in the preprocessed data folder
         """
+        raise NotImplementedError("This method is not supposed to be called for nnSSLDatasetBlosc2")
         case_identifiers = [i[:-5] for i in os.listdir(folder) if i.endswith(".b2nd") and not i.endswith("_seg.b2nd")]
         return case_identifiers
-
-    @staticmethod
-    def unpack_dataset(
-        folder: str, overwrite_existing: bool = False, num_processes: int = default_num_processes, verify: bool = True
-    ):
-        pass
 
     @staticmethod
     def comp_blosc2_params(
@@ -261,10 +244,10 @@ class nnSSLDatasetBlosc2(nnSSLBaseDataset):
         return tuple(block_size), tuple(chunk_size)
 
 
-file_ending_dataset_mapping = {"npz": nnSSLDatasetNumpy, "b2nd": nnSSLDatasetBlosc2}
+file_ending_dataset_mapping = {"b2nd": nnSSLDatasetBlosc2}
 
 
-def infer_dataset_class(folder: str) -> Union[Type[nnSSLDatasetBlosc2], Type[nnSSLDatasetNumpy]]:
+def infer_dataset_class(folder: str) -> Union[Type[nnSSLDatasetBlosc2]]:
     file_endings = set([os.path.basename(i).split(".")[-1] for i in subfiles(folder, join=False)])
     if "pkl" in file_endings:
         file_endings.remove("pkl")

@@ -7,13 +7,19 @@ class nnsslDataLoader3D(nnsslDataLoaderBase):
         selected_keys = self.get_indices()
         # preallocate memory for data and seg
         data_all = np.zeros(self.data_shape, dtype=np.float32)
+        anon_all = np.zeros(self.data_shape, dtype=np.uint8)
+        anat_all = np.zeros(self.data_shape, dtype=np.uint8)
         case_properties = []
 
         for j, i in enumerate(selected_keys):
             # oversampling foreground will improve stability of model training, especially if many patches are empty
             # (Lung for example)
 
-            data, properties = self._data.load_case(i)
+            data, anon, anat, properties = self._data.load_case(i)
+            if anon is None:
+                anon = np.zeros(data.shape, dtype=np.uint8)
+            if anat is None:
+                anat = np.zeros(data.shape, dtype=np.uint8)
             case_properties.append(properties)
 
             # If we are doing the cascade then the segmentation from the previous stage will already have been loaded by
@@ -37,11 +43,21 @@ class nnsslDataLoader3D(nnsslDataLoaderBase):
                 [slice(0, data.shape[0])] + [slice(i, j) for i, j in zip(valid_bbox_lbs, valid_bbox_ubs)]
             )
             data = data[this_slice]
+            anon = anon[this_slice]
+            anat = anat[this_slice]
 
             padding = [(-min(0, bbox_lbs[i]), max(bbox_ubs[i] - shape[i], 0)) for i in range(dim)]
             data_all[j] = np.pad(data, ((0, 0), *padding), "constant", constant_values=0)
+            anon_all[j] = np.pad(anon, ((0, 0), *padding), "constant", constant_values=0)
+            anat_all[j] = np.pad(anon, ((0, 0), *padding), "constant", constant_values=0)
 
-        return {"data": data_all, "properties": case_properties, "keys": selected_keys}
+        return {
+            "data": data_all,
+            "anon": anon_all,
+            "anat": anat_all,
+            "properties": case_properties,
+            "keys": selected_keys,
+        }
 
 
 class nnsslCenterCropDataLoader3D(nnsslDataLoaderBase):
@@ -52,6 +68,8 @@ class nnsslCenterCropDataLoader3D(nnsslDataLoaderBase):
         case_properties = []
         selected_keys = []
         data_all = []
+        anon_all = []
+        anat_all = []
 
         for i in range(self.batch_size):
             # oversampling foreground will improve stability of model training, especially if many patches are empty
@@ -62,7 +80,11 @@ class nnsslCenterCropDataLoader3D(nnsslDataLoaderBase):
                 continue
             selected_keys.append(selected_key)
 
-            data, properties = self._data.load_case(selected_key)
+            data, anon, anat, properties = self._data.load_case(selected_key)
+            if anon is None:
+                anon = np.zeros(data.shape, dtype=np.uint8)
+            if anat is None:
+                anat = np.zeros(data.shape, dtype=np.uint8)
             case_properties.append(properties)
 
             # If we are doing the cascade then the segmentation from the previous stage will already have been loaded by
@@ -86,12 +108,25 @@ class nnsslCenterCropDataLoader3D(nnsslDataLoaderBase):
                 [slice(0, data.shape[0])] + [slice(i, j) for i, j in zip(valid_bbox_lbs, valid_bbox_ubs)]
             )
             data = data[this_slice]
+            anon = anon[this_slice]
+            anat = anat[this_slice]
 
             padding = [(-min(0, bbox_lbs[i]), max(bbox_ubs[i] - shape[i], 0)) for i in range(dim)]
             data_all.append(np.pad(data, ((0, 0), *padding), "constant", constant_values=0))
-        data_all = np.stack(data_all, axis=0)
+            anon_all.append(np.pad(anon, ((0, 0), *padding), "constant", constant_values=0))
+            anat_all.append(np.pad(anat, ((0, 0), *padding), "constant", constant_values=0))
 
-        return {"data": data_all, "properties": case_properties, "keys": selected_keys}
+        data_all = np.stack(data_all, axis=0)
+        anon_all = np.stack(anon_all, axis=0)
+        anat_all = np.stack(anat_all, axis=0)
+
+        return {
+            "data": data_all,
+            "anon_mask": anon_all,
+            "anat_mask": anat_all,
+            "properties": case_properties,
+            "keys": selected_keys,
+        }
 
     def get_bbox(
         self,
@@ -123,7 +158,6 @@ class nnsslCenterCropDataLoader3D(nnsslDataLoaderBase):
 
     def __len__(self):
         return int(np.ceil(len(self.indices) / self.batch_size))
-
 
     def __getitem__(self, index):
         return self.generate_train_batch(index)
