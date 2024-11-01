@@ -5,6 +5,8 @@ from dataclasses import dataclass, field, asdict
 class DataCase:
     data_file: str
     properties_file: str
+    anon_mask_file: str = None
+    anatomy_mask_file: str = None
     properties: dict = field(default=None, init=False)
 
     def __getitem__(self, key):
