@@ -6,12 +6,10 @@ from pathlib import Path
 from warnings import warn
 
 import numpy as np
-from batchgenerators.utilities.file_and_folder_operations import isfile, subfiles
+from batchgenerators.utilities.file_and_folder_operations import isfile, subfiles, load_json
 from nnssl.configuration import default_num_processes
-from valohai.config import is_running_in_valohai
-from loguru import logger
 
-from nnssl.valohai_compatibility.prepare_valohai_paths import measure_allocated_space_in_path
+from nnssl.data.raw_dataset import Dataset
 
 
 def find_broken_image_and_labels(
@@ -97,9 +95,6 @@ def _convert_to_npy(npz_file: str, unpack_segmentation: bool = True, overwrite_e
             np.save(npz_file[:-3] + "npy", a["data"])
         if unpack_segmentation and (overwrite_existing or not isfile(npz_file[:-4] + "_seg.npy")):
             np.save(npz_file[:-4] + "_seg.npy", a["seg"])
-        # Remote npz to save space if on Valohai!
-        if is_running_in_valohai():
-            os.remove(npz_file)
     except KeyboardInterrupt:
         if isfile(npz_file[:-3] + "npy"):
             os.remove(npz_file[:-3] + "npy")
@@ -108,43 +103,17 @@ def _convert_to_npy(npz_file: str, unpack_segmentation: bool = True, overwrite_e
         raise KeyboardInterrupt
 
 
-def unpack_dataset(
-    folder: str,
-    unpack_segmentation: bool = False,
-    overwrite_existing: bool = False,
-    num_processes: int = default_num_processes,
-):
-    """
-    all npz files in this folder belong to the dataset, unpack them all
-    """
-    with multiprocessing.get_context("spawn").Pool(num_processes) as p:
-        npz_files = subfiles(folder, True, None, ".npz", True)
-        p.starmap(
-            _convert_to_npy,
-            zip(npz_files, [unpack_segmentation] * len(npz_files), [overwrite_existing] * len(npz_files)),
-        )
-
-    if is_running_in_valohai():
-        n_npys = len(subfiles(folder, True, None, ".npy", True))
-        n_pkl = len(subfiles(folder, True, None, ".pkl", True))
-        n_json = len(subfiles(folder, True, None, ".json", True))
-        n_npzs = len(subfiles(folder, True, None, ".npz", True))
-        logger.info(
-            f"Total of {n_npys+n_pkl+n_json+n_npzs} images \n NPY: {n_npys}; NPZ: {n_npzs}; PKL: {n_pkl}; JSON: {n_json} npz's remaining."
-        )
-
-        logger.info(f"Allocated Space in /valohai/inputs: {measure_allocated_space_in_path(folder)} GB")
-
-
-def get_case_identifiers(folder: str, suffix: str = "npz") -> List[str]:
+def get_subject_identifiers(folder: str, suffix: str = "npz") -> List[str]:
     """
     finds all npz files in the given folder and reconstructs the training case names from them
     """
-    case_identifiers = [
-        i[:-4] for i in os.listdir(folder) if i.endswith(suffix) and (i.find("segFromPrevStage") == -1)
-    ]
-    return case_identifiers
+    pretrain_json = Path(folder).parent / "pretrain_data.json"
+    assert pretrain_json.is_file(), f"pretrain_data.json not found in {folder}"
+    pretrain_json = Dataset.from_dict(load_json(pretrain_json))
+    all_subjects = list(pretrain_json.subjects.keys())
+
+    return all_subjects
 
 
 if __name__ == "__main__":
-    unpack_dataset("/media/fabian/data/nnssl_preprocessed/Dataset002_Heart/2d")
+    pass
