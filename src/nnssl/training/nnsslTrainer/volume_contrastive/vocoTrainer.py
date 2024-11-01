@@ -39,7 +39,6 @@ class VoCoTrainer(AbstractBaseTrainer):
         fold: int,
         dataset_json: dict,
         pretrain_json: dict,
-        pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].patch_size = (192, 192, 64)
@@ -58,7 +57,7 @@ class VoCoTrainer(AbstractBaseTrainer):
         # BS1 == 6GB VRAM
         # --> 40GB VRAM fits BS8
         # plan.configurations[configuration_name].batch_size = 1
-        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, pretrain_json, device)
+        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, device)
         patch_size = self.config_plan.patch_size
 
         self.initial_lr = 1e-3
@@ -336,6 +335,6 @@ class VoCoTrainer_BS12(VoCoTrainer):
         device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].batch_size = 12
-        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_dataset, device)
+        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, device)
         # plan.configurations[configuration_name].patch_size = (192, 192, 128)
         # self.voco_base_crop_count = (3, 3, 2)

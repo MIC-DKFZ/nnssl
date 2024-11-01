@@ -20,7 +20,7 @@ class NoTokenSparkMAETrainer(SparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, pretrain_json, device)
+        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, device)
         self.mask_percentage: float = 0.75
         self.loss: SparkLoss
         self.stop_at_nans = True
