@@ -19,10 +19,9 @@ class BaseVariableSparkMAETrainer(SparkMAETrainer):
         fold: int,
         dataset_json: dict,
         pretrain_json: dict,
-        pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, pretrain_json, device)
+        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, device)
         self.mask_percentage = (0.6, 0.9)
         self.num_epochs = 52
         self.mask_random_seed = np.random.RandomState(123)
