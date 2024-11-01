@@ -11,16 +11,18 @@ import numpy as np
 
 
 class BaseVariableSparkMAETrainer(SparkMAETrainer):
+
     def __init__(
         self,
         plan: Plan,
         configuration_name: str,
         fold: int,
         dataset_json: dict,
-        unpack_dataset: bool = True,
+        pretrain_json: dict,
+        pretrain_dataset: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, pretrain_dataset, device)
         self.mask_percentage = (0.6, 0.9)
         self.num_epochs = 52
         self.mask_random_seed = np.random.RandomState(123)
@@ -83,11 +85,11 @@ class VariableSparkMAETrainer_5ep(BaseVariableSparkMAETrainer):
         configuration_name: str,
         fold: int,
         dataset_json: dict,
-        unpack_dataset: bool = True,
+        pretrain_dataset: dict,
         device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].batch_size = 6  # 6 * 8 (8 GPUs)
-        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_dataset, device)
         self.num_epochs = 5
 
 
@@ -98,11 +100,11 @@ class VariableSparkMAETrainer_BS6_ep1000(BaseVariableSparkMAETrainer):
         configuration_name: str,
         fold: int,
         dataset_json: dict,
-        unpack_dataset: bool = True,
+        pretrain_dataset: dict,
         device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].batch_size = 6  # 6 * 8 (8 GPUs)
-        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_dataset, device)
         self.num_epochs = 1000
 
 
@@ -113,11 +115,11 @@ class BigVariableSparkMAETrainer(BaseVariableSparkMAETrainer):
         configuration_name: str,
         fold: int,
         dataset_json: dict,
-        unpack_dataset: bool = True,
+        pretrain_dataset: dict,
         device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].batch_size = 48  # 6 * 8 (8 GPUs)
-        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_dataset, device)
         self.num_epochs = 4000
         self.initial_lr = 3e-2  # Bit more as we increase batch size a lot
 
@@ -129,10 +131,10 @@ class BigVariableSparkMAETrainerContinue(BigVariableSparkMAETrainer):
         configuration_name: str,
         fold: int,
         dataset_json: dict,
-        unpack_dataset: bool = True,
+        pretrain_dataset: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_dataset, device)
         self.num_epochs = 5000  # Add 1k epochs to the previous.
 
     def configure_optimizers(self):

@@ -46,7 +46,6 @@ def get_trainer_from_args(
     fold: int,
     trainer_name: str = "nnsslTrainer",
     plans_identifier: str = "nnsslPlans",
-    use_compressed: bool = False,
     device: torch.device = torch.device("cuda"),
 ):
     # load nnunet class and do sanity checks
@@ -82,12 +81,13 @@ def get_trainer_from_args(
     plans_file = join(preprocessed_dataset_folder_base, plans_identifier + ".json")
     plans: Plan = Plan.load_from_file(plans_file)
     dataset_json = load_json(join(preprocessed_dataset_folder_base, "dataset.json"))
+    pretrain_json = load_json(join(preprocessed_dataset_folder_base, "pretrain_data.json"))
     nnssl_trainer: AbstractBaseTrainer = nnssl_trainer_cls(
         plan=plans,
         configuration_name=configuration,
         fold=fold,
         dataset_json=dataset_json,
-        unpack_dataset=not use_compressed,
+        pretrain_json=pretrain_json,
         device=device,
     )
     return nnssl_trainer
@@ -175,7 +175,6 @@ def run_ddp(
     fold,
     tr,
     p,
-    use_compressed,
     disable_checkpointing,
     c,
     val,
@@ -187,7 +186,7 @@ def run_ddp(
     setup_ddp(rank, world_size)
     torch.cuda.set_device(torch.device("cuda", dist.get_rank()))
 
-    nnunet_trainer = get_trainer_from_args(dataset_name_or_id, configuration, fold, tr, p, use_compressed)
+    nnunet_trainer = get_trainer_from_args(dataset_name_or_id, configuration, fold, tr, p)
 
     if disable_checkpointing:
         nnunet_trainer.disable_checkpointing = disable_checkpointing
@@ -217,7 +216,6 @@ def run_training(
     plans_identifier: str = "nnsslPlans",
     pretrained_weights: Optional[str] = None,
     num_gpus: int = 1,
-    use_compressed_data: bool = False,
     export_validation_probabilities: bool = False,
     continue_training: bool = False,
     only_run_validation: bool = False,
@@ -257,7 +255,6 @@ def run_training(
                 fold,
                 trainer_class_name,
                 plans_identifier,
-                use_compressed_data,
                 disable_checkpointing,
                 continue_training,
                 only_run_validation,
@@ -276,7 +273,6 @@ def run_training(
             fold,
             trainer_class_name,
             plans_identifier,
-            use_compressed_data,
             device=device,
         )
 
@@ -332,15 +328,6 @@ def run_training_entry():
     )
     parser.add_argument(
         "-num_gpus", type=int, default=1, required=False, help="Specify the number of GPUs to use for training"
-    )
-    parser.add_argument(
-        "--use_compressed",
-        default=False,
-        action="store_true",
-        required=False,
-        help="[OPTIONAL] If you set this flag the training cases will not be decompressed. Reading compressed "
-        "data is much more CPU and (potentially) RAM intensive and should only be used if you "
-        "know what you are doing",
     )
     parser.add_argument(
         "--npz",
@@ -426,7 +413,6 @@ def run_training_entry():
             args.p,
             args.pretrained_weights,
             args.num_gpus,
-            args.use_compressed,
             args.npz,
             args.c,
             args.val,

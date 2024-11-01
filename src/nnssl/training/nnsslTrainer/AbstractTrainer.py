@@ -25,15 +25,16 @@ from batchgenerators.utilities.file_and_folder_operations import join, isfile, s
 from torch._dynamo import OptimizedModule
 
 
+from nnssl.data.raw_dataset import Dataset
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.paths import nnssl_preprocessed, nnssl_results
 from nnssl.ssl_data.configure_basic_dummyDA import configure_rotation_dummyDA_mirroring_and_inital_patch_size
 from nnssl.ssl_data.dataloading.data_loader_3d import nnsslDataLoader3D
-from nnssl.ssl_data.dataloading.nnssl_dataset import nnsslDataset
-from nnssl.ssl_data.dataloading.utils import get_case_identifiers, unpack_dataset
+from nnssl.ssl_data.dataloading.utils import get_subject_identifiers
 from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
 from valohai.config import is_running_in_valohai
 
+from nnssl.training.dataloading.dataset import nnSSLDatasetBlosc2
 from nnssl.training.logging.nnssl_logger import nnSSLLogger
 from nnssl.training.lr_scheduler.polylr import PolyLRScheduler
 from nnssl.utilities.serialization import make_serializable
@@ -53,7 +54,7 @@ class AbstractBaseTrainer(ABC):
         configuration_name: str,
         fold: int,
         dataset_json: dict,
-        unpack_dataset: bool = True,
+        pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
         # From https://grugbrain.dev/. Worth a read ya big brains ;-)
@@ -103,8 +104,8 @@ class AbstractBaseTrainer(ABC):
         self.config_plan: ConfigurationPlan = plan.configurations[configuration_name]
         self.configuration_name = configuration_name
         self.dataset_json = dataset_json
+        self.pretrain_json = pretrain_json
         self.fold = fold
-        self.unpack_dataset = unpack_dataset
         if is_running_in_valohai():
             self.current_epoch_log = {}
 
@@ -356,12 +357,13 @@ class AbstractBaseTrainer(ABC):
 
     def get_tr_and_val_datasets(self):
         # create dataset split (We only have 'all' as splits anyway!)
-        tr_keys, val_keys = self.do_split()
+        tr_subjects, val_subjects = self.do_split()
 
         # load the datasets for training and validation. Note that we always draw random samples so we really don't
         # care about distributing training cases across GPUs.
-        dataset_tr = nnsslDataset(self.preprocessed_dataset_folder, tr_keys)
-        dataset_val = nnsslDataset(self.preprocessed_dataset_folder, val_keys)
+        dataset = Dataset.from_dict(self.pretrain_json)
+        dataset_tr = nnSSLDatasetBlosc2(self.preprocessed_dataset_folder, dataset, tr_subjects)
+        dataset_val = nnSSLDatasetBlosc2(self.preprocessed_dataset_folder, dataset, val_subjects)
         return dataset_tr, dataset_val
 
     def get_dataloaders(self):
@@ -473,17 +475,6 @@ class AbstractBaseTrainer(ABC):
 
         self.print_plans()
         empty_cache(self.device)
-
-        # maybe unpack
-        if self.unpack_dataset and self.local_rank == 0:
-            self.print_to_log_file("unpacking dataset...")
-            unpack_dataset(
-                self.preprocessed_dataset_folder,
-                unpack_segmentation=False,
-                overwrite_existing=False,
-                num_processes=max(1, round(get_allowed_n_proc_DA() // 2)),
-            )
-            self.print_to_log_file("unpacking done...")
 
         if self.is_ddp:
             dist.barrier()
@@ -746,18 +737,17 @@ class AbstractBaseTrainer(ABC):
         splits_file = join(self.preprocessed_dataset_folder_base, "splits_final.json")
         if not isfile(splits_file):
             self.print_to_log_file("Creating new 5-fold cross-validation split...")
-            case_identifiers = get_case_identifiers(self.preprocessed_dataset_folder)
-            if len(case_identifiers) == 0:
-                case_identifiers = get_case_identifiers(self.preprocessed_dataset_folder, suffix="npy")
-                assert len(case_identifiers) > 0, f"No npz or npz found in {self.preprocessed_dataset_folder}"
-            all_keys_sorted = sorted(list(np.sort(case_identifiers)))
-            val_keys = sample(all_keys_sorted, int(50))
-            train_keys = list(set(all_keys_sorted) - set(val_keys))
-            splits = {"train": list(train_keys), "val": list(val_keys)}
+            subject_identifiers = get_subject_identifiers(self.preprocessed_dataset_folder)
+            assert len(subject_identifiers) != 0, "No subjects found. Aborting"
+            all_keys_sorted = sorted(list(np.sort(subject_identifiers)))
+            n_val_subjects = min(50, int(len(subject_identifiers) / 100))
+            val_subjects = sample(all_keys_sorted, n_val_subjects)
+            train_subjects = list(set(all_keys_sorted) - set(val_subjects))
+            splits = {"train": list(train_subjects), "val": list(val_subjects)}
             save_json(splits, splits_file)
         else:
             splits = load_json(splits_file)
 
-        tr_keys = splits["train"]
-        val_keys = splits["val"]
-        return tr_keys, val_keys
+        tr_subjects = splits["train"]
+        val_subjects = splits["val"]
+        return tr_subjects, val_subjects

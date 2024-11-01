@@ -54,16 +54,17 @@ def create_blocky_mask(tensor_size, block_size, sparsity_factor=0.75, rng_seed: 
 
 
 class BaseMAETrainer(AbstractBaseTrainer):
+
     def __init__(
         self,
         plan: Plan,
         configuration_name: str,
         fold: int,
         dataset_json: dict,
-        unpack_dataset: bool = True,
+        pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json,  device)
         self.mask_percentage: float = 0.75
         self.im_output_folder = os.path.join(self.output_folder, "img_log")
         os.makedirs(self.im_output_folder, exist_ok=True)
@@ -248,14 +249,8 @@ class BaseMAETrainer(AbstractBaseTrainer):
             ax[3].imshow((np.abs(img - reco) * 255.0).astype(np.uint8), cmap="gray")
 
             plt.title(f"Loss: {float(loss):.05f}")
-            if is_running_in_valohai():
-                out_path = valohai.outputs().path(filename)
-                plt.savefig(out_path)
-                plt.close()
-                valohai.outputs().live_upload(filename)  # Live update
-            else:
-                plt.savefig(os.path.join(self.im_output_folder, filename))
-                plt.close()
+            plt.savefig(os.path.join(self.im_output_folder, filename))
+            plt.close()
 
     @staticmethod
     def rescale_images(
@@ -266,7 +261,7 @@ class BaseMAETrainer(AbstractBaseTrainer):
         return img_arr, rec_arr
 
     def log_img_slices(self, imgs, recos, masks, losses, batch_id: int):
-        offset = batch_id * self.batch_size
+        offset = batch_id
         for i in range(recos.shape[0]):
             img = torch.squeeze(imgs[i])
             rec = torch.squeeze(recos[i])
@@ -460,8 +455,7 @@ class BaseMAETrainer_BS6(BaseMAETrainer):
         configuration_name: str,
         fold: int,
         dataset_json: dict,
-        unpack_dataset: bool = True,
         device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].batch_size = 6
-        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        super().__init__(plan, configuration_name, fold, dataset_json, device)

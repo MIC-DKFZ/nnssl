@@ -18,10 +18,10 @@ class EinOps_SparkMAETrainer(SparkMAETrainer):
         configuration_name: str,
         fold: int,
         dataset_json: dict,
-        unpack_dataset: bool = True,
+        pretrain_json: dict,
         device: device = ...,
     ):
-        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, device)
 
     def build_architecture(self, *args, **kwargs) -> nn.Module:
         n_stages = 6
@@ -58,9 +58,8 @@ class EinOps_SparkMAETrainer_5ep_BS6(EinOps_SparkMAETrainer):
         configuration_name: str,
         fold: int,
         dataset_json: dict,
-        unpack_dataset: bool = True,
         device: device = ...,
     ):
         plan.configurations[configuration_name].batch_size = 6
-        super().__init__(plan, configuration_name, fold, dataset_json, unpack_dataset, device)
+        super().__init__(plan, configuration_name, fold, dataset_json, device)
         self.num_epochs = 5
