@@ -402,16 +402,7 @@ def plan_and_preprocess_entry():
     )
     args = parser.parse_args()
 
-    if is_running_in_valohai():
-        version_name = args.valohai_version_name
-        dataset_name = args.valohai_dataset_name
-        compress_output = args.compress_output
-        start_fresh = args.start_fresh
-        dataset_id_plain = 737  # Always the same ID for valohai datasets!
-        prepare_preprocessing_paths_on_valohai(dataset_id_plain)  # Would need adaptation for multi-datasets.
-        dataset_id = [dataset_id_plain]
-    else:
-        dataset_id = args.d
+    dataset_id = args.d
     # fingerprint extraction
     print("Fingerprint extraction...")
     extract_fingerprints(dataset_id, args.fpe, args.npfp, args.verify_dataset_integrity, args.clean, args.verbose)
@@ -445,29 +436,6 @@ def plan_and_preprocess_entry():
             num_processes=np,
             verbose=args.verbose,
         )
-
-    if is_running_in_valohai():
-        plans_json = {
-            "valohai.dataset-versions": [f"dataset://{dataset_name}/plans_{version_name}"],
-            "start_fresh": True,  # We always start fresh for the plans
-        }
-        save_plans_on_valohai(
-            os.environ["nnssl_preprocessed"],
-            plans_json,
-        )
-        # We only save a new version of the dataset if we actually preprocessed it.
-        if not args.no_pp:
-            meta_data_json = {
-                "valohai.dataset-versions": [f"dataset://{dataset_name}/{version_name}"],
-                "start_fresh": start_fresh,
-            }
-            save_files_on_valohai(
-                os.environ["nnssl_preprocessed"],
-                meta_data_json,
-                compress_output=compress_output,
-                identifier_tag=dataset_name,
-            )
-
 
 if __name__ == "__main__":
     plan_and_preprocess_entry()

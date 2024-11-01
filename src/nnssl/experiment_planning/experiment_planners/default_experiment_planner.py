@@ -468,10 +468,6 @@ class ExperimentPlanner(object):
         shutil.copy(
             join(self.raw_dataset_folder, "dataset.json"), join(nnssl_preprocessed, self.dataset_name, "dataset.json")
         )
-        shutil.copy(
-            join(self.raw_dataset_folder, "pretrain_data.json"),
-            join(nnssl_preprocessed, self.dataset_name, "pretrain_data.json"),
-        )
 
         # json is stupid and I hate it... "Object of type int64 is not JSON serializable" -> my ass
         plans = Plan(
