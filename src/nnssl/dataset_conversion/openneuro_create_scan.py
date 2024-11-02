@@ -10,7 +10,7 @@ from nnssl.paths import nnssl_raw
 import signal
 
 
-local_openneuro_dir = join(os.environ["E132Rohdaten"] + "WaitingRoom/mic_rocket/raw/openneuro_full_v2")
+local_openneuro_dir = join(os.environ["E132Rohdaten"] + "/WaitingRoom/mic_rocket/raw/openneuro_full_v2")
 
 
 def main():
