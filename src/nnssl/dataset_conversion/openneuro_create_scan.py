@@ -108,8 +108,8 @@ def _task(dataset_dir):
             scan_list.append(scan_dict)
 
     # save, even is empty
-    Path(join(nnssl_raw, "Dataset744_OpenNeuro", "jsons")).mkdir(exist_ok=True, parents=True)
-    save_json(scan_list, (nnssl_raw, "Dataset744_OpenNeuro", "jsons", ds_id + ".json"))
+    # Path(join(nnssl_raw, "Dataset744_OpenNeuro", "jsons")).mkdir(exist_ok=True, parents=True)
+    # save_json(scan_list, (nnssl_raw, "Dataset744_OpenNeuro", "jsons", ds_id + ".json"))
 
     return scan_list
 
