@@ -19,6 +19,8 @@ from pathlib import Path
 import shutil
 from typing import Union
 
+import blosc2
+
 import nnssl
 import numpy as np
 from batchgenerators.utilities.file_and_folder_operations import *
@@ -136,6 +138,9 @@ def preprocess_and_save(
     verbose: bool = True,
 ):
     """Reads the images and their properties, preprocesses them and saves them to disk. (in a compressed npz)"""
+    output_filename = Path(join(output_directory, image.get_output_path()))
+    output_filename.parent.mkdir(parents=True, exist_ok=True)
+
     rw = plan.image_reader_writer_class()()
     image_path = image.image_path
     data, data_properties = rw.read_images([image_path])
@@ -145,7 +150,6 @@ def preprocess_and_save(
         masks = None
     data, masks = preprocess_case(data, masks, data_properties, plan, config_plan, verbose)
     # print('dtypes', data.dtype, seg.dtype)
-    # ToDo introduce BloscV2 here.
     block_size_data, chunk_size_data = nnSSLDatasetBlosc2.comp_blosc2_params(
         data.shape, tuple(config_plan.patch_size), data.itemsize
     )
@@ -164,8 +168,6 @@ def preprocess_and_save(
     else:
         block_size_seg, chunk_size_seg = None, None
         anat_mask, anon_mask = None, None
-    output_filename = Path(join(output_directory, image.get_output_path()))
-    output_filename.parent.mkdir(parents=True, exist_ok=True)
 
     nnSSLDatasetBlosc2.save_case(
         data,
