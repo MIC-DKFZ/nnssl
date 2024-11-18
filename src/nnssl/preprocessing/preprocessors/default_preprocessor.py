@@ -140,46 +140,49 @@ def preprocess_and_save(
     """Reads the images and their properties, preprocesses them and saves them to disk. (in a compressed npz)"""
     output_filename = Path(join(output_directory, image.get_output_path()))
     output_filename.parent.mkdir(parents=True, exist_ok=True)
-
-    rw = plan.image_reader_writer_class()()
-    image_path = image.image_path
-    data, data_properties = rw.read_images([image_path])
-    if image.associated_masks is not None:
-        masks = [rw.read_seg(v)[0] for v in asdict(image.associated_masks).values() if v is not None]
-    else:
-        masks = None
-    data, masks = preprocess_case(data, masks, data_properties, plan, config_plan, verbose)
-    # print('dtypes', data.dtype, seg.dtype)
-    block_size_data, chunk_size_data = nnSSLDatasetBlosc2.comp_blosc2_params(
-        data.shape, tuple(config_plan.patch_size), data.itemsize
-    )
-    if masks is not None:
-        block_size_seg, chunk_size_seg = nnSSLDatasetBlosc2.comp_blosc2_params(
+    try:
+        rw = plan.image_reader_writer_class()()
+        image_path = image.image_path
+        data, data_properties = rw.read_images([image_path])
+        if image.associated_masks is not None:
+            masks = [rw.read_seg(v)[0] for v in asdict(image.associated_masks).values() if v is not None]
+        else:
+            masks = None
+        data, masks = preprocess_case(data, masks, data_properties, plan, config_plan, verbose)
+        # print('dtypes', data.dtype, seg.dtype)
+        block_size_data, chunk_size_data = nnSSLDatasetBlosc2.comp_blosc2_params(
             data.shape, tuple(config_plan.patch_size), data.itemsize
         )
-        if image.associated_masks.anatomy_mask is not None:
-            anat_mask = masks[0]
+        if masks is not None:
+            block_size_seg, chunk_size_seg = nnSSLDatasetBlosc2.comp_blosc2_params(
+                data.shape, tuple(config_plan.patch_size), data.itemsize
+            )
+            if image.associated_masks.anatomy_mask is not None:
+                anat_mask = masks[0]
+            else:
+                anat_mask = None
+            if image.associated_masks.anonymization_mask is not None:
+                anon_mask = masks[-1]
+            else:
+                anon_mask = None
         else:
-            anat_mask = None
-        if image.associated_masks.anonymization_mask is not None:
-            anon_mask = masks[-1]
-        else:
-            anon_mask = None
-    else:
-        block_size_seg, chunk_size_seg = None, None
-        anat_mask, anon_mask = None, None
+            block_size_seg, chunk_size_seg = None, None
+            anat_mask, anon_mask = None, None
 
-    nnSSLDatasetBlosc2.save_case(
-        data,
-        anon_mask,
-        anat_mask,
-        data_properties,
-        str(output_filename),
-        chunks=chunk_size_data,
-        blocks=block_size_data,
-        chunks_seg=chunk_size_seg,
-        blocks_seg=block_size_seg,
-    )
+        nnSSLDatasetBlosc2.save_case(
+            data,
+            anon_mask,
+            anat_mask,
+            data_properties,
+            str(output_filename),
+            chunks=chunk_size_data,
+            blocks=block_size_data,
+            chunks_seg=chunk_size_seg,
+            blocks_seg=block_size_seg,
+        )
+    except Exception as e:
+        print(f"Error processing {image_path}: {str(e)}")
+        return False
 
 
 def default_preprocess(
