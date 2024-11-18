@@ -10,7 +10,10 @@ def resolve_relative_paths(pot_rel_path: str) -> str:
     """Resolve relative paths."""
     path_beginning = pot_rel_path.split("/")[0]
     if path_beginning.startswith("$"):
-        return pot_rel_path.replace(path_beginning, os.environ[path_beginning[1:]])
+        env_path = os.environ[path_beginning[1:]]
+        if env_path.endswith("/"):
+            env_path = env_path[:-1]
+        return pot_rel_path.replace(path_beginning, env_path)
     return pot_rel_path
 
 
@@ -226,7 +229,7 @@ class Dataset:
 class Collection:
     collection_index: int
     collection_name: str
-    datasets: dict[int, Dataset] = {}
+    datasets: dict[int, Dataset] = field(default_factory=dict)
 
     def to_dict(self):
         return {k: v.to_dict() for k, v in self.datasets.items()}
@@ -234,7 +237,7 @@ class Collection:
     @staticmethod
     def from_dict(data: dict) -> "Collection":
         collection = Collection(data["collection_index"], data["collection_name"])
-        for k, v in data.items():
+        for k, v in data["datasets"].items():
             collection.datasets[k] = Dataset.from_dict(v)
         return collection
 
