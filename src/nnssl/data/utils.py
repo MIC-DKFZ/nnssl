@@ -22,7 +22,7 @@ from loguru import logger
 import numpy as np
 import re
 
-from nnssl.data.raw_dataset import Dataset, Subject, Session, Image, associated_masks, AssociatedMasks
+from nnssl.data.raw_dataset import Collection, Dataset, Subject, Session, Image, associated_masks, AssociatedMasks
 from nnssl.paths import nnssl_raw
 
 
@@ -69,13 +69,22 @@ def get_pretrain_json_or_create_new(raw_dataset_folder: str) -> dict:
         raise FileNotFoundError("dataset.json or imagesTr folder does not exist in the given folder")
 
 
-def get_train_dataset(raw_dataset_folder: str, dataset_json: dict = None) -> Dataset:
+def get_train_dataset(raw_dataset_folder: str) -> Dataset:
     """
     Returns a list of all dataset paths, containing paths to the actual files.
     """
     pretrain_dataset = get_pretrain_json_or_create_new(raw_dataset_folder)
     dataset = Dataset.from_dict(pretrain_dataset)
     return dataset
+
+
+def get_train_collection(raw_dataset_folder: str) -> Collection:
+    """
+    Returns a list of all dataset paths, containing paths to the actual files.
+    """
+    pretrain_dataset = get_pretrain_json_or_create_new(raw_dataset_folder)
+    collection = Collection.from_dict(pretrain_dataset)
+    return collection
 
 
 if __name__ == "__main__":
