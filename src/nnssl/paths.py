@@ -13,6 +13,7 @@
 #    limitations under the License.
 
 import os
+from loguru import logger
 
 """
 PLEASE READ paths.md FOR INFORMATION TO HOW TO SET THIS UP
@@ -21,6 +22,12 @@ PLEASE READ paths.md FOR INFORMATION TO HOW TO SET THIS UP
 nnssl_raw = os.environ.get("nnssl_raw")
 nnssl_preprocessed = os.environ.get("nnssl_preprocessed")
 nnssl_results = os.environ.get("nnssl_results")
+
+if "rocket_preprocessed" in os.environ:
+    nnssl_preprocessed = os.environ["rocket_preprocessed"]
+    logger.warning(
+        "Detected 'rocket_preprocessed' environment variable. Overwriting default nnssl_preprocessed directory."
+    )
 
 if nnssl_raw is None:
     print(
