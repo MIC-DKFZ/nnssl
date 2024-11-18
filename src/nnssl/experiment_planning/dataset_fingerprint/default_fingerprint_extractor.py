@@ -7,17 +7,21 @@ import multiprocessing
 import numpy as np
 from tqdm import tqdm
 
-from nnssl.imageio.reader_writer_registry import determine_reader_writer_from_dataset_json
+from nnssl.data.raw_dataset import Dataset, Collection
+from nnssl.imageio.reader_writer_registry import (
+    determine_reader_writer_from_dataset_json,
+    determine_reader_writer_from_file_ending,
+)
 from nnssl.paths import nnssl_raw, nnssl_preprocessed
 from batchgenerators.utilities.file_and_folder_operations import load_json, join, save_json, isfile, maybe_mkdir_p
 from nnssl.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
-from nnssl.data.utils import get_train_dataset
+from nnssl.data.utils import get_train_collection, get_train_dataset
 from nnssl.experiment_planning.dataset_fingerprint.utils import analyze_case
 
 
-def setup_dataset_fingerprint_extractor(
+def setup_collection_fingerprint_extractor(
     dataset_name_or_id: Union[str, int], num_processes: int = 8, verbose: bool = False
-):
+) -> tuple[str, int, Collection]:
     """
     Sets up the dataset fingerprint extractor.
 
@@ -32,10 +36,9 @@ def setup_dataset_fingerprint_extractor(
 
     dataset_name = maybe_convert_to_dataset_name(dataset_name_or_id)
     input_folder = join(nnssl_raw, dataset_name)
-    dataset_json = load_json(join(input_folder, "dataset.json"))
 
-    dataset = get_train_dataset(input_folder, dataset_json)
-    return dataset_name, num_processes, dataset_json, dataset
+    collection = get_train_collection(input_folder)
+    return dataset_name, num_processes, collection
 
 
 def save_fingerprint(fingerprint, properties_file):
@@ -79,22 +82,25 @@ def default_dataset_fingerprint_extraction(
     (
         dataset_name,
         num_processes,
-        dataset_json,
-        dataset,
-    ) = setup_dataset_fingerprint_extractor(dataset_name_or_id, num_processes, verbose)
+        collection,
+    ) = setup_collection_fingerprint_extractor(dataset_name_or_id, num_processes, verbose)
 
+    collection: Collection
     preprocessed_output_folder = join(nnssl_preprocessed, dataset_name)
     maybe_mkdir_p(preprocessed_output_folder)
     properties_file = join(preprocessed_output_folder, "dataset_fingerprint.json")
+    file_ending = collection.get_file_ending()
 
     if not isfile(properties_file) or overwrite_existing:
-        reader_writer_class = determine_reader_writer_from_dataset_json(dataset_json, dataset.get_all_image_paths()[0])
+        reader_writer_class = determine_reader_writer_from_file_ending(
+            file_ending, collection.get_all_image_paths()[0]
+        )
         analyze_case_partial = partial(analyze_case, reader_writer_class=reader_writer_class)
         if num_processes > 1:
             with multiprocessing.get_context("spawn").Pool(num_processes) as p:
-                results = list(tqdm(p.imap(analyze_case_partial, [[k] for k in dataset.get_all_image_paths()])))
+                results = list(tqdm(p.imap(analyze_case_partial, [[k] for k in collection.get_all_image_paths()])))
         else:
-            results = [analyze_case([k], reader_writer_class) for k in tqdm(dataset)]
+            results = [analyze_case([k], reader_writer_class) for k in tqdm(collection.get_all_image_paths())]
 
         shapes_after_crop = [r[0] for r in results]
         spacings = [r[1] for r in results]
