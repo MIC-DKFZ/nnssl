@@ -220,3 +220,49 @@ class Dataset:
                 s.sessions[session_id] = sess
             ds.subjects[subject_id] = s
         return ds
+
+
+@dataclass
+class Collection:
+    collection_index: int
+    collection_name: str
+    datasets: dict[int, Dataset] = {}
+
+    def to_dict(self):
+        return {k: v.to_dict() for k, v in self.datasets.items()}
+
+    @staticmethod
+    def from_dict(data: dict) -> "Collection":
+        collection = Collection(data["collection_index"], data["collection_name"])
+        for k, v in data.items():
+            collection.datasets[k] = Dataset.from_dict(v)
+        return collection
+
+    def get_all_images(self) -> list[Image]:
+        images = []
+        for dataset in self.datasets.values():
+            images.extend(dataset.get_all_images())
+        return images
+
+    def get_all_image_paths(self) -> list[str]:
+        return [img.image_path for img in self.get_all_images()]
+
+    def get_file_ending(self) -> str:
+        example_path = str(self.get_all_image_paths()[0])
+        if example_path.endswith(".nii.gz"):
+            ext = ".nii.gz"
+        elif example_path.endswith(".nii"):
+            ext = ".nii"
+        elif example_path.endswith(".in.nrrd"):
+            ext = ".in.nrrd"
+        elif example_path.endswith(".nrrd"):
+            ext = ".nrrd"
+        elif example_path.endswith(".mha"):
+            ext = ".mha"
+        else:
+            raise NotImplementedError("Only nii, nii.gz, nrrd, mha files are supported.")
+
+        all_others = [str(img) for img in self.get_all_image_paths() if not str(img).endswith(ext)]
+        if len(all_others) > 0:
+            raise ValueError(f"Found files with different file endings: {all_others}")
+        return ext
