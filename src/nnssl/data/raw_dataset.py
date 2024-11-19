@@ -37,7 +37,9 @@ class AssociatedMasks:
 
 @dataclass
 class IndependentImage:
-    dataset_index: int
+    collection_index: int | str
+    collection_name: str
+    dataset_index: str
     dataset_name: str
     session_id: int | str
     subject_id: str
@@ -61,10 +63,12 @@ class IndependentImage:
         else:
             image_name_wo_extension = self.image_name
             # raise NotImplementedError("Only nii, nii.gz and nrrd files are supported.")
-        return f"{self.dataset_name}/{self.subject_id}/{self.session_id}/{image_name_wo_extension}"
+        return f"{self.collection_name}/{self.dataset_index}/{self.subject_id}/{self.session_id}/{image_name_wo_extension}"
 
     def get_unique_id(self) -> str:
-        return f"{self.dataset_index}__{self.subject_id}__{self.session_id}__{self.image_name}"
+        return (
+            f"{self.collection_name}__{self.dataset_index}__{self.subject_id}__{self.session_id}__{self.image_name}"
+        )
 
 
 @dataclass
@@ -92,7 +96,7 @@ class Subject:
 
 @dataclass
 class Dataset:
-    dataset_index: int
+    dataset_index: str | int
     name: str | None = None
     dataset_info: dict = None
     subjects: dict[str, Subject] = field(default_factory=dict)
@@ -227,7 +231,7 @@ class Dataset:
 
 @dataclass
 class Collection:
-    collection_index: int
+    collection_index: int | str
     collection_name: str
     datasets: dict[int, Dataset] = field(default_factory=dict)
 
