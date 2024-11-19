@@ -26,7 +26,7 @@ import numpy as np
 from batchgenerators.utilities.file_and_folder_operations import *
 
 
-from nnssl.data.raw_dataset import Dataset, IndependentImage
+from nnssl.data.raw_dataset import Collection, Dataset, IndependentImage
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.paths import nnssl_preprocessed, nnssl_raw
 from nnssl.preprocessing.cropping.cropping import crop_to_nonzero
@@ -34,7 +34,7 @@ from nnssl.preprocessing.normalization.normalization_schemes import apply_normal
 from nnssl.preprocessing.resampling.default_resampling import compute_new_shape, get_resampling_scheme
 from nnssl.training.dataloading.dataset import nnSSLDatasetBlosc2
 from nnssl.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
-from nnssl.data.utils import get_train_dataset
+from nnssl.data.utils import get_train_collection, get_train_dataset
 
 
 def normalize(
@@ -214,14 +214,6 @@ def default_preprocess(
         print(f"Preprocessing the following configuration: {configuration_name}")
         print(config_plan)
 
-    dataset_json_file = join(nnssl_raw, dataset_name, "dataset.json")
-    # ToDo: If the dataset.json does not exist, we create one with images used from imagesTr
-    #   If this imagesTr does not exist -> error
-    # If the dataset.json holds "images_info" we use the paths from there and ignore potential imagesTr
-    dataset_json = load_json(dataset_json_file)
-    if "labels" in dataset_json.keys():
-        dataset_json.pop("labels")  # Remove the labels from the dataset.json
-
     output_directory = join(nnssl_preprocessed, dataset_name, config_plan.data_identifier)
 
     # if isdir(output_directory):
@@ -229,12 +221,14 @@ def default_preprocess(
 
     maybe_mkdir_p(output_directory)
 
-    dataset: Dataset = get_train_dataset(join(nnssl_raw, dataset_name), dataset_json)
+    collection: Collection = get_train_collection(join(nnssl_raw, dataset_name))
     # identifiers = [os.path.basename(i[:-len(dataset_json['file_ending'])]) for i in seg_fnames]
     # output_filenames_truncated = [join(output_directory, i) for i in identifiers]
-    pp_dataset = deepcopy(dataset)
-    pp_dataset.update_extension(new_extension=".b2nd")
-    save_json(pp_dataset.to_dict(relative_paths=True), join(nnssl_preprocessed, dataset_name, "pretrain_data.json"))
+    pp_collection = deepcopy(collection)
+    pp_collection.update_extension(new_extension=".b2nd")
+    save_json(
+        pp_collection.to_dict(relative_paths=True), join(nnssl_preprocessed, dataset_name, "pretrain_data.json")
+    )
     # multiprocessing magic.
     preprocess_and_save_partial = partial(
         preprocess_and_save,
@@ -243,7 +237,7 @@ def default_preprocess(
         config_plan=config_plan,
         verbose=verbose,
     )
-    all_independent_images: list[IndependentImage] = dataset.to_independent_images()
+    all_independent_images: list[IndependentImage] = collection.to_independent_images()
     # ------------------- Optional new splitting into sub-parts ------------------ #
     if total_parts > 1:
         total_images = len(all_independent_images)
