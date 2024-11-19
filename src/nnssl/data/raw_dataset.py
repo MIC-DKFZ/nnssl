@@ -269,3 +269,13 @@ class Collection:
         if len(all_others) > 0:
             raise ValueError(f"Found files with different file endings: {all_others}")
         return ext
+
+    def to_independent_images(self) -> list[IndependentImage]:
+        images = []
+        for dataset in self.datasets.values():
+            images.extend(dataset.to_independent_images())
+        return images
+
+    def update_extension(self, new_extension: str) -> None:
+        for dataset in self.datasets.values():
+            dataset.update_extension(new_extension)
