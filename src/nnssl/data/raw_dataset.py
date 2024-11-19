@@ -155,54 +155,6 @@ class Dataset:
                                 continue
                             setattr(img.associated_masks, k, self._absolute_to_relative_path(v))
 
-    def to_independent_images(self) -> list[IndependentImage]:
-        """
-        Convert the dataset to a list of independent images.
-        This allows for easier splitting and preprocessing of the dataset.
-        """
-        images = []
-        for subject_id, subject in self.subjects.items():
-            for session_id, session in subject.sessions.items():
-                for img in session.images:
-                    assoc_mask = img.associated_masks
-                    if assoc_mask is not None:
-                        images.append(
-                            IndependentImage(
-                                dataset_index=self.dataset_index,
-                                dataset_name=self.name,
-                                session_id=session_id,
-                                subject_id=subject_id,
-                                image_name=img.name,
-                                image_path=img.image_path,
-                                image_modality=img.modality,
-                                associated_masks=AssociatedMasks(
-                                    img.associated_masks.anonymization_mask, img.associated_masks.anatomy_mask
-                                ),
-                                dataset_info=self.dataset_info,
-                                subject_info=subject.subject_info,
-                                session_info=session.session_info,
-                                image_info=img.image_info,
-                            )
-                        )
-                    else:
-                        images.append(
-                            IndependentImage(
-                                dataset_index=self.dataset_index,
-                                dataset_name=self.name,
-                                session_id=session_id,
-                                subject_id=subject_id,
-                                image_name=img.name,
-                                image_path=img.image_path,
-                                image_modality=img.modality,
-                                associated_masks=AssociatedMasks(),
-                                dataset_info=self.dataset_info,
-                                subject_info=subject.subject_info,
-                                session_info=session.session_info,
-                                image_info=img.image_info,
-                            )
-                        )
-        return images
-
     @staticmethod
     def from_dict(data: dict) -> "Dataset":
         ds = Dataset(dataset_index=data["dataset_index"], name=data.get("name", None))
@@ -282,9 +234,61 @@ class Collection:
         return ext
 
     def to_independent_images(self) -> list[IndependentImage]:
+        """
+        Convert the dataset to a list of independent images.
+        This allows for easier splitting and preprocessing of the dataset.
+        """
+
         images = []
-        for dataset in self.datasets.values():
-            images.extend(dataset.to_independent_images())
+        dataset: Dataset
+        subject: Subject
+        session: Session
+        img: Image
+        for _, dataset in self.datasets.items():
+            for subject_id, subject in dataset.subjects.items():
+                for session_id, session in subject.sessions.items():
+                    for img in session.images:
+                        assoc_mask = img.associated_masks
+                        if assoc_mask is not None:
+                            images.append(
+                                IndependentImage(
+                                    collection_index=self.collection_index,
+                                    collection_name=self.collection_name,
+                                    dataset_index=dataset.dataset_index,
+                                    dataset_name=dataset.name,
+                                    session_id=session_id,
+                                    subject_id=subject_id,
+                                    image_name=img.name,
+                                    image_path=img.image_path,
+                                    image_modality=img.modality,
+                                    associated_masks=AssociatedMasks(
+                                        img.associated_masks.anonymization_mask, img.associated_masks.anatomy_mask
+                                    ),
+                                    dataset_info=dataset.dataset_info,
+                                    subject_info=subject.subject_info,
+                                    session_info=session.session_info,
+                                    image_info=img.image_info,
+                                )
+                            )
+                        else:
+                            images.append(
+                                IndependentImage(
+                                    collection_index=self.collection_index,
+                                    collection_name=self.collection_name,
+                                    dataset_index=dataset.dataset_index,
+                                    dataset_name=dataset.name,
+                                    session_id=session_id,
+                                    subject_id=subject_id,
+                                    image_name=img.name,
+                                    image_path=img.image_path,
+                                    image_modality=img.modality,
+                                    associated_masks=AssociatedMasks(),
+                                    dataset_info=dataset.dataset_info,
+                                    subject_info=subject.subject_info,
+                                    session_info=session.session_info,
+                                    image_info=img.image_info,
+                                )
+                            )
         return images
 
     def update_extension(self, new_extension: str) -> None:
