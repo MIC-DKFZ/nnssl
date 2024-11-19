@@ -231,8 +231,15 @@ class Collection:
     collection_name: str
     datasets: dict[int, Dataset] = field(default_factory=dict)
 
-    def to_dict(self):
-        return {k: v.to_dict() for k, v in self.datasets.items()}
+    def to_dict(self, relative_paths: bool = False):
+        coll_dict = {
+            "collection_index": self.collection_index,
+            "collection_name": self.collection_name,
+            "datasets": {},
+        }
+        ds = {k: v.to_dict(relative_paths) for k, v in self.datasets.items()}
+        coll_dict["datasets"] = ds
+        return coll_dict
 
     @staticmethod
     def from_dict(data: dict) -> "Collection":
