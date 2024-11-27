@@ -70,6 +70,16 @@ class IndependentImage:
             f"{self.collection_name}__{self.dataset_index}__{self.subject_id}__{self.session_id}__{self.image_name}"
         )
 
+    def get_absolute_pp_path(self, dataset_name: str, data_identifier: str) -> str:
+        """
+        Allows to get the absolute path where the preprocessed images will be located.
+
+        Args:
+            dataset_name (str): The name of the dataset. `Dataset800_Rocketv0`
+            data_identifier (str): The data identifier. e.g. `nnsslPlans_3d_fullres`
+        """
+        return f"{os.environ['nnssl_preprocessed']}/{dataset_name}/{data_identifier}/{self.get_output_path()}"
+
 
 @dataclass
 class Image:

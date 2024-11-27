@@ -6,12 +6,6 @@ from nnssl.experiment_planning.dataset_fingerprint.abstract_fingerprint_extracti
     DatasetFingerprintExtractor,
     fingerprint_type,
 )
-from nnssl.valohai_compatibility.prepare_valohai_paths import (
-    prepare_preprocessing_paths_on_valohai,
-    save_files_on_valohai,
-    save_plans_on_valohai,
-)
-
 
 def extract_fingerprint_entry():
     import argparse

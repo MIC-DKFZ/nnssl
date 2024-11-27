@@ -7,10 +7,9 @@ import numpy as np
 import blosc2
 
 from batchgenerators.utilities.file_and_folder_operations import join, load_pickle, isfile, write_pickle, subfiles
-from nnunetv2.configuration import default_num_processes
 import math
 
-from nnssl.data.raw_dataset import Dataset, IndependentImage, Subject
+from nnssl.data.raw_dataset import Collection, Dataset, IndependentImage, Subject
 
 
 class nnSSLBaseDataset(ABC):
@@ -18,7 +17,7 @@ class nnSSLBaseDataset(ABC):
     Defines the interface
     """
 
-    def __init__(self, dataset_dir: str, dataset: Dataset, subject_identifiers: List[str] = None):
+    def __init__(self, dataset_dir: str, collection: Collection, subject_identifiers: List[str] = None):
         """
         Receives a dataset object that is created by loading the `pretrain_data.json`.
         This dataset object holds all the necessary info to load the data from disk.
@@ -30,12 +29,12 @@ class nnSSLBaseDataset(ABC):
 
         self.dataset_dir: str = dataset_dir
         self.subject_identifiers = subject_identifiers
-        self.dataset = deepcopy(dataset)
-        self.dataset.subjects = {k: subj for k, subj in dataset.subjects.items() if subj.subject_id in subject_identifiers}
-        all_images: list[IndependentImage] = self.dataset.to_independent_images()
+        self.collection = deepcopy(collection)
 
-        self.image_dataset = {im.get_unique_id(): im for im in all_images}
-        self.image_identifiers = list(self.image_dataset.keys())
+        all_images: list[IndependentImage] = self.collection.to_independent_images()
+
+        self.image_dataset: dict[str, IndependentImage] = {im.get_unique_id(): im for im in all_images}
+        self.image_identifiers: list[str] = list(self.image_dataset.keys())
 
     def __getitem__(self, image_identifier):
         return self.load_case(image_identifier)
@@ -57,38 +56,39 @@ class nnSSLBaseDataset(ABC):
 
 class nnSSLDatasetBlosc2(nnSSLBaseDataset):
 
-    def __init__(self, dataset_dir: str, dataset: Dataset, subject_identifiers: List[str] = None):
+    def __init__(self, dataset_dir: str, collection: Collection, subject_identifiers: List[str] = None):
         """
         This is a dataset that allows loading data saved in blosc2 format.
         It will hold a
         """
-        super().__init__(dataset_dir, dataset, subject_identifiers)
+        super().__init__(dataset_dir, collection, subject_identifiers)
         blosc2.set_nthreads(1)
 
     def __getitem__(self, image_identifier):
-        return self.load_case(image_identifier)
+        return self.load_case(self.dataset_dir, self.image_dataset, image_identifier)
 
-    def load_case(self, image_identifier):
+    @staticmethod
+    def load_case(dataset_dir: str, image_dataset: dict[str, IndependentImage], image_identifier: str):
         dparams = {"nthreads": 1}
         img: IndependentImage
-        img = self.image_dataset[image_identifier]
+        img = image_dataset[image_identifier]
         output_path = img.get_output_path()
-        data_b2nd_file = join(self.dataset_dir, output_path + ".b2nd")
+        data_b2nd_file = join(dataset_dir, output_path + ".b2nd")
         data = blosc2.open(urlpath=data_b2nd_file, mode="r", dparams=dparams, mmap_mode="r")
 
-        anon_b2nd_file = join(self.dataset_dir, output_path + "__anon.b2nd")
+        anon_b2nd_file = join(dataset_dir, output_path + "__anon.b2nd")
         if isfile(anon_b2nd_file):
             anon = blosc2.open(urlpath=anon_b2nd_file, mode="r", dparams=dparams, mmap_mode="r")
         else:
             anon = None
 
-        anat_b2nd_file = join(self.dataset_dir, output_path + "__anat.b2nd")
+        anat_b2nd_file = join(dataset_dir, output_path + "__anat.b2nd")
         if isfile(anat_b2nd_file):
             anat = blosc2.open(urlpath=anat_b2nd_file, mode="r", dparams=dparams, mmap_mode="r")
         else:
             anat = None
 
-        properties = load_pickle(join(self.dataset_dir, output_path + ".pkl"))
+        properties = load_pickle(join(dataset_dir, output_path + ".pkl"))
         return data, anon, anat, properties
 
     @staticmethod
