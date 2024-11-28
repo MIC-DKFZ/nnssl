@@ -37,7 +37,6 @@ class VoCoTrainer(AbstractBaseTrainer):
         plan: Plan,
         configuration_name: str,
         fold: int,
-        dataset_json: dict,
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
@@ -57,7 +56,7 @@ class VoCoTrainer(AbstractBaseTrainer):
         # BS1 == 6GB VRAM
         # --> 40GB VRAM fits BS8
         # plan.configurations[configuration_name].batch_size = 1
-        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, device)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
         patch_size = self.config_plan.patch_size
 
         self.initial_lr = 1e-3

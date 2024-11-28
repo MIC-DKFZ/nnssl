@@ -34,12 +34,11 @@ class GVSLTrainer(AbstractBaseTrainer):
         plan: Plan,
         configuration_name: str,
         fold: int,
-        dataset_json: dict,
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
 
-        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, device)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
         patch_size = self.config_plan.patch_size
 
         # ToDo: Replace this by the original values (Adam + LR + Weight Decay)

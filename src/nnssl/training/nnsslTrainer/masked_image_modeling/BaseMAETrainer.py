@@ -60,11 +60,10 @@ class BaseMAETrainer(AbstractBaseTrainer):
         plan: Plan,
         configuration_name: str,
         fold: int,
-        dataset_json: dict,
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json,  device)
+        super().__init__(plan, configuration_name, fold, pretrain_json,  device)
         self.mask_percentage: float = 0.75
         self.im_output_folder = os.path.join(self.output_folder, "img_log")
         os.makedirs(self.im_output_folder, exist_ok=True)

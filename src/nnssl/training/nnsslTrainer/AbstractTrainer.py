@@ -53,7 +53,6 @@ class AbstractBaseTrainer(ABC):
         plan: Plan,
         configuration_name: str,
         fold: int,
-        dataset_json: dict,
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
@@ -103,7 +102,6 @@ class AbstractBaseTrainer(ABC):
         self.plan: Plan = plan
         self.config_plan: ConfigurationPlan = plan.configurations[configuration_name]
         self.configuration_name = configuration_name
-        self.dataset_json = dataset_json
         self.pretrain_json = pretrain_json
         self.fold = fold
         if is_running_in_valohai():
@@ -145,7 +143,7 @@ class AbstractBaseTrainer(ABC):
         self.current_epoch = 0
 
         ### Dealing with labels/regions
-        self.num_input_channels = len(dataset_json["channel_names"])  # -> self.initialize()
+        self.num_input_channels = 1  # -> self.initialize()
         self.num_output_channels = 1  # Assign later depending on the ssl training scheme.
         self.network = None  # -> self._get_network()
         self.optimizer = self.lr_scheduler = None  # -> self.initialize
@@ -485,7 +483,6 @@ class AbstractBaseTrainer(ABC):
 
         # copy plans and dataset.json so that they can be used for restoring everything we need for inference
         save_json(asdict(self.plan), join(self.output_folder_base, "plans.json"), sort_keys=False)
-        save_json(self.dataset_json, join(self.output_folder_base, "dataset.json"), sort_keys=False)
 
         # we don't really need the fingerprint but its still handy to have it with the others
         shutil.copy(

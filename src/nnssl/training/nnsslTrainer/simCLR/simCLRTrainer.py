@@ -58,7 +58,6 @@ class SimCLRTrainer(AbstractBaseTrainer):
         plan: Plan,
         configuration_name: str,
         fold: int,
-        dataset_json: dict,
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
@@ -66,7 +65,7 @@ class SimCLRTrainer(AbstractBaseTrainer):
         plan.configurations[configuration_name].patch_size = (192, 192, 64)
         plan.configurations[configuration_name].batch_size = 32  # TODO: test larger bs
 
-        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, device)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.batch_size = plan.configurations[configuration_name].batch_size
         self.num_crops_per_image = 2
         self.crop_size = (64, 64, 64)

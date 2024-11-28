@@ -37,7 +37,6 @@ class VolumeFusionTrainer(AbstractBaseTrainer):
         plan: Plan,
         configuration_name: str,
         fold: int,
-        dataset_json: dict,
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
@@ -73,7 +72,7 @@ class VolumeFusionTrainer(AbstractBaseTrainer):
         # hyperparameters from the nnUNet paper. This allows us to compare the methods
         # on a more equal footing. The hyperparameters from the paper are commented above.
 
-        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, device)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
         """
         Mis-FM predicts a (local) mixing factor between two images.
         This mixing factor is composed of boxes, with different factors 0/0.25/0.5/0.75/1.0
