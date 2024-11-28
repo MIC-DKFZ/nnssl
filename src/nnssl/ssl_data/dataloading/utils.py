@@ -9,7 +9,7 @@ import numpy as np
 from batchgenerators.utilities.file_and_folder_operations import isfile, subfiles, load_json
 from nnssl.configuration import default_num_processes
 
-from nnssl.data.raw_dataset import Dataset
+from nnssl.data.raw_dataset import Collection, Dataset
 
 
 def find_broken_image_and_labels(
@@ -109,8 +109,11 @@ def get_subject_identifiers(folder: str, suffix: str = "npz") -> List[str]:
     """
     pretrain_json = Path(folder).parent / "pretrain_data.json"
     assert pretrain_json.is_file(), f"pretrain_data.json not found in {folder}"
-    pretrain_json = Dataset.from_dict(load_json(pretrain_json))
-    all_subjects = list(pretrain_json.subjects.keys())
+    pretrain_json = Collection.from_dict(load_json(pretrain_json))
+    all_subjects = []
+    for ds in pretrain_json.datasets.values():
+        assert isinstance(ds, Dataset)
+        all_subjects.extend(list(ds.subjects.keys()))
 
     return all_subjects
 
