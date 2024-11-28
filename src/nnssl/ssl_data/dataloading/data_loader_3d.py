@@ -80,7 +80,7 @@ class nnsslCenterCropDataLoader3D(nnsslDataLoaderBase):
                 continue
             selected_keys.append(selected_key)
 
-            data, anon, anat, properties = self._data.load_case(selected_key)
+            data, anon, anat, properties = self._data[selected_key]
             if anon is None:
                 anon = np.zeros(data.shape, dtype=np.uint8)
             if anat is None:

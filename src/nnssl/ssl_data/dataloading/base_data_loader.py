@@ -42,7 +42,7 @@ class nnsslDataLoaderBase(DataLoader, ABC):
 
     def determine_shapes(self):
         # load one case
-        data, _, _, _ = self._data.load_case(self.indices[0])
+        data, _, _, _ = self._data[self.indices[0]]
         num_color_channels = data.shape[0]
         data_shape = (self.batch_size, num_color_channels, *self.patch_size)
         return data_shape

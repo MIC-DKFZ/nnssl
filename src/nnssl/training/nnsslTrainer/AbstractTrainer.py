@@ -25,7 +25,7 @@ from batchgenerators.utilities.file_and_folder_operations import join, isfile, s
 from torch._dynamo import OptimizedModule
 
 
-from nnssl.data.raw_dataset import Dataset
+from nnssl.data.raw_dataset import Collection, Dataset
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.paths import nnssl_preprocessed, nnssl_results
 from nnssl.ssl_data.configure_basic_dummyDA import configure_rotation_dummyDA_mirroring_and_inital_patch_size
@@ -359,9 +359,9 @@ class AbstractBaseTrainer(ABC):
 
         # load the datasets for training and validation. Note that we always draw random samples so we really don't
         # care about distributing training cases across GPUs.
-        dataset = Dataset.from_dict(self.pretrain_json)
-        dataset_tr = nnSSLDatasetBlosc2(self.preprocessed_dataset_folder, dataset, tr_subjects)
-        dataset_val = nnSSLDatasetBlosc2(self.preprocessed_dataset_folder, dataset, val_subjects)
+        collection = Collection.from_dict(self.pretrain_json)
+        dataset_tr = nnSSLDatasetBlosc2(self.preprocessed_dataset_folder, collection, tr_subjects)
+        dataset_val = nnSSLDatasetBlosc2(self.preprocessed_dataset_folder, collection, val_subjects)
         return dataset_tr, dataset_val
 
     def get_dataloaders(self):
@@ -484,11 +484,6 @@ class AbstractBaseTrainer(ABC):
         # copy plans and dataset.json so that they can be used for restoring everything we need for inference
         save_json(asdict(self.plan), join(self.output_folder_base, "plans.json"), sort_keys=False)
 
-        # we don't really need the fingerprint but its still handy to have it with the others
-        shutil.copy(
-            join(self.preprocessed_dataset_folder_base, "dataset_fingerprint.json"),
-            join(self.output_folder_base, "dataset_fingerprint.json"),
-        )
         self._save_debug_information()
 
     def on_train_end(self):
