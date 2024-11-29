@@ -1,7 +1,7 @@
 from dataclasses import dataclass, asdict, field
 import os
 from typing import Literal, Sequence
-
+from nnssl.paths import nnssl_preprocessed
 
 associated_masks = Literal["anonymization_mask", "anatomy_mask"]
 
@@ -78,7 +78,10 @@ class IndependentImage:
             dataset_name (str): The name of the dataset. `Dataset800_Rocketv0`
             data_identifier (str): The data identifier. e.g. `nnsslPlans_3d_fullres`
         """
-        return f"{os.environ['nnssl_preprocessed']}/{dataset_name}/{data_identifier}/{self.get_output_path()}"
+        img_path = f"{nnssl_preprocessed}/{dataset_name}/{data_identifier}/{self.get_output_path()}"
+        anon_mask_path = f"{nnssl_preprocessed}/{dataset_name}/{data_identifier}/{self.get_output_path()}__anon"
+        anat_mask_path = f"{nnssl_preprocessed}/{dataset_name}/{data_identifier}/{self.get_output_path()}__anat"
+        return img_path, anon_mask_path, anat_mask_path
 
 
 @dataclass
@@ -164,6 +167,20 @@ class Dataset:
                             if v is None:
                                 continue
                             setattr(img.associated_masks, k, self._absolute_to_relative_path(v))
+
+    def resolve_paths(self):
+        for _, subject in self.subjects.items():
+            for _, sess in subject.sessions.items():
+                for img in sess.images:
+                    img.image_path = resolve_relative_paths(img.image_path)
+                    if img.associated_masks is not None:
+                        assoc_mask = AssociatedMasks()
+                        if img.associated_masks.anatomy_mask is not None:
+                            assoc_mask.anatomy_mask = resolve_relative_paths(img.associated_masks["anatomy_mask"])
+                        if img.associated_masks.anonymization_mask is not None:
+                            assoc_mask.anonymization_mask = resolve_relative_paths(
+                                img.associated_masks["anonymization_mask"]
+                            )
 
     @staticmethod
     def from_dict(data: dict) -> "Dataset":
@@ -304,3 +321,23 @@ class Collection:
     def update_extension(self, new_extension: str) -> None:
         for dataset in self.datasets.values():
             dataset.update_extension(new_extension)
+
+    def raw_to_pp_path(self) -> None:
+        independent_imgs = self.to_independent_images()
+        pp_path = [img.get_absolute_pp_path(self.collection_name, "nnsslPlans_3d_fullres") for img in independent_imgs]
+        for img, pp_path in zip(independent_imgs, pp_path):
+            subj_id = img.subject_id
+            sess_id = img.session_id
+            dataset_index = img.dataset_index
+            session_imgs = self.datasets[dataset_index].subjects[subj_id].sessions[sess_id]
+            session_imgs: list[Image]
+            img = [i for i in session_imgs if i.name == img.image_name][0]
+            img.image_path = pp_path[0]
+            if img.associated_masks.anonymization_mask is not None:
+                img.associated_masks.anonymization_mask = pp_path[1]
+            if img.associated_masks.anatomy_mask is not None:
+                img.associated_masks.anatomy_mask = pp_path[2]
+
+    def resolve_relative_paths(self):
+        for dataset in self.datasets.values():
+            dataset.resolve_paths()
