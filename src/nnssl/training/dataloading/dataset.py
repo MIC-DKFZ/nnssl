@@ -33,7 +33,9 @@ class nnSSLBaseDataset(ABC):
 
         all_images: list[IndependentImage] = self.collection.to_independent_images()
 
-        self.image_dataset: dict[str, IndependentImage] = {im.get_unique_id(): im for im in all_images if im.subject_id in self.subject_identifiers}
+        self.image_dataset: dict[str, IndependentImage] = {
+            im.get_unique_id(): im for im in all_images if im.subject_id in self.subject_identifiers
+        }
         self.image_identifiers: list[str] = list(self.image_dataset.keys())
 
     def __getitem__(self, image_identifier):
@@ -72,23 +74,25 @@ class nnSSLDatasetBlosc2(nnSSLBaseDataset):
         dparams = {"nthreads": 1}
         img: IndependentImage
         img = image_dataset[image_identifier]
-        output_path = img.get_output_path()
-        data_b2nd_file = join(dataset_dir, output_path + ".b2nd")
+        output_img_path = img.get_output_path("image")
+        output_anat_mask_path = img.get_output_path("anat_mask")
+        output_anon_mask_path = img.get_output_path("anon_mask")
+        data_b2nd_file = join(dataset_dir, output_img_path + ".b2nd")
         data = blosc2.open(urlpath=data_b2nd_file, mode="r", dparams=dparams, mmap_mode="r")
 
-        anon_b2nd_file = join(dataset_dir, output_path + "__anon.b2nd")
+        anon_b2nd_file = join(dataset_dir, output_anon_mask_path + ".b2nd")
         if isfile(anon_b2nd_file):
             anon = blosc2.open(urlpath=anon_b2nd_file, mode="r", dparams=dparams, mmap_mode="r")
         else:
             anon = None
 
-        anat_b2nd_file = join(dataset_dir, output_path + "__anat.b2nd")
+        anat_b2nd_file = join(dataset_dir, output_anat_mask_path + ".b2nd")
         if isfile(anat_b2nd_file):
             anat = blosc2.open(urlpath=anat_b2nd_file, mode="r", dparams=dparams, mmap_mode="r")
         else:
             anat = None
 
-        properties = load_pickle(join(dataset_dir, output_path + ".pkl"))
+        properties = load_pickle(join(dataset_dir, output_img_path + ".pkl"))
         return data, anon, anat, properties
 
     @staticmethod
@@ -98,6 +102,8 @@ class nnSSLDatasetBlosc2(nnSSLBaseDataset):
         anat_mask: np.ndarray | None,
         properties: dict,
         output_filename_truncated: str,
+        anon_mask_filename_truncated: str,
+        anat_mask_filename_truncated: str,
         chunks=None,
         blocks=None,
         chunks_seg=None,
@@ -129,7 +135,7 @@ class nnSSLDatasetBlosc2(nnSSLBaseDataset):
         if anon_mask is not None:
             blosc2.asarray(
                 np.ascontiguousarray(anon_mask),
-                urlpath=output_filename_truncated + "__anon.b2nd",
+                urlpath=anon_mask_filename_truncated + ".b2nd",
                 chunks=chunks_seg,
                 blocks=blocks_seg,
                 cparams=cparams,
@@ -139,7 +145,7 @@ class nnSSLDatasetBlosc2(nnSSLBaseDataset):
         if anat_mask is not None:
             blosc2.asarray(
                 np.ascontiguousarray(anat_mask),
-                urlpath=output_filename_truncated + "__anat.b2nd",
+                urlpath=anat_mask_filename_truncated + ".b2nd",
                 chunks=chunks_seg,
                 blocks=blocks_seg,
                 cparams=cparams,
