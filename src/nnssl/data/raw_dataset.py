@@ -35,6 +35,9 @@ class AssociatedMasks:
     anatomy_mask: str = None
 
 
+image_literal = Literal["image", "anon_mask", "anat_mask"]
+
+
 @dataclass
 class IndependentImage:
     collection_index: int | str
@@ -53,7 +56,8 @@ class IndependentImage:
     session_info: dict = None
     image_info: dict = None
 
-    def get_output_path(self) -> str:
+    def get_output_path(self, img_type: image_literal) -> str:
+
         if self.image_name.endswith(".nii"):
             image_name_wo_extension = self.image_name.replace(".nii", "")
         elif self.image_name.endswith(".nii.gz"):
@@ -63,7 +67,16 @@ class IndependentImage:
         else:
             image_name_wo_extension = self.image_name
             # raise NotImplementedError("Only nii, nii.gz and nrrd files are supported.")
-        return f"{self.collection_name}/{self.dataset_index}/{self.subject_id}/{self.session_id}/{image_name_wo_extension}"
+        if img_type == "image":
+            suffix = ""
+        elif img_type == "anon_mask":
+            suffix = "__anon"
+        elif img_type == "anat_mask":
+            suffix = "__anat"
+        else:
+            raise ValueError("Invalid image type. Must be one of 'image', 'anon_mask', 'anat_mask'.")
+
+        return f"{self.collection_name}/{self.dataset_index}/{self.subject_id}/{self.session_id}/{image_name_wo_extension}{suffix}"
 
     def get_unique_id(self) -> str:
         return (
@@ -78,9 +91,9 @@ class IndependentImage:
             dataset_name (str): The name of the dataset. `Dataset800_Rocketv0`
             data_identifier (str): The data identifier. e.g. `nnsslPlans_3d_fullres`
         """
-        img_path = f"{nnssl_preprocessed}/{dataset_name}/{data_identifier}/{self.get_output_path()}"
-        anon_mask_path = f"{nnssl_preprocessed}/{dataset_name}/{data_identifier}/{self.get_output_path()}__anon"
-        anat_mask_path = f"{nnssl_preprocessed}/{dataset_name}/{data_identifier}/{self.get_output_path()}__anat"
+        img_path = f"{nnssl_preprocessed}/{dataset_name}/{data_identifier}/{self.get_output_path("image")}"
+        anon_mask_path = f"{nnssl_preprocessed}/{dataset_name}/{data_identifier}/{self.get_output_path("anon_mask")}"
+        anat_mask_path = f"{nnssl_preprocessed}/{dataset_name}/{data_identifier}/{self.get_output_path("anat_mask")}"
         return img_path, anon_mask_path, anat_mask_path
 
 
@@ -152,7 +165,7 @@ class Dataset:
 
     def _absolute_to_relative_path(self, path) -> str:
         # Relevant paths are nnssl_raw, nnssl_pp, E132Rohdaten, E132Projekte
-        for env_path in ["nnssl_raw", "nnssl_preprocessed", "E132Rohdaten", "E132Projekte"]:
+        for env_path in ["nnssl_raw", "nnssl_preprocessed", "E132Rohdaten", "E132Projekte", "rocket_preprocessed"]:
             if path.startswith(os.environ[env_path]):
                 return path.replace(os.environ[env_path], f"${env_path}")
         return path
@@ -324,19 +337,24 @@ class Collection:
 
     def raw_to_pp_path(self) -> None:
         independent_imgs = self.to_independent_images()
-        pp_path = [img.get_absolute_pp_path(self.collection_name, "nnsslPlans_3d_fullres") for img in independent_imgs]
+        pp_path = [
+            img.get_absolute_pp_path(self.collection_name, "nnsslPlans_3d_fullres") for img in independent_imgs
+        ]
         for img, pp_path in zip(independent_imgs, pp_path):
             subj_id = img.subject_id
             sess_id = img.session_id
             dataset_index = img.dataset_index
-            session_imgs = self.datasets[dataset_index].subjects[subj_id].sessions[sess_id]
-            session_imgs: list[Image]
-            img = [i for i in session_imgs if i.name == img.image_name][0]
+            session_imgs = self.datasets[str(dataset_index)].subjects[subj_id].sessions[sess_id]
+            session_imgs: Session
+            imgs = [i for i in session_imgs.images if i.name == img.image_name]
+            assert len(imgs) == 1, f"Found more than one image with the name {imgs[0].image_name}"
+            img = imgs[0]
             img.image_path = pp_path[0]
-            if img.associated_masks.anonymization_mask is not None:
-                img.associated_masks.anonymization_mask = pp_path[1]
-            if img.associated_masks.anatomy_mask is not None:
-                img.associated_masks.anatomy_mask = pp_path[2]
+            if img.associated_masks is not None:
+                if img.associated_masks.anonymization_mask is not None:
+                    img.associated_masks.anonymization_mask = pp_path[1]
+                if img.associated_masks.anatomy_mask is not None:
+                    img.associated_masks.anatomy_mask = pp_path[2]
 
     def resolve_relative_paths(self):
         for dataset in self.datasets.values():

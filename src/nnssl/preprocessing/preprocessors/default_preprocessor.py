@@ -138,8 +138,10 @@ def preprocess_and_save(
     verbose: bool = True,
 ):
     """Reads the images and their properties, preprocesses them and saves them to disk. (in a compressed npz)"""
-    output_filename = Path(join(output_directory, image.get_output_path()))
-    output_filename.parent.mkdir(parents=True, exist_ok=True)
+    output_image_filename = Path(join(output_directory, image.get_output_path("image")))
+    output_anon_filename = Path(join(output_directory, image.get_output_path("anon_mask")))
+    output_anat_filename = Path(join(output_directory, image.get_output_path("anat_mask")))
+    output_image_filename.parent.mkdir(parents=True, exist_ok=True)
     try:
         rw = plan.image_reader_writer_class()()
         image_path = image.image_path
@@ -174,7 +176,9 @@ def preprocess_and_save(
             anon_mask,
             anat_mask,
             data_properties,
-            str(output_filename),
+            str(output_image_filename),
+            str(output_anon_filename),
+            str(output_anat_filename),
             chunks=chunk_size_data,
             blocks=block_size_data,
             chunks_seg=chunk_size_seg,
@@ -224,8 +228,11 @@ def default_preprocess(
     collection: Collection = get_train_collection(join(nnssl_raw, dataset_name))
     # identifiers = [os.path.basename(i[:-len(dataset_json['file_ending'])]) for i in seg_fnames]
     # output_filenames_truncated = [join(output_directory, i) for i in identifiers]
+    # Make a copy for after preprocessing
     pp_collection = deepcopy(collection)
     pp_collection.update_extension(new_extension=".b2nd")
+    # pp_collection.resolve_relative_paths()
+    pp_collection.raw_to_pp_path()
     save_json(
         pp_collection.to_dict(relative_paths=True), join(nnssl_preprocessed, dataset_name, "pretrain_data.json")
     )
