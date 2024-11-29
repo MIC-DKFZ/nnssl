@@ -56,7 +56,7 @@ def create_collection_json():
     )
     dataset: Dataset
     dataset = Dataset(dataset_index=743, name="ABCD_NIH", dataset_info=None)
-    collection.datasets["abcd"] = dataset
+    collection.datasets[743] = dataset
 
     for nifti_path in tqdm(all_nifti_paths, desc="Inserting files into collection."):
         parents = str(nifti_path).split("/")
