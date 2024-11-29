@@ -33,7 +33,7 @@ class nnSSLBaseDataset(ABC):
 
         all_images: list[IndependentImage] = self.collection.to_independent_images()
 
-        self.image_dataset: dict[str, IndependentImage] = {im.get_unique_id(): im for im in all_images}
+        self.image_dataset: dict[str, IndependentImage] = {im.get_unique_id(): im for im in all_images if im.subject_id in self.subject_identifiers}
         self.image_identifiers: list[str] = list(self.image_dataset.keys())
 
     def __getitem__(self, image_identifier):
