@@ -20,6 +20,7 @@ import shutil
 from typing import Union
 
 import blosc2
+from loguru import logger
 
 import nnssl
 import numpy as np
@@ -146,6 +147,12 @@ def preprocess_and_save(
         rw = plan.image_reader_writer_class()()
         image_path = image.image_path
         data, data_properties = rw.read_images([image_path])
+        # Verify data is not None -- If it is, we discard the image.
+        if np.any(np.isnan(data)):
+            raise RuntimeError("Found NaNs in the image")
+        if np.any(np.isinf(data)):
+            raise RuntimeError("Found infs in the image")
+
         if image.associated_masks is not None:
             masks = [rw.read_seg(v)[0] for v in asdict(image.associated_masks).values() if v is not None]
         else:
@@ -262,13 +269,29 @@ def default_preprocess(
         r = [preprocess_and_save_partial(image=img) for img in all_independent_images]
 
     wrongly_processed_imgs = [img for img, r in zip(all_independent_images, r) if not r]
-    if len(wrongly_processed_imgs) > 0:
-        print(f"Error processing the following images: {wrongly_processed_imgs}")
-        if total_parts > 1:
-            out_filename = join(nnssl_preprocessed, dataset_name, f"failed_imgs__part_{part}.json")
-        else:
-            out_filename = join(nnssl_preprocessed, dataset_name, "failed_imgs.json")
-        save_json([img.to_dict() for img in wrongly_processed_imgs], out_filename)
+
+    if total_parts > 1:
+        out_filename = join(nnssl_preprocessed, dataset_name, f"problematic_imgs__{part}_of_{total_parts}.json")
+    else:
+        out_filename = join(nnssl_preprocessed, dataset_name, "problematic_imgs.json")
+    save_json([img.to_dict() for img in wrongly_processed_imgs], out_filename)
+
+    # ------------------------- Merge problematic images ------------------------- #
+    if total_parts > 1:
+        all_problematic_files = []
+        content = os.listdir(join(nnssl_preprocessed, dataset_name))
+        for c in content:
+            if c.startswith("problematic_imgs__") and f"_of_{total_parts}" in c:
+                all_problematic_files.append(c)
+        if len(all_problematic_files) == total_parts:
+            logger.info("All images have been processed. Merging the results.")
+            # all parts have been processed
+            problematic_images = []
+            for f in all_problematic_files:
+                problematic_images += load_json(join(nnssl_preprocessed, dataset_name, f))
+            save_json(problematic_images, join(nnssl_preprocessed, dataset_name, "problematic_imgs.json"))
+            for f in all_problematic_files:
+                os.remove(join(nnssl_preprocessed, dataset_name, f))
 
     return
 
