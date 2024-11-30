@@ -1,6 +1,8 @@
 from dataclasses import dataclass, asdict, field
 import os
 from typing import Literal, Sequence
+
+from tqdm import tqdm
 from nnssl.paths import nnssl_preprocessed
 
 associated_masks = Literal["anonymization_mask", "anatomy_mask"]
@@ -56,7 +58,7 @@ class IndependentImage:
     session_info: dict = None
     image_info: dict = None
 
-    def get_output_path(self, img_type: image_literal) -> str:
+    def get_output_path(self, img_type: image_literal, ext: str | None = None) -> str:
 
         if self.image_name.endswith(".nii"):
             image_name_wo_extension = self.image_name.replace(".nii", "")
@@ -68,13 +70,16 @@ class IndependentImage:
             image_name_wo_extension = self.image_name
             # raise NotImplementedError("Only nii, nii.gz and nrrd files are supported.")
         if img_type == "image":
-            suffix = ""
+            suffix = f""
         elif img_type == "anon_mask":
-            suffix = "__anon"
+            suffix = f"__anon"
         elif img_type == "anat_mask":
-            suffix = "__anat"
+            suffix = f"__anat"
         else:
             raise ValueError("Invalid image type. Must be one of 'image', 'anon_mask', 'anat_mask'.")
+
+        if ext is not None:
+            suffix += ext
 
         return f"{self.collection_name}/{self.dataset_index}/{self.subject_id}/{self.session_id}/{image_name_wo_extension}{suffix}"
 
@@ -83,7 +88,7 @@ class IndependentImage:
             f"{self.collection_name}__{self.dataset_index}__{self.subject_id}__{self.session_id}__{self.image_name}"
         )
 
-    def get_absolute_pp_path(self, dataset_name: str, data_identifier: str) -> str:
+    def get_absolute_pp_path(self, dataset_name: str, data_identifier: str, ext: str) -> str:
         """
         Allows to get the absolute path where the preprocessed images will be located.
 
@@ -91,9 +96,13 @@ class IndependentImage:
             dataset_name (str): The name of the dataset. `Dataset800_Rocketv0`
             data_identifier (str): The data identifier. e.g. `nnsslPlans_3d_fullres`
         """
-        img_path = f"{nnssl_preprocessed}/{dataset_name}/{data_identifier}/{self.get_output_path("image")}"
-        anon_mask_path = f"{nnssl_preprocessed}/{dataset_name}/{data_identifier}/{self.get_output_path("anon_mask")}"
-        anat_mask_path = f"{nnssl_preprocessed}/{dataset_name}/{data_identifier}/{self.get_output_path("anat_mask")}"
+        img_path = f"{nnssl_preprocessed}/{dataset_name}/{data_identifier}/{self.get_output_path("image", ext)}"
+        anon_mask_path = (
+            f"{nnssl_preprocessed}/{dataset_name}/{data_identifier}/{self.get_output_path("anon_mask", ext)}"
+        )
+        anat_mask_path = (
+            f"{nnssl_preprocessed}/{dataset_name}/{data_identifier}/{self.get_output_path("anat_mask", ext)}"
+        )
         return img_path, anon_mask_path, anat_mask_path
 
     def to_dict(self):
@@ -247,6 +256,33 @@ class Collection:
             collection.datasets[k] = Dataset.from_dict(v)
         return collection
 
+    def verify_files_exist(self):
+        self.resolve_relative_paths()
+        all_imgs = self.get_all_images()
+        not_found_imgs = []
+        not_found_anon_masks = []
+        not_found_anat_masks = []
+        for img in tqdm(all_imgs):
+            if not os.path.exists(img.image_path + ".b2nd"):
+                not_found_imgs.append(img)
+            if img.associated_masks is not None:
+                if img.associated_masks.anonymization_mask is not None:
+                    if not os.path.exists(img.associated_masks.anonymization_mask):
+                        not_found_anon_masks.append(img.associated_masks.anonymization_mask)
+                if img.associated_masks.anatomy_mask is not None:
+                    if not os.path.exists(img.associated_masks.anatomy_mask):
+                        not_found_anat_masks.append(img.associated_masks.anatomy_mask)
+        if len(not_found_imgs) > 0:
+            print("The following images were not found:")
+            print(img)
+        if len(not_found_anon_masks) > 0:
+            print("The following anonymization masks were not found:")
+            print(not_found_anon_masks)
+        if len(not_found_anat_masks) > 0:
+            print("The following anatomy masks were not found:")
+            print(not_found_anat_masks)
+        return not_found_imgs, not_found_anon_masks, not_found_anat_masks
+
     def get_all_images(self) -> list[Image]:
         images = []
         for dataset in self.datasets.values():
@@ -338,10 +374,10 @@ class Collection:
         for dataset in self.datasets.values():
             dataset.update_extension(new_extension)
 
-    def raw_to_pp_path(self) -> None:
+    def raw_to_pp_path(self, ext: str) -> None:
         independent_imgs = self.to_independent_images()
         pp_path = [
-            img.get_absolute_pp_path(self.collection_name, "nnsslPlans_3d_fullres") for img in independent_imgs
+            img.get_absolute_pp_path(self.collection_name, "nnsslPlans_3d_fullres", ext) for img in independent_imgs
         ]
         for img, pp_path in zip(independent_imgs, pp_path):
             subj_id = img.subject_id
