@@ -74,25 +74,26 @@ class nnSSLDatasetBlosc2(nnSSLBaseDataset):
         dparams = {"nthreads": 1}
         img: IndependentImage
         img = image_dataset[image_identifier]
-        output_img_path = img.get_output_path("image")
-        output_anat_mask_path = img.get_output_path("anat_mask")
-        output_anon_mask_path = img.get_output_path("anon_mask")
-        data_b2nd_file = join(dataset_dir, output_img_path + ".b2nd")
+        output_img_path = img.get_output_path("image", ext=".b2nd")
+        output_img_pkl_path = img.get_output_path("image", ext=".pkl")
+        output_anat_mask_path = img.get_output_path("anat_mask", ext=".b2nd")
+        output_anon_mask_path = img.get_output_path("anon_mask", ext=".b2nd")
+        data_b2nd_file = join(dataset_dir, output_img_path)
         data = blosc2.open(urlpath=data_b2nd_file, mode="r", dparams=dparams, mmap_mode="r")
 
-        anon_b2nd_file = join(dataset_dir, output_anon_mask_path + ".b2nd")
+        anon_b2nd_file = join(dataset_dir, output_anon_mask_path)
         if isfile(anon_b2nd_file):
             anon = blosc2.open(urlpath=anon_b2nd_file, mode="r", dparams=dparams, mmap_mode="r")
         else:
             anon = None
 
-        anat_b2nd_file = join(dataset_dir, output_anat_mask_path + ".b2nd")
+        anat_b2nd_file = join(dataset_dir, output_anat_mask_path)
         if isfile(anat_b2nd_file):
             anat = blosc2.open(urlpath=anat_b2nd_file, mode="r", dparams=dparams, mmap_mode="r")
         else:
             anat = None
 
-        properties = load_pickle(join(dataset_dir, output_img_path + ".pkl"))
+        properties = load_pickle(join(dataset_dir, output_img_pkl_path))
         return data, anon, anat, properties
 
     @staticmethod
