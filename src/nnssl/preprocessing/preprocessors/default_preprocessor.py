@@ -233,7 +233,7 @@ def default_preprocess(
     pp_collection = deepcopy(collection)
     pp_collection.update_extension(new_extension=".b2nd")
     # pp_collection.resolve_relative_paths()
-    pp_collection.raw_to_pp_path()
+    pp_collection.raw_to_pp_path()  # This method removes extensions unless specified.
     save_json(
         pp_collection.to_dict(relative_paths=True), join(nnssl_preprocessed, dataset_name, "pretrain_data.json")
     )
@@ -250,7 +250,10 @@ def default_preprocess(
     if total_parts > 1:
         total_images = len(all_independent_images)
         images_per_part = total_images // total_parts
-        all_independent_images = all_independent_images[part * images_per_part : (part + 1) * images_per_part]
+        if part == total_parts - 1:
+            all_independent_images = all_independent_images[part * images_per_part :]
+        else:
+            all_independent_images = all_independent_images[part * images_per_part : (part + 1) * images_per_part]
 
     if num_processes > 1:
         with multiprocessing.get_context("spawn").Pool(num_processes) as p:
