@@ -15,7 +15,7 @@ class nnsslDataLoader3D(nnsslDataLoaderBase):
             # oversampling foreground will improve stability of model training, especially if many patches are empty
             # (Lung for example)
 
-            data, anon, anat, properties = self._data.load_case(i)
+            data, anon, anat, properties = self._data[i]
             if anon is None:
                 anon = np.zeros(data.shape, dtype=np.uint8)
             if anat is None:
