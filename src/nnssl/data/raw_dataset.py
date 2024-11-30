@@ -96,6 +96,9 @@ class IndependentImage:
         anat_mask_path = f"{nnssl_preprocessed}/{dataset_name}/{data_identifier}/{self.get_output_path("anat_mask")}"
         return img_path, anon_mask_path, anat_mask_path
 
+    def to_dict(self):
+        return recursive_dataclass_to_dict(self)
+
 
 @dataclass
 class Image:
