@@ -187,6 +187,7 @@ def preprocess_and_save(
     except Exception as e:
         print(f"Error processing {image_path}: {str(e)}")
         return False
+    return True
 
 
 def default_preprocess(
@@ -256,6 +257,15 @@ def default_preprocess(
             r = p.map(preprocess_and_save_partial, all_independent_images)
     else:
         r = [preprocess_and_save_partial(image=img) for img in all_independent_images]
+
+    wrongly_processed_imgs = [img for img, r in zip(all_independent_images, r) if not r]
+    if len(wrongly_processed_imgs) > 0:
+        print(f"Error processing the following images: {wrongly_processed_imgs}")
+        if total_parts > 1:
+            out_filename = join(nnssl_preprocessed, dataset_name, f"failed_imgs__part_{part}.json")
+        else:
+            out_filename = join(nnssl_preprocessed, dataset_name, "failed_imgs.json")
+        save_json([img.to_dict() for img in wrongly_processed_imgs], out_filename)
 
     return
 
