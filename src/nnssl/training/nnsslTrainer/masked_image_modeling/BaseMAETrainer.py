@@ -63,8 +63,10 @@ class BaseMAETrainer(AbstractBaseTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
+        plan.configurations[configuration_name].batch_size = 1
         super().__init__(plan, configuration_name, fold, pretrain_json,  device)
         self.mask_percentage: float = 0.75
+
         self.im_output_folder = os.path.join(self.output_folder, "img_log")
         os.makedirs(self.im_output_folder, exist_ok=True)
         self.save_imgs_every_n_epochs = 50
@@ -340,8 +342,8 @@ class BaseMAETrainer(AbstractBaseTrainer):
     def run_training(self):
         try:
             self.on_train_start()
-            if self.local_rank == 0:
-                self.log_qualitative_reconstruction_step()  # Do a quick test everything works.
+            # if self.local_rank == 0:
+            #     self.log_qualitative_reconstruction_step()  # Do a quick test everything works.
             for epoch in range(self.current_epoch, self.num_epochs):
                 self.on_epoch_start()
 
