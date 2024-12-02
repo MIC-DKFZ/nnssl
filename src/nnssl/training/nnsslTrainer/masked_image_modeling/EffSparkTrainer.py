@@ -15,11 +15,10 @@ class EffSparkMAETrainer(SparkMAETrainer):
         plan: Plan,
         configuration_name: str,
         fold: int,
-        dataset_json: dict,
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, device)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.network: EfficientSpark3D = ...
 
     def build_architecture(self, *args, **kwargs) -> nn.Module:
@@ -56,12 +55,11 @@ class EffSparkMAETrainer_BS6_1000ep(EffSparkMAETrainer):
         plan: Plan,
         configuration_name: str,
         fold: int,
-        dataset_json: dict,
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].batch_size = 6
-        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, device)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.num_epochs = 1000
 
 
@@ -72,11 +70,10 @@ class EffSparkMAETrainer_5ep(EffSparkMAETrainer):
         plan: Plan,
         configuration_name: str,
         fold: int,
-        dataset_json: dict,
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, device)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.num_epochs = 5
 
 
@@ -87,12 +84,11 @@ class EffSparkMAETrainer_5ep_BS6(EffSparkMAETrainer_5ep):
         plan: Plan,
         configuration_name: str,
         fold: int,
-        dataset_json: dict,
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].batch_size = 6
-        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, device)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
 
 
 class EffSparkMAETrainer_BS8_5ep(EffSparkMAETrainer):
@@ -102,12 +98,11 @@ class EffSparkMAETrainer_BS8_5ep(EffSparkMAETrainer):
         plan: Plan,
         configuration_name: str,
         fold: int,
-        dataset_json: dict,
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].batch_size = 8
-        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, device)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.num_epochs = 5
 
 
@@ -118,12 +113,11 @@ class EffSparkMAETrainer_BS7(EffSparkMAETrainer):
         plan: Plan,
         configuration_name: str,
         fold: int,
-        dataset_json: dict,
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].batch_size = 7
-        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, device)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
 
 
 class EffSparkMAETrainer_BS7_LR_5e2(EffSparkMAETrainer_BS7):
@@ -133,11 +127,10 @@ class EffSparkMAETrainer_BS7_LR_5e2(EffSparkMAETrainer_BS7):
         plan: Plan,
         configuration_name: str,
         fold: int,
-        dataset_json: dict,
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, device)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.initial_lr = 5e-2
 
 
@@ -148,11 +141,10 @@ class EffSparkMAETrainer_BS7_LR_3e2(EffSparkMAETrainer_BS7):
         plan: Plan,
         configuration_name: str,
         fold: int,
-        dataset_json: dict,
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, device)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.initial_lr = 3e-2
 
 
@@ -163,12 +155,11 @@ class EffSparkMAETrainer_BS28_LR_3e2(EffSparkMAETrainer):
         plan: Plan,
         configuration_name: str,
         fold: int,
-        dataset_json: dict,
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].batch_size = 28
-        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, device)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.initial_lr = 3e-2
 
 
@@ -179,12 +170,11 @@ class EffSparkMAETrainer_BS6_LR_5e2(EffSparkMAETrainer):
         plan: Plan,
         configuration_name: str,
         fold: int,
-        dataset_json: dict,
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].batch_size = 6
-        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, device)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.initial_lr = 5e-2
 
 
@@ -195,11 +185,10 @@ class EffSparkMAETrainer_BS7_LR_3e2_Mask40(EffSparkMAETrainer_BS7_LR_3e2):
         plan: Plan,
         configuration_name: str,
         fold: int,
-        dataset_json: dict,
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, device)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.mask_percentage = 0.4
 
 
@@ -210,11 +199,10 @@ class EffSparkMAETrainer_BS7_LR_3e2_Mask60(EffSparkMAETrainer_BS7_LR_3e2):
         plan: Plan,
         configuration_name: str,
         fold: int,
-        dataset_json: dict,
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, device)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.mask_percentage = 0.6
 
 
@@ -225,12 +213,11 @@ class EffSparkMAETrainer_BS6_LR_3e2_Mask30(EffSparkMAETrainer):
         plan: Plan,
         configuration_name: str,
         fold: int,
-        dataset_json: dict,
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].batch_size = 6
-        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, device)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.initial_lr = 3e-2
         self.mask_percentage = 0.30
 
@@ -242,11 +229,10 @@ class EffSparkMAETrainer_BS6_LR_3e2_Mask45(EffSparkMAETrainer_BS6_LR_3e2_Mask30)
         plan: Plan,
         configuration_name: str,
         fold: int,
-        dataset_json: dict,
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, device)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.mask_percentage = 0.45
 
 
@@ -257,11 +243,10 @@ class EffSparkMAETrainer_BS6_LR_3e2_Mask60(EffSparkMAETrainer_BS6_LR_3e2_Mask30)
         plan: Plan,
         configuration_name: str,
         fold: int,
-        dataset_json: dict,
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, device)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.mask_percentage = 0.6
 
 
@@ -272,11 +257,10 @@ class EffSparkMAETrainer_BS6_LR_3e2_Mask75(EffSparkMAETrainer_BS6_LR_3e2_Mask30)
         plan: Plan,
         configuration_name: str,
         fold: int,
-        dataset_json: dict,
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, device)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.mask_percentage = 0.75
 
 
@@ -287,9 +271,8 @@ class EffSparkMAETrainer_BS6_LR_3e2_Mask90(EffSparkMAETrainer_BS6_LR_3e2_Mask30)
         plan: Plan,
         configuration_name: str,
         fold: int,
-        dataset_json: dict,
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        super().__init__(plan, configuration_name, fold, dataset_json, pretrain_json, device)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.mask_percentage = 0.9
