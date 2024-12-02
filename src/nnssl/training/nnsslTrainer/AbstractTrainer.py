@@ -1,7 +1,9 @@
 from abc import ABC, abstractmethod
 from dataclasses import asdict
+from functools import partial
 import inspect
 import json
+from multiprocessing import Pool
 import os
 from random import sample
 import shutil
@@ -10,8 +12,10 @@ from copy import deepcopy
 from datetime import datetime
 from time import time, sleep
 from typing import Union, Tuple, List
+from loguru import logger
 from tqdm import tqdm
 from valohai.config import is_running_in_valohai
+from nnssl.configuration import default_num_processes
 
 import valohai
 
@@ -25,7 +29,7 @@ from batchgenerators.utilities.file_and_folder_operations import join, isfile, s
 from torch._dynamo import OptimizedModule
 
 
-from nnssl.data.raw_dataset import Collection, Dataset
+from nnssl.data.raw_dataset import Collection, Dataset, IndependentImage
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.paths import nnssl_preprocessed, nnssl_results
 from nnssl.ssl_data.configure_basic_dummyDA import configure_rotation_dummyDA_mirroring_and_inital_patch_size
@@ -45,6 +49,16 @@ from torch import distributed as dist
 from torch.cuda import device_count
 from torch.cuda.amp import GradScaler
 from torch.nn.parallel import DistributedDataParallel as DDP
+
+
+def verify_img(img_id, dataset_dir: str, image_dataset: dict[str, IndependentImage]):
+    try:
+        data, anon, anat, properties = nnSSLDatasetBlosc2.load_case(dataset_dir, image_dataset, img_id)
+    except Exception as e:
+        return "not_readable"
+    if np.isinf(data[:]).any() or np.isnan(data[:]).any():
+        return "inf_or_nan"
+    return "ok"
 
 
 class AbstractBaseTrainer(ABC):
@@ -362,6 +376,16 @@ class AbstractBaseTrainer(ABC):
         collection = Collection.from_dict(self.pretrain_json)
         dataset_tr = nnSSLDatasetBlosc2(self.preprocessed_dataset_folder, collection, tr_subjects)
         dataset_val = nnSSLDatasetBlosc2(self.preprocessed_dataset_folder, collection, val_subjects)
+
+        problematic_images = load_json(join(self.preprocessed_dataset_folder_base, "problematic_imgs.json"))
+        problematic_image_ids = [i["image_name"] for i in problematic_images]
+
+        tr_imgs_removed = self.remove_broken(problematic_image_ids, dataset_tr)
+        logger.info(f"Removed {tr_imgs_removed} broken images from train dataset.")
+        vl_imgs_removed = self.remove_broken(problematic_image_ids, dataset_val)
+        logger.info(f"Removed {vl_imgs_removed} broken images from val dataset.")
+
+        assert len(problematic_image_ids) == (tr_imgs_removed + vl_imgs_removed), "Some broken images were not removed."
         return dataset_tr, dataset_val
 
     def get_dataloaders(self):
@@ -480,6 +504,7 @@ class AbstractBaseTrainer(ABC):
         # dataloaders must be instantiated here because they need access to the training data which may not be present
         # when doing inference
         self.dataloader_train, self.dataloader_val = self.get_dataloaders()
+        # Guarantee to only use data that is readable and not inf or nan
 
         # copy plans and dataset.json so that they can be used for restoring everything we need for inference
         save_json(asdict(self.plan), join(self.output_folder_base, "plans.json"), sort_keys=False)
@@ -710,6 +735,20 @@ class AbstractBaseTrainer(ABC):
             dct["torch_version"] = torch_version
             dct["cudnn_version"] = cudnn_version
             save_json(dct, join(self.output_folder, "debug.json"))
+
+    @staticmethod
+    def remove_broken(broken_image_names: list[str], dataset: nnSSLDatasetBlosc2):
+
+        # --------------------------- Remove broken images --------------------------- #
+        pre_removal_len = len(dataset.image_identifiers)
+        dataset.image_dataset = {
+            k: v for k, v in dataset.image_dataset.items() if v.image_name not in broken_image_names
+        }
+        dataset.image_identifiers = list(dataset.image_dataset.keys())
+        post_removal_len = len(dataset.image_identifiers)
+        removed_images = pre_removal_len - post_removal_len
+
+        return removed_images
 
     def do_split(self):
         """
