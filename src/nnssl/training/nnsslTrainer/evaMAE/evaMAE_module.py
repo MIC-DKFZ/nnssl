@@ -95,6 +95,7 @@ class EvaMAE(nn.Module):
         """
         Restore the full sequence by filling blanks with mask tokens and reordering.
         """
+        
         B, num_kept, C = x.shape
         device = x.device
 
@@ -134,7 +135,7 @@ class EvaMAE(nn.Module):
         decoded = rearrange(decoded, 'b (h w d) c -> b c w h d', h=W, w=H, d=D)
         decoded = self.decoder_embed(decoded)
 
-        return decoded
+        return decoded, keep_indices
 
 if __name__ == "__main__":
     # Toy example for testing
@@ -154,6 +155,6 @@ if __name__ == "__main__":
     x = torch.rand((2, 3, *input_shape))  # Batch size 2
 
     # Forward pass
-    output = model(x)
+    output, keep_indices = model(x)
     print("Input shape:", x.shape)
     print("Output shape:", output.shape)
