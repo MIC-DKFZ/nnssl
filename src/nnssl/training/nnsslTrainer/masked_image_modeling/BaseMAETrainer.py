@@ -1,5 +1,6 @@
 import os
 from typing import List, Tuple, Union
+from warnings import deprecated
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from valohai.config import is_running_in_valohai
@@ -24,6 +25,7 @@ from nnssl.utilities.helpers import dummy_context
 import valohai
 from torch.nn.parallel import DistributedDataParallel as DDP
 from batchgenerators.utilities.file_and_folder_operations import join
+import SimpleITK as sitk
 
 from nnssl.utilities.default_n_proc_DA import get_allowed_n_proc_DA
 import numpy as np
@@ -64,7 +66,7 @@ class BaseMAETrainer(AbstractBaseTrainer):
         device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].batch_size = 1
-        super().__init__(plan, configuration_name, fold, pretrain_json,  device)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.mask_percentage: float = 0.75
 
         self.im_output_folder = os.path.join(self.output_folder, "img_log")
@@ -236,6 +238,7 @@ class BaseMAETrainer(AbstractBaseTrainer):
 
         return {"loss": l.detach().cpu().numpy()}
 
+    @deprecated
     def log_image_and_reco(self, img, reco, mask, loss, index) -> None:
         if self.local_rank == 0:
             filename = f"epoch_{self.current_epoch}_{index}.png"
@@ -253,6 +256,7 @@ class BaseMAETrainer(AbstractBaseTrainer):
             plt.savefig(os.path.join(self.im_output_folder, filename))
             plt.close()
 
+    @deprecated
     @staticmethod
     def rescale_images(
         img_arr: torch.Tensor, recon_arr: torch.Tensor, full_img_min: float, full_img_max: float
@@ -261,6 +265,15 @@ class BaseMAETrainer(AbstractBaseTrainer):
         rec_arr = (recon_arr - full_img_min) / (full_img_max - full_img_min)
         return img_arr, rec_arr
 
+    def log_img_volume(self, img: np.ndarray, meta_info: dict, filename: str):
+        """Logs a 3D numpy array given the meta info to output folder with filename for visual inspection"""
+        sitk_img: sitk.Image = sitk.GetImageFromArray(img)
+        sitk_img.SetSpacing(meta_info["spacing"])
+        sitk_img.SetOrigin(meta_info["origin"])
+        sitk_img.SetDirection(meta_info["direction"])
+        sitk.WriteImage(sitk_img, os.path.join(self.im_output_folder, filename))
+
+    @deprecated
     def log_img_slices(self, imgs, recos, masks, losses, batch_id: int):
         offset = batch_id
         for i in range(recos.shape[0]):
@@ -284,7 +297,9 @@ class BaseMAETrainer(AbstractBaseTrainer):
         """For each sample in the validation dataloader,"""
         with torch.no_grad():
             for batch_id in range(len(self.recon_dataloader)):
-                data = self.recon_dataloader[batch_id]["data"]
+                image = self.recon_dataloader[batch_id]
+                data = image["data"]
+                meta_info = image["properties"]
                 data = data.to(self.device, non_blocking=True)
 
                 mask = self.mask_creation(
@@ -310,7 +325,11 @@ class BaseMAETrainer(AbstractBaseTrainer):
                         self.loss(reconstruction[i : i + 1], data[i : i + 1], mask[i : i + 1])
                         for i in range(reconstruction.shape[0])
                     ]
-                    self.log_img_slices(data, reconstruction, mask, l, batch_id)
+                    uint8_mask = mask.detach().cpu().numpy().astype(np.uint8)
+                    self.log_img_volume(data, meta_info, f"ep_{self.current_epoch}_{batch_id}_data.nii.gz")
+                    self.log_img_volume(reconstruction, meta_info, f"ep_{self.current_epoch}_{batch_id}_recon.nii.gz")
+                    self.log_img_volume(uint8_mask, meta_info, f"ep_{self.current_epoch}_{batch_id}_mask.nii.gz")
+                    self.log_img_volume(data - mask, meta_info, f"ep_{self.current_epoch}_{batch_id}_diff.nii.gz")
 
         return
 
@@ -336,14 +355,15 @@ class BaseMAETrainer(AbstractBaseTrainer):
             self.config_plan.patch_size,
             sampling_probabilities=None,
             pad_sides=None,
+            max_samples=25,
         )
         return dl_val
 
     def run_training(self):
         try:
             self.on_train_start()
-            # if self.local_rank == 0:
-            #     self.log_qualitative_reconstruction_step()  # Do a quick test everything works.
+            if self.local_rank == 0:
+                self.log_qualitative_reconstruction_step()  # Do a quick test everything works.
             for epoch in range(self.current_epoch, self.num_epochs):
                 self.on_epoch_start()
 
