@@ -1,5 +1,9 @@
+from typing import Union
+from unittest.mock import patch
+
 import numpy as np
 from nnssl.ssl_data.dataloading.base_data_loader import nnsslDataLoaderBase
+from nnssl.training.dataloading.dataset import nnSSLDatasetBlosc2
 
 
 class nnsslDataLoader3D(nnsslDataLoaderBase):
@@ -61,6 +65,20 @@ class nnsslDataLoader3D(nnsslDataLoaderBase):
 
 
 class nnsslCenterCropDataLoader3D(nnsslDataLoaderBase):
+
+    def __init__(
+        self,
+        data: nnSSLDatasetBlosc2,
+        batch_size: int,
+        patch_size: list[int]| tuple[int, ...]| np.ndarray,
+        final_patch_size: list[int]| tuple[int, ...]| np.ndarray,
+        sampling_probabilities: list[int]| tuple[int, ...]| np.ndarray = None,
+        pad_sides: list[int]| tuple[int, ...]| np.ndarray = None,
+        max_samples: int | None = None
+    ):
+        data.image_identifiers = data.image_identifiers[:max_samples]
+        data.image_dataset = {k: v for k, v in data.image_dataset.items() if k in data.image_identifiers}
+        super().__init__(data, batch_size, patch_size, final_patch_size, sampling_probabilities, pad_sides)
 
     def generate_train_batch(self, index):
         offset = index * self.batch_size
