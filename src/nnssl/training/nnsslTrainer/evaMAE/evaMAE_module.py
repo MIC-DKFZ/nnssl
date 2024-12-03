@@ -95,7 +95,6 @@ class EvaMAE(nn.Module):
         """
         Restore the full sequence by filling blanks with mask tokens and reordering.
         """
-        
         B, num_kept, C = x.shape
         device = x.device
 
@@ -123,7 +122,6 @@ class EvaMAE(nn.Module):
 
         # Encode using EVA (internally applies masking with patch_drop_rate)
         encoded, keep_indices = self.encoder(x)
-
         # Restore full sequence with mask tokens
         num_patches = W * H * D
         restored_x = self.restore_full_sequence(encoded, keep_indices, num_patches)
