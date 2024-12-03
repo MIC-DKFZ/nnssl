@@ -266,12 +266,17 @@ class BaseMAETrainer(AbstractBaseTrainer):
         rec_arr = (recon_arr - full_img_min) / (full_img_max - full_img_min)
         return img_arr, rec_arr
 
-    def log_img_volume(self, img: np.ndarray, meta_info: dict, filename: str):
+    def log_img_volume(
+        self, img: np.ndarray | torch.Tensor, meta_info: dict, filename: str, dtype: np.dtype = np.float32
+    ):
         """Logs a 3D numpy array given the meta info to output folder with filename for visual inspection"""
+        if isinstance(img, torch.Tensor):
+            img = img.detach().cpu().numpy()
+        img = img.squeeze().astype(dtype)
         sitk_img: sitk.Image = sitk.GetImageFromArray(img)
-        sitk_img.SetSpacing(meta_info["spacing"])
-        sitk_img.SetOrigin(meta_info["origin"])
-        sitk_img.SetDirection(meta_info["direction"])
+        sitk_img.SetSpacing(meta_info["sitk_stuff"]["spacing"])
+        sitk_img.SetOrigin(meta_info["sitk_stuff"]["origin"])
+        sitk_img.SetDirection(meta_info["sitk_stuff"]["direction"])
         sitk.WriteImage(sitk_img, os.path.join(self.im_output_folder, filename))
 
     @deprecated
@@ -327,10 +332,14 @@ class BaseMAETrainer(AbstractBaseTrainer):
                         for i in range(reconstruction.shape[0])
                     ]
                     uint8_mask = mask.detach().cpu().numpy().astype(np.uint8)
-                    self.log_img_volume(data, meta_info, f"ep_{self.current_epoch}_{batch_id}_data.nii.gz")
-                    self.log_img_volume(reconstruction, meta_info, f"ep_{self.current_epoch}_{batch_id}_recon.nii.gz")
-                    self.log_img_volume(uint8_mask, meta_info, f"ep_{self.current_epoch}_{batch_id}_mask.nii.gz")
-                    self.log_img_volume(data - mask, meta_info, f"ep_{self.current_epoch}_{batch_id}_diff.nii.gz")
+                    self.log_img_volume(data, meta_info[0], f"ep_{self.current_epoch}_{batch_id}_data.nii.gz")
+                    self.log_img_volume(
+                        reconstruction, meta_info[0], f"ep_{self.current_epoch}_{batch_id}_recon.nii.gz"
+                    )
+                    self.log_img_volume(
+                        uint8_mask, meta_info[0], f"ep_{self.current_epoch}_{batch_id}_mask.nii.gz", dtype=np.uint8
+                    )
+                    self.log_img_volume(data - mask, meta_info[0], f"ep_{self.current_epoch}_{batch_id}_diff.nii.gz")
 
         return
 
