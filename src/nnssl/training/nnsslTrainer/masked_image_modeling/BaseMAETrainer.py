@@ -1,9 +1,10 @@
 import os
 from typing import List, Tuple, Union
-from warnings import deprecated
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from valohai.config import is_running_in_valohai
+from deprecated import deprecated
+
 
 import torch
 from nnssl.architectures.build_architecture import build_network_architecture
