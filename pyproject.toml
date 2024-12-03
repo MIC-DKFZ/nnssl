@@ -57,7 +57,8 @@ dependencies = [
     "lightning-bolts",
     "pytest",
     "nnunetv2",
-    "blosc2>=3.0.0b1"
+    "blosc2>=3.0.0b1",
+    "deprecated"
 ]
 
 [project.urls]
