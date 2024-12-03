@@ -122,6 +122,7 @@ class EvaMAE(nn.Module):
 
         # Encode using EVA (internally applies masking with patch_drop_rate)
         encoded, keep_indices = self.encoder(x)
+
         # Restore full sequence with mask tokens
         num_patches = W * H * D
         restored_x = self.restore_full_sequence(encoded, keep_indices, num_patches)

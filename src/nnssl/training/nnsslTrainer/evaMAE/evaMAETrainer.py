@@ -187,4 +187,3 @@ class EvaMAETrainer(BaseMAETrainer):
                 self.log_img_slices(data, reconstruction, mask, losses, batch_id)
 
         return
-    
