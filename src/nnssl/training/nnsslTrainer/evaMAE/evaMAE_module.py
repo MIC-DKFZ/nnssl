@@ -1,9 +1,9 @@
 from typing import Tuple
 
 import torch
-from nnssl.training.nnsslTrainer.EvaMAE.dynamic_network.eva import Eva
-from nnssl.training.nnsslTrainer.EvaMAE.dynamic_network.vit_embed_decode import PatchEmbed, PatchDecode, LayerNormNd
-from nnssl.training.nnsslTrainer.EvaMAE.dynamic_network.weight_init import InitWeights_He
+from nnssl.training.nnsslTrainer.evaMAE.dynamic_network.eva import Eva
+from nnssl.training.nnsslTrainer.evaMAE.dynamic_network.vit_embed_decode import PatchEmbed, PatchDecode, LayerNormNd
+from nnssl.training.nnsslTrainer.evaMAE.dynamic_network.weight_init import InitWeights_He
 from einops import rearrange
 from timm.layers import RotaryEmbeddingCat
 from torch import nn

@@ -1,7 +1,7 @@
 from typing import Tuple
 import numpy as np
 import torch
-from nnssl.training.nnsslTrainer.EvaMAE.dynamic_network.helper import convert_dim_to_conv_op
+from nnssl.training.nnsslTrainer.evaMAE.dynamic_network.helper import convert_dim_to_conv_op
 from einops import rearrange
 from torch import nn
 
