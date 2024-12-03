@@ -95,6 +95,7 @@ class EvaMAE(nn.Module):
         """
         Restore the full sequence by filling blanks with mask tokens and reordering.
         """
+        
         B, num_kept, C = x.shape
         device = x.device
 
