@@ -138,8 +138,8 @@ class EvaMAE(nn.Module):
 
 if __name__ == "__main__":
     # Toy example for testing
-    input_shape = (16, 16, 16)
-    patch_embed_size = (4, 4, 4)
+    input_shape = (64, 64, 64)
+    patch_embed_size = (8, 8, 8)
     model = EvaMAE(
         input_channels=3,
         embed_dim=192,

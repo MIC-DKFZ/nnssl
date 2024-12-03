@@ -53,7 +53,9 @@ def get_trainer_from_args(
     nnssl_trainer_cls: Type[AbstractBaseTrainer] = recursive_find_python_class(
         join(nnssl.__path__[0], "training", "nnsslTrainer"), trainer_name, "nnssl.training.nnsslTrainer"
     )
+    print(nnssl_trainer_cls, trainer_name)
     if nnssl_trainer_cls is None:
+
         raise RuntimeError(
             f"Could not find requested nnunet trainer {trainer_name} in "
             f"nnssl.training.nnsslTrainer ("

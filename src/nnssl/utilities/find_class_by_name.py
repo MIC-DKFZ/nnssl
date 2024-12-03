@@ -5,6 +5,7 @@ from batchgenerators.utilities.file_and_folder_operations import *
 
 
 def recursive_find_python_class(folder: str, class_name: str, current_module: str):
+    print(folder, class_name, current_module)
     tr = None
     for importer, modname, ispkg in pkgutil.iter_modules([folder]):
         # print(modname, ispkg)
