@@ -445,7 +445,6 @@ class Eva(nn.Module):
         if self.patch_drop is not None:
             x, keep_indices = self.patch_drop(x)
             if rot_pos_embed is not None and keep_indices is not None:
-
                 rot_pos_embed = apply_keep_indices_nlc(x, rot_pos_embed, keep_indices)
             return x, rot_pos_embed, keep_indices
         else:

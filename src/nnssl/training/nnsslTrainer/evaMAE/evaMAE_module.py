@@ -76,9 +76,9 @@ class EvaMAE(nn.Module):
             use_rot_pos_emb=use_rot_pos_emb,
             use_abs_pos_emb=use_abs_pos_emb,
             mlp_ratio=mlp_ratio,
-            drop_path_rate=0.,  # No drop in the decoder
+            drop_path_rate=drop_path_rate,
             drop_path_scale=drop_path_scale,
-            patch_drop_rate=0.,
+            patch_drop_rate=0, # No drop in the decoder
             proj_drop_rate=proj_drop_rate,
             attn_drop_rate=attn_drop_rate,
             rope_impl=rope_impl,
@@ -95,7 +95,6 @@ class EvaMAE(nn.Module):
         """
         Restore the full sequence by filling blanks with mask tokens and reordering.
         """
-        
         B, num_kept, C = x.shape
         device = x.device
 
@@ -123,7 +122,6 @@ class EvaMAE(nn.Module):
 
         # Encode using EVA (internally applies masking with patch_drop_rate)
         encoded, keep_indices = self.encoder(x)
-
         # Restore full sequence with mask tokens
         num_patches = W * H * D
         restored_x = self.restore_full_sequence(encoded, keep_indices, num_patches)

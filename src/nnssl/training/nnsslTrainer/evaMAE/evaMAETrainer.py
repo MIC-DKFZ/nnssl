@@ -76,6 +76,10 @@ class EvaMAETrainer(BaseMAETrainer):
         )
         return network
     
+    def on_validation_epoch_start(self):
+        #self.network.eval()
+        pass
+    
     def train_step(self, batch: dict) -> dict:
         data = batch["data"]
         data = data.to(self.device, non_blocking=True)
@@ -112,7 +116,6 @@ class EvaMAETrainer(BaseMAETrainer):
         # Autocast for CUDA device
         with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
             # Forward pass with PatchDropout
-            print(data.shape)
             output, keep_indices = self.network(data)
             mask = self.create_mask(keep_indices, self.config_plan.patch_size, self.patch_embed_size)
             # Calculate loss considering kept patches
