@@ -219,8 +219,9 @@ class AbstractBaseTrainer(ABC):
             my_rank = dist.get_rank()
 
             global_batch_size = self.config_plan.batch_size
+
             assert global_batch_size >= world_size, (
-                "Cannot run DDP if the batch size is smaller than the number of " "GPUs... Duh."
+                f"Cannot run DDP if the batch size ({global_batch_size}) is smaller than the number of GPUs ({world_size})... Duh."
             )
 
             batch_size_per_GPU = np.ceil(global_batch_size / world_size).astype(int)
