@@ -92,7 +92,7 @@ def get_trainer_from_args(
         pretrain_json=pretrain_json,
         device=device,
         *args,
-        **kwargs,
+        #**kwargs,
     )
     return nnssl_trainer
 
