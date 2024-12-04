@@ -377,15 +377,16 @@ class AbstractBaseTrainer(ABC):
         dataset_tr = nnSSLDatasetBlosc2(self.preprocessed_dataset_folder, collection, tr_subjects)
         dataset_val = nnSSLDatasetBlosc2(self.preprocessed_dataset_folder, collection, val_subjects)
 
-        problematic_images = load_json(join(self.preprocessed_dataset_folder_base, "problematic_imgs.json"))
-        problematic_image_ids = [i["image_name"] for i in problematic_images]
+        valid_images = load_json(join(self.preprocessed_dataset_folder_base, "valid_imgs.json"))
+        valid_image_ids = [i["image_name"] for i in valid_images]
 
-        tr_imgs_removed = self.remove_broken(problematic_image_ids, dataset_tr)
+        tr_imgs_removed = self.keep_valid(valid_image_ids, dataset_tr)
         logger.info(f"Removed {tr_imgs_removed} broken images from train dataset.")
-        vl_imgs_removed = self.remove_broken(problematic_image_ids, dataset_val)
+        logger.info(f"Number of training images: {len(dataset_tr.image_identifiers)}")
+        vl_imgs_removed = self.keep_valid(valid_image_ids, dataset_val)
         logger.info(f"Removed {vl_imgs_removed} broken images from val dataset.")
+        logger.info(f"Number of validation images: {len(dataset_val.image_identifiers)}")
 
-        assert len(problematic_image_ids) == (tr_imgs_removed + vl_imgs_removed), "Some broken images were not removed."
         return dataset_tr, dataset_val
 
     def get_dataloaders(self):
@@ -737,13 +738,11 @@ class AbstractBaseTrainer(ABC):
             save_json(dct, join(self.output_folder, "debug.json"))
 
     @staticmethod
-    def remove_broken(broken_image_names: list[str], dataset: nnSSLDatasetBlosc2):
+    def keep_valid(valid_image_names: list[str], dataset: nnSSLDatasetBlosc2):
 
         # --------------------------- Remove broken images --------------------------- #
         pre_removal_len = len(dataset.image_identifiers)
-        dataset.image_dataset = {
-            k: v for k, v in dataset.image_dataset.items() if v.image_name not in broken_image_names
-        }
+        dataset.image_dataset = {k: v for k, v in dataset.image_dataset.items() if v.image_name in valid_image_names}
         dataset.image_identifiers = list(dataset.image_dataset.keys())
         post_removal_len = len(dataset.image_identifiers)
         removed_images = pre_removal_len - post_removal_len
