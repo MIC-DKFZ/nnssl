@@ -231,7 +231,6 @@ def run_training(
     disable_checkpointing: bool = False,
     val_with_best: bool = False,
     device: torch.device = torch.device("cuda"),
-    *args,
     **kwargs,
 ):
     if isinstance(fold, str):
@@ -273,8 +272,8 @@ def run_training(
                 export_validation_probabilities,
                 val_with_best,
                 num_gpus,
-                kwargs,
             ),
+            kwargs=kwargs,
             nprocs=num_gpus,
             join=True,
         )
