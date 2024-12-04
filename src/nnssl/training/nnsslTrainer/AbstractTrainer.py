@@ -817,6 +817,7 @@ class AbstractBaseTrainer(ABC):
             dct["torch_version"] = torch_version
             dct["cudnn_version"] = cudnn_version
             save_json(dct, join(self.output_folder, "debug.json"))
+            
             if self.use_wandb and self.local_rank == 0:
                 self.logger.log_hypparams_to_wandb(self, dct)
 
