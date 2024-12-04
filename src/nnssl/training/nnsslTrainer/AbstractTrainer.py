@@ -216,9 +216,11 @@ class AbstractBaseTrainer(ABC):
             # batch size is distributed over DDP workers and we need to change oversample_percent for each worker
             batch_sizes = []
 
-            logger.info(f"Using DDP. Total Batch size {self.config_plan.batch_size} distributed across all {global_batch_size} gpus.")
             world_size = dist.get_world_size()
             my_rank = dist.get_rank()
+            logger.info(
+                f"Using DDP. Total Batch size {self.config_plan.batch_size} distributed across all {world_size} gpus."
+            )
 
             global_batch_size = self.config_plan.batch_size
 
