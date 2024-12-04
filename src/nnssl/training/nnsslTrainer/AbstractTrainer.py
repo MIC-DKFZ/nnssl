@@ -210,11 +210,13 @@ class AbstractBaseTrainer(ABC):
     def _set_batch_size(self):
         if not self.is_ddp:
             # set batch size to what the plan says, leave oversample untouched
+            logger.info(f"Not using DDP. Setting batch size for single gpu to {self.config_plan.batch_size}.")
             self.batch_size = self.config_plan.batch_size
         else:
             # batch size is distributed over DDP workers and we need to change oversample_percent for each worker
             batch_sizes = []
 
+            logger.info(f"Using DDP. Total Batch size {self.config_plan.batch_size} distributed across all {global_batch_size} gpus.")
             world_size = dist.get_world_size()
             my_rank = dist.get_rank()
 
