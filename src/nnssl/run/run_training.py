@@ -186,6 +186,7 @@ def run_ddp(
     npz,
     val_with_best,
     world_size,
+    *args,
     **kwargs,
 ):
     setup_ddp(rank, world_size)
@@ -231,6 +232,7 @@ def run_training(
     disable_checkpointing: bool = False,
     val_with_best: bool = False,
     device: torch.device = torch.device("cuda"),
+    *args,
     **kwargs,
 ):
     if isinstance(fold, str):
@@ -272,6 +274,7 @@ def run_training(
                 export_validation_probabilities,
                 val_with_best,
                 num_gpus,
+                *args,
                 *kwargs,
             ),
             nprocs=num_gpus,
