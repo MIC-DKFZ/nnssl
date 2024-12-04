@@ -198,7 +198,7 @@ def run_ddp(
     setup_ddp(rank, world_size)
     torch.cuda.set_device(torch.device("cuda", dist.get_rank()))
 
-    nnunet_trainer = get_trainer_from_args(dataset_name_or_id, configuration, fold, tr, p, *args, **kwargs)
+    nnunet_trainer = get_trainer_from_args(dataset_name_or_id, configuration, fold, tr, p, **kwargs)
 
     if disable_checkpointing:
         nnunet_trainer.disable_checkpointing = disable_checkpointing
@@ -280,7 +280,6 @@ def run_training(
                 export_validation_probabilities,
                 val_with_best,
                 num_gpus,
-                *args,
                 *kwargs,
             ),
             nprocs=num_gpus,
@@ -295,7 +294,6 @@ def run_training(
             plans_identifier,
             device=device,
             **kwargs,
-
         )
 
         # Prepare the auto-exiting in case wall-time is exceeded.
