@@ -22,11 +22,38 @@ class EvaMAETrainer(BaseMAETrainer):
         configuration_name: str,
         fold: int,
         pretrain_json: dict,
-        device: torch.device = torch.device("cuda"),
+        device: torch.device, 
+        mask_ratio,
+        vit_patch_size,
+        embed_dim,
+        encoder_eva_depth,
+        encoder_eva_numheads,
+        decoder_eva_depth,
+        decoder_eva_numheads,
+        bs,
     ):
-        super().__init__(plan, configuration_name, fold, pretrain_json, device)
-        self.mask_ratio = 0.5
-        self.patch_embed_size = (8,8,8)
+        super(EvaMAETrainer, self).__init__(plan,
+                         configuration_name,
+                         fold,
+                         pretrain_json,
+                         device,
+                         mask_ratio,
+                         vit_patch_size,
+                         embed_dim,
+                         encoder_eva_depth,
+                         encoder_eva_numheads,
+                         decoder_eva_depth,
+                         decoder_eva_numheads,
+                         bs,
+                         )
+        
+        self.mask_ratio = mask_ratio
+        self.vit_patch_size = vit_patch_size
+        self.embed_dim = embed_dim
+        self.encoder_eva_depth = encoder_eva_depth
+        self.encoder_eva_numheads = encoder_eva_numheads
+        self.decoder_eva_depth = decoder_eva_depth
+        self.decoder_eva_numheads = decoder_eva_numheads
     
     @staticmethod
     def create_mask(keep_indices: torch.Tensor, image_size: Tuple[int, int, int], patch_size: Tuple[int, int, int]) -> torch.Tensor:
@@ -66,12 +93,14 @@ class EvaMAETrainer(BaseMAETrainer):
     def build_architecture(self, *args, **kwargs) -> nn.Module:
         network = EvaMAE(
             input_channels=1,
-            embed_dim=192,
-            patch_embed_size=self.patch_embed_size,
+            embed_dim=self.embed_dim,
+            patch_embed_size=self.vit_patch_size,
             output_channels=1,
             input_shape=self.config_plan.patch_size,
-            eva_depth=2,
-            eva_numheads=2,
+            encoder_eva_depth=self.encoder_eva_depth,
+            encoder_eva_numheads=self.encoder_eva_numheads,
+            decoder_eva_depth=self.decoder_eva_depth,
+            decoder_eva_numheads=self.decoder_eva_numheads,
             patch_drop_rate=self.mask_ratio
         )
         return network
@@ -90,7 +119,7 @@ class EvaMAETrainer(BaseMAETrainer):
         with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
             # Forward pass with PatchDropout
             output, keep_indices = self.network(data)
-            mask = self.create_mask(keep_indices, self.config_plan.patch_size, self.patch_embed_size)
+            mask = self.create_mask(keep_indices, self.config_plan.patch_size, self.vit_patch_size)
             # Calculate loss considering kept patches
             l = self.loss(output, data, mask)
 
@@ -117,7 +146,7 @@ class EvaMAETrainer(BaseMAETrainer):
         with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
             # Forward pass with PatchDropout
             output, keep_indices = self.network(data)
-            mask = self.create_mask(keep_indices, self.config_plan.patch_size, self.patch_embed_size)
+            mask = self.create_mask(keep_indices, self.config_plan.patch_size, self.vit_patch_size)
             # Calculate loss considering kept patches
             l = self.loss(output, data, mask)
 
@@ -175,7 +204,7 @@ class EvaMAETrainer(BaseMAETrainer):
                 with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
                     reconstruction, keep_indices = self.network(data)
 
-                mask = self.create_mask(keep_indices, self.config_plan.patch_size, self.patch_embed_size)
+                mask = self.create_mask(keep_indices, self.config_plan.patch_size, self.vit_patch_size)
 
                 # Compute loss for each sample in the batch
                 losses = [

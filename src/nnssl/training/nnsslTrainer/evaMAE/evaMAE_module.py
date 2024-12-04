@@ -14,8 +14,10 @@ class EvaMAE(nn.Module):
                  embed_dim: int,
                  patch_embed_size: Tuple[int, ...],
                  output_channels: int,
-                 eva_depth: int = 24,
-                 eva_numheads: int = 16,
+                 encoder_eva_depth: int = 24,
+                 encoder_eva_numheads: int = 16,
+                 decoder_eva_depth: int = 24,
+                 decoder_eva_numheads: int = 16,
                  input_shape: Tuple[int, ...] = None,
                  decoder_norm=LayerNormNd,
                  decoder_act=nn.GELU,
@@ -25,7 +27,7 @@ class EvaMAE(nn.Module):
                  mlp_ratio=4 * 2 / 3,
                  drop_path_rate=0,
                  drop_path_scale: bool = True,
-                 patch_drop_rate: float = 0.5,
+                 patch_drop_rate: float = 0.,
                  proj_drop_rate: float = 0.,
                  attn_drop_rate: float = 0.,
                  rope_impl=RotaryEmbeddingCat,
@@ -45,8 +47,8 @@ class EvaMAE(nn.Module):
         # Encoder using EVA
         self.encoder = Eva(
             embed_dim=embed_dim,
-            depth=eva_depth,
-            num_heads=eva_numheads,
+            depth=encoder_eva_depth,
+            num_heads=encoder_eva_numheads,
             ref_feat_shape=tuple([i // ds for i, ds in zip(input_shape, patch_embed_size)]),
             num_reg_tokens=num_register_tokens,
             use_rot_pos_emb=use_rot_pos_emb,
@@ -69,8 +71,8 @@ class EvaMAE(nn.Module):
         # Decoder using EVA
         self.decoder = Eva(
             embed_dim=embed_dim,
-            depth=eva_depth,
-            num_heads=eva_numheads,
+            depth=decoder_eva_depth, #eva_depth,
+            num_heads=decoder_eva_numheads, #eva_numheads,
             ref_feat_shape=tuple([i // ds for i, ds in zip(input_shape, patch_embed_size)]),
             num_reg_tokens=num_register_tokens,
             use_rot_pos_emb=use_rot_pos_emb,

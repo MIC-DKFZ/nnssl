@@ -48,12 +48,13 @@ def get_trainer_from_args(
     trainer_name: str = "nnsslTrainer",
     plans_identifier: str = "nnsslPlans",
     device: torch.device = torch.device("cuda"),
+    *args,
+    **kwargs,
 ):
     # load nnunet class and do sanity checks
     nnssl_trainer_cls: Type[AbstractBaseTrainer] = recursive_find_python_class(
         join(nnssl.__path__[0], "training", "nnsslTrainer"), trainer_name, "nnssl.training.nnsslTrainer"
     )
-    print(nnssl_trainer_cls, trainer_name)
     if nnssl_trainer_cls is None:
 
         raise RuntimeError(
@@ -90,6 +91,8 @@ def get_trainer_from_args(
         fold=fold,
         pretrain_json=pretrain_json,
         device=device,
+        *args,
+        **kwargs,
     )
     return nnssl_trainer
 
@@ -227,6 +230,8 @@ def run_training(
     disable_checkpointing: bool = False,
     val_with_best: bool = False,
     device: torch.device = torch.device("cuda"),
+    *args,
+    **kwargs,
 ):
     if isinstance(fold, str):
         if fold != "all":
@@ -279,6 +284,8 @@ def run_training(
             trainer_class_name,
             plans_identifier,
             device=device,
+            **kwargs,
+
         )
 
         # Prepare the auto-exiting in case wall-time is exceeded.
@@ -379,6 +386,14 @@ def run_training_entry():
         "(GPU), 'cpu' (CPU) and 'mps' (Apple M1/M2). Do NOT use this to set which GPU ID! "
         "Use CUDA_VISIBLE_DEVICES=X nnUNetv2_train [...] instead!",
     )
+    parser.add_argument("--mask_ratio", required=False, default=0.5, type=float)  
+    parser.add_argument("--vit_patch_size", required=False, default=[8, 8, 8], nargs="+", type=int)
+    parser.add_argument("--embed_dim", required=False, default=864, type=int)
+    parser.add_argument("--encoder_eva_depth", required=False, default=16, type=int)
+    parser.add_argument("--encoder_eva_numheads", required=False, default=12, type=int)
+    parser.add_argument("--decoder_eva_depth", required=False, default=6, type=int)
+    parser.add_argument("--decoder_eva_numheads", required=False, default=8, type=int)
+    parser.add_argument("--bs", required=False, default=None, type=int)
     args = parser.parse_args()
 
     assert args.device in [
@@ -428,6 +443,14 @@ def run_training_entry():
             args.disable_checkpointing,
             args.val_best,
             device=device,
+            mask_ratio = args.mask_ratio,
+            vit_patch_size = args.vit_patch_size,
+            embed_dim=args.embed_dim,
+            encoder_eva_depth=args.encoder_eva_depth,
+            encoder_eva_numheads=args.encoder_eva_numheads,
+            decoder_eva_depth=args.decoder_eva_depth,
+            decoder_eva_numheads=args.decoder_eva_numheads,
+            bs=args.bs, 
         )
     except KeyboardInterrupt:
         if is_running_in_valohai():
@@ -437,4 +460,5 @@ def run_training_entry():
 
 
 if __name__ == "__main__":
+    os.environ["WANDB__SERVICE_WAIT"] = "500"
     run_training_entry()
