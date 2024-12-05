@@ -95,6 +95,7 @@ class EvaMAETrainer(BaseMAETrainer):
     def build_architecture(self, *args, **kwargs) -> nn.Module:
         print('config plan')
         print(self.config_plan)
+        print(self.vit_patch_size)
         network = EvaMAE(
             input_channels=1,
             embed_dim=self.embed_dim,
