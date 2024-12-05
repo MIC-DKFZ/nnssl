@@ -187,21 +187,22 @@ def run_ddp(
     npz,
     val_with_best,
     world_size,
-    *args,
-    **kwargs,
+    add_params
+    #*args,
+    #**kwargs,
 ):
 
     #import IPython
     #IPython.embed()  
     #print(f' Args: {args}' )
-    print(f' Kwargs: {kwargs}' )  
+    #print(f' Kwargs: {kwargs}' )  
     setup_ddp(rank, world_size)
     
     #torch.cuda.set_device(torch.device("cuda", dist.get_rank()))
  
     device = torch.device(f"cuda:{rank}")
 
-    nnunet_trainer = get_trainer_from_args(dataset_name_or_id, configuration, fold, tr, p, device, *args, **kwargs)
+    nnunet_trainer = get_trainer_from_args(dataset_name_or_id, configuration, fold, tr, p, device, **add_params)
     if disable_checkpointing:
         nnunet_trainer.disable_checkpointing = disable_checkpointing
 
@@ -261,6 +262,8 @@ def run_training(
         assert not disable_checkpointing, "--val_best is not compatible with --disable_checkpointing"
 
     if num_gpus > 1:
+        import IPython
+        IPython.embed()
         assert (
             device.type == "cuda"
         ), f"DDP training (triggered by num_gpus > 1) is only implemented for cuda devices. Your device: {device}"
@@ -270,7 +273,7 @@ def run_training(
             port = str(find_free_network_port())
             print(f"using port {port}")
             os.environ["MASTER_PORT"] = port  # str(port)
-        
+        add_params = kwargs
         #import IPython
         #IPython.embed()
         mp.spawn(
@@ -288,8 +291,9 @@ def run_training(
                 export_validation_probabilities,
                 val_with_best,
                 num_gpus,
-                *args,
-                *kwargs,
+                add_params,
+                #*args,
+                #*kwargs,
             ),
             nprocs=num_gpus,
             join=True,
