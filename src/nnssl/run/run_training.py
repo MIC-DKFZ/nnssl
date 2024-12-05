@@ -52,7 +52,6 @@ def get_trainer_from_args(
     **kwargs):  
 
     # load nnunet class and do sanity checks
-    print('get trainer function', kwargs)
     nnssl_trainer_cls: Type[AbstractBaseTrainer] = recursive_find_python_class(
         join(nnssl.__path__[0], "training", "nnsslTrainer"), trainer_name, "nnssl.training.nnsslTrainer"
     )
@@ -189,20 +188,12 @@ def run_ddp(
     val_with_best,
     world_size,
     add_params
-    #*args,
-    #**kwargs,
 ):
-
-    #import IPython
-    #IPython.embed()  
-    #print(f' Args: {args}' )
-    #print(f' Kwargs: {kwargs}' )  
     setup_ddp(rank, world_size)
     
     #torch.cuda.set_device(torch.device("cuda", dist.get_rank()))
- 
+
     device = torch.device(f"cuda:{rank}")
-    print('Aadditional paramets i am sending', add_params)
     nnunet_trainer = get_trainer_from_args(dataset_name_or_id, configuration, fold, tr, p, device, **add_params)
     if disable_checkpointing:
         nnunet_trainer.disable_checkpointing = disable_checkpointing
@@ -245,10 +236,6 @@ def run_training(
     *args,
     **kwargs,
 ):
-    #import IPython
-    #IPython.embed()
-    print('started run_training')
-    print(kwargs)
     if isinstance(fold, str):
         if fold != "all":
             try:
@@ -263,8 +250,6 @@ def run_training(
         assert not disable_checkpointing, "--val_best is not compatible with --disable_checkpointing"
 
     if num_gpus > 1:
-        #import IPython
-        #IPython.embed()
         assert (
             device.type == "cuda"
         ), f"DDP training (triggered by num_gpus > 1) is only implemented for cuda devices. Your device: {device}"
@@ -275,8 +260,7 @@ def run_training(
             print(f"using port {port}")
             os.environ["MASTER_PORT"] = port  # str(port)
         add_params = kwargs
-        #import IPython
-        #IPython.embed()
+
         mp.spawn(
             run_ddp,
             args=(
@@ -293,8 +277,6 @@ def run_training(
                 val_with_best,
                 num_gpus,
                 add_params,
-                #*args,
-                #*kwargs,
             ),
             nprocs=num_gpus,
             join=True,

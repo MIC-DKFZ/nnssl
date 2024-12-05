@@ -32,8 +32,6 @@ class EvaMAETrainer(BaseMAETrainer):
         decoder_eva_numheads,
         bs,
     ):
-        #import IPython
-        #IPython.embed()
         super(EvaMAETrainer, self).__init__(plan,
                          configuration_name,
                          fold,
@@ -93,9 +91,6 @@ class EvaMAETrainer(BaseMAETrainer):
         return mask
 
     def build_architecture(self, config_plan, num_input_channels, num_output_channels) -> nn.Module:
-        print('config plan')
-        print(self.config_plan)
-        print(self.vit_patch_size)
         network = EvaMAE(
             input_channels=1,
             embed_dim=self.embed_dim,
