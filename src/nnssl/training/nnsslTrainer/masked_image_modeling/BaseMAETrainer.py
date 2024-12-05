@@ -404,6 +404,8 @@ class BaseMAETrainer(AbstractBaseTrainer):
                             # )
 
                 self.on_epoch_end()
+                if self.exit_training_flag:
+                    raise KeyboardInterrupt
 
             self.on_train_end()
         except KeyboardInterrupt:

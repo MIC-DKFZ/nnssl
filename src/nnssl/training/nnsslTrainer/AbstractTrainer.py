@@ -318,7 +318,7 @@ class AbstractBaseTrainer(ABC):
                     self.on_validation_epoch_end(val_outputs)
 
                 self.on_epoch_end()
-                if self.raise_reschedule_flag:
+                if self.exit_training_flag:
                     # This is a signal that we need to resubmit, so we break the loop and exit gracefully
                     raise KeyboardInterrupt
             self.on_train_end()
