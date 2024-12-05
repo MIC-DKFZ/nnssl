@@ -95,11 +95,11 @@ def get_trainer_from_args(
     print(plans)
     print('----------------------------------')
     nnssl_trainer: AbstractBaseTrainer = nnssl_trainer_cls(
-        plan=plans,
-        configuration_name=configuration,
-        fold=fold,
-        pretrain_json=pretrain_json,
-        device=device,
+        plans,
+        configuration,
+        fold,
+        pretrain_json,
+        device,
         *args,
         **kwargs,
     )
