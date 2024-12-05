@@ -39,14 +39,6 @@ class EvaMAETrainer(BaseMAETrainer):
                          fold,
                          pretrain_json,
                          device,
-                         mask_ratio,
-                         vit_patch_size,
-                         embed_dim,
-                         encoder_eva_depth,
-                         encoder_eva_numheads,
-                         decoder_eva_depth,
-                         decoder_eva_numheads,
-                         bs,
                          )
         
         self.mask_ratio = mask_ratio
