@@ -290,7 +290,7 @@ class AbstractBaseTrainer(ABC):
                 "That should not happen."
             )
 
-    def exit_training(self):
+    def exit_training(self, *args, **kwargs):
         self.print_to_log_file("Received exit signal. Terminating after finishing epoch.")
         self.exit_training_flag = True
 
