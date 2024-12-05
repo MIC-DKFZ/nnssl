@@ -85,6 +85,8 @@ def get_trainer_from_args(
     plans_file = join(preprocessed_dataset_folder_base, plans_identifier + ".json")
     plans: Plan = Plan.load_from_file(plans_file)
     pretrain_json = load_json(join(preprocessed_dataset_folder_base, "pretrain_data.json"))
+    print(f' Args: {args}' )
+    print(f' Kwargs: {kwargs}' )
     nnssl_trainer: AbstractBaseTrainer = nnssl_trainer_cls(
         plans,
         configuration,
@@ -191,12 +193,15 @@ def run_ddp(
 ):
 
     #import IPython
-    #IPython.embed()    
+    #IPython.embed()  
+    print(f' Args: {args}' )
+    print(f' Kwargs: {kwargs}' )  
     setup_ddp(rank, world_size)
     
     #torch.cuda.set_device(torch.device("cuda", dist.get_rank()))
  
     device = torch.device(f"cuda:{rank}")
+
     nnunet_trainer = get_trainer_from_args(dataset_name_or_id, configuration, fold, tr, p, device, *args, **kwargs)
     if disable_checkpointing:
         nnunet_trainer.disable_checkpointing = disable_checkpointing
