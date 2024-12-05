@@ -288,7 +288,7 @@ def run_training(
                 val_with_best,
                 num_gpus,
                 #*args,
-                *kwargs,
+                kwargs,
             ),
             nprocs=num_gpus,
             join=True,
