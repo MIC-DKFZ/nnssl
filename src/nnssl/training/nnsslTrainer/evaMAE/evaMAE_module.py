@@ -35,6 +35,9 @@ class EvaMAE(nn.Module):
         """
         Masked Autoencoder with EVA attention-based encoder and decoder.
         """
+
+        print('input shape', input_shape)
+        print('patch_emb_size', patch_embed_size)
         assert input_shape is not None
         assert len(input_shape) == 3, "Currently only 3D is supported"
         assert all([j % i == 0 for i, j in zip(patch_embed_size, input_shape)])
