@@ -323,10 +323,12 @@ class AbstractBaseTrainer(ABC):
                 self.on_epoch_end()
                 if self.exit_training_flag:
                     # This is a signal that we need to resubmit, so we break the loop and exit gracefully
+                    print("Finished last epoch before restart.")
                     self.print_to_log_file("Finished last epoch before restart.")
                     raise KeyboardInterrupt
             self.on_train_end()
         except KeyboardInterrupt:
+            print("Keyboard interrupt.")
             self.print_to_log_file("Keyboard interrupt. Exiting gracefully.")
             self.save_checkpoint(join(self.output_folder, "checkpoint_latest.pth"))
             raise KeyboardInterrupt
