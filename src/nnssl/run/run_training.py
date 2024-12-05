@@ -95,6 +95,7 @@ def get_trainer_from_args(
     print('----------------------------------')
     print(plans)
     print('----------------------------------')
+    print('trainer parameters - ', trainer_params)
     nnssl_trainer: AbstractBaseTrainer = nnssl_trainer_cls(
         plan=plans,
         configuration_name=configuration,
