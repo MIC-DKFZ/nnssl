@@ -345,8 +345,6 @@ class AbstractBaseTrainer(ABC):
                     ctr += 1
             if also_print_to_console:
                 print(*args)
-        elif also_print_to_console:
-            print(*args)
 
     def print_plans(self):
         if self.local_rank == 0:
