@@ -47,13 +47,10 @@ def get_trainer_from_args(
     fold: int,
     trainer_name: str = "nnsslTrainer",
     plans_identifier: str = "nnsslPlans",
-    trainer_params: dict = {},
     device: torch.device = torch.device("cuda"),
     *args,
     **kwargs):  
-    print(f' Args: {args}' )
-    print(f' Kwargs: {kwargs}' )
-    
+
     # load nnunet class and do sanity checks
     nnssl_trainer_cls: Type[AbstractBaseTrainer] = recursive_find_python_class(
         join(nnssl.__path__[0], "training", "nnsslTrainer"), trainer_name, "nnssl.training.nnsslTrainer"
@@ -88,21 +85,13 @@ def get_trainer_from_args(
     plans_file = join(preprocessed_dataset_folder_base, plans_identifier + ".json")
     plans: Plan = Plan.load_from_file(plans_file)
     pretrain_json = load_json(join(preprocessed_dataset_folder_base, "pretrain_data.json"))
-    print('----------------------------------')
-    print(plans_identifier)
-    print('----------------------------------')
-    print(plans_file)
-    print('----------------------------------')
-    print(plans)
-    print('----------------------------------')
-    print('trainer parameters - ', trainer_params)
     nnssl_trainer: AbstractBaseTrainer = nnssl_trainer_cls(
-        plan=plans,
-        configuration_name=configuration,
-        fold=fold,
-        pretrain_json=pretrain_json,
-        device=device,
-        *trainer_params,
+        plans,
+        configuration,
+        fold,
+        pretrain_json,
+        device,
+        *args,
     )
     return nnssl_trainer
 
@@ -199,7 +188,7 @@ def run_ddp(
     *args,
     **kwargs,
 ):
-    print(rank, p)
+    print(rank, p)vi
     print(f' Args: {args}' )
     print(f' Kwargs: {kwargs}' )
     #import IPython
@@ -210,8 +199,7 @@ def run_ddp(
  
     device = torch.device(f"cuda:{rank}")
     print(device)
-    nnunet_trainer = get_trainer_from_args(dataset_name_or_id, configuration, fold, tr, p, trainer_params=args)
-
+    nnunet_trainer = get_trainer_from_args(dataset_name_or_id, configuration, fold, tr, p, device= device, *args)
     if disable_checkpointing:
         nnunet_trainer.disable_checkpointing = disable_checkpointing
 
