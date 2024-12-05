@@ -101,7 +101,7 @@ def get_trainer_from_args(
         fold=fold,
         pretrain_json=pretrain_json,
         device=device,
-        **trainer_params,
+        *trainer_params,
     )
     return nnssl_trainer
 
