@@ -48,10 +48,11 @@ def get_trainer_from_args(
     trainer_name: str = "nnsslTrainer",
     plans_identifier: str = "nnsslPlans",
     device: torch.device = torch.device("cuda"),
-    *args,
+    #*args,
     **kwargs):  
 
     # load nnunet class and do sanity checks
+    print('get trainer function', kwargs)
     nnssl_trainer_cls: Type[AbstractBaseTrainer] = recursive_find_python_class(
         join(nnssl.__path__[0], "training", "nnsslTrainer"), trainer_name, "nnssl.training.nnsslTrainer"
     )
@@ -92,7 +93,7 @@ def get_trainer_from_args(
         fold,
         pretrain_json,
         device,
-        *args,
+        #*args,
         **kwargs
     )
     return nnssl_trainer
@@ -201,7 +202,7 @@ def run_ddp(
     #torch.cuda.set_device(torch.device("cuda", dist.get_rank()))
  
     device = torch.device(f"cuda:{rank}")
-
+    print('Aadditional paramets i am sending', add_params)
     nnunet_trainer = get_trainer_from_args(dataset_name_or_id, configuration, fold, tr, p, device, **add_params)
     if disable_checkpointing:
         nnunet_trainer.disable_checkpointing = disable_checkpointing
