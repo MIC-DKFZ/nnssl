@@ -197,7 +197,7 @@ def run_ddp(
     #torch.cuda.set_device(torch.device("cuda", dist.get_rank()))
  
     device = torch.device(f"cuda:{rank}")
-    nnunet_trainer = get_trainer_from_args(dataset_name_or_id, configuration, fold, tr, p, device= device, *args, **kwargs)
+    nnunet_trainer = get_trainer_from_args(dataset_name_or_id, configuration, fold, tr, p, device, *args, **kwargs)
     if disable_checkpointing:
         nnunet_trainer.disable_checkpointing = disable_checkpointing
 
