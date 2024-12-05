@@ -92,7 +92,7 @@ class EvaMAETrainer(BaseMAETrainer):
         mask = mask.unsqueeze(1)  # Add channel dimension (B, 1, D, H, W)
         return mask
 
-    def build_architecture(self, *args, **kwargs) -> nn.Module:
+    def build_architecture(self, config_plan, num_input_channels, num_output_channels) -> nn.Module:
         print('config plan')
         print(self.config_plan)
         print(self.vit_patch_size)
