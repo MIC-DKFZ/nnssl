@@ -88,7 +88,13 @@ def get_trainer_from_args(
     plans_file = join(preprocessed_dataset_folder_base, plans_identifier + ".json")
     plans: Plan = Plan.load_from_file(plans_file)
     pretrain_json = load_json(join(preprocessed_dataset_folder_base, "pretrain_data.json"))
-    print(plans_identifier, plans_file, plans)
+    print('----------------------------------')
+    print(plans_identifier)
+    print('----------------------------------')
+    print(plans_file)
+    print('----------------------------------')
+    print(plans)
+    print('----------------------------------')
     nnssl_trainer: AbstractBaseTrainer = nnssl_trainer_cls(
         plan=plans,
         configuration_name=configuration,
