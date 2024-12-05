@@ -263,8 +263,8 @@ def run_training(
         assert not disable_checkpointing, "--val_best is not compatible with --disable_checkpointing"
 
     if num_gpus > 1:
-        import IPython
-        IPython.embed()
+        #import IPython
+        #IPython.embed()
         assert (
             device.type == "cuda"
         ), f"DDP training (triggered by num_gpus > 1) is only implemented for cuda devices. Your device: {device}"
