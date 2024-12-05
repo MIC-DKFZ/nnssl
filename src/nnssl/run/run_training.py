@@ -52,9 +52,6 @@ def get_trainer_from_args(
     **kwargs,
 ):
     # load nnunet class and do sanity checks
-    print(f"Args: {args}")
-    print(f"Kwargs: {kwargs}")
-
     nnssl_trainer_cls: Type[AbstractBaseTrainer] = recursive_find_python_class(
         join(nnssl.__path__[0], "training", "nnsslTrainer"), trainer_name, "nnssl.training.nnsslTrainer"
     )
@@ -88,9 +85,6 @@ def get_trainer_from_args(
     plans_file = join(preprocessed_dataset_folder_base, plans_identifier + ".json")
     plans: Plan = Plan.load_from_file(plans_file)
     pretrain_json = load_json(join(preprocessed_dataset_folder_base, "pretrain_data.json"))
-    print('over here')
-    print(f"Args: {args}")
-    print(f"Kwargs: {kwargs}")
     nnssl_trainer: AbstractBaseTrainer = nnssl_trainer_cls(
         plan=plans,
         configuration_name=configuration,
@@ -195,9 +189,6 @@ def run_ddp(
     *args,
     **kwargs,
 ):
-    import IPython
-    IPython.embed()
-    
     setup_ddp(rank, world_size)
     torch.cuda.set_device(torch.device("cuda", dist.get_rank()))
     
