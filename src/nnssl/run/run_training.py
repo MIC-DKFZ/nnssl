@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 import os
 from pathlib import Path
 import shutil
+import signal
 import socket
 from typing import Type, Union, Optional
 
@@ -197,6 +198,10 @@ def run_ddp(
         cudnn.deterministic = False
         cudnn.benchmark = True
 
+    # Prepare the auto-exiting in case wall-time is exceeded.
+    #  This sets a internal flag, letting the trainer know it's 10 minutes till wall-clock time is up.
+    signal.signal(signal.SIGUSR1, nnunet_trainer.exit_training)
+
     if not val:
         nnunet_trainer.run_training()
 
@@ -273,6 +278,10 @@ def run_training(
             plans_identifier,
             device=device,
         )
+
+        # Prepare the auto-exiting in case wall-time is exceeded.
+        #  This sets a internal flag, letting the trainer know it's 10 minutes till wall-clock time is up.
+        signal.signal(signal.SIGUSR1, nnunet_trainer.exit_training)
 
         if disable_checkpointing:
             nnunet_trainer.disable_checkpointing = disable_checkpointing

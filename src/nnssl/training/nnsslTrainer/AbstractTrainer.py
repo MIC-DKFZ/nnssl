@@ -16,6 +16,7 @@ from loguru import logger
 from tqdm import tqdm
 from valohai.config import is_running_in_valohai
 from nnssl.configuration import default_num_processes
+import signal
 
 import valohai
 
@@ -196,6 +197,7 @@ class AbstractBaseTrainer(ABC):
 
         self.was_initialized = False
 
+        self.exit_training_flag = False # This is a signal flag that can be raised to exit gracefully
         self.print_to_log_file(
             "\n#######################################################################\n"
             "Please cite the following paper when using nnU-Net:\n"
@@ -286,6 +288,9 @@ class AbstractBaseTrainer(ABC):
                 "That should not happen."
             )
 
+    def exit_training(self):
+        self.exit_training_flag = True
+
     def run_training(self):
         try:
             self.on_train_start()
@@ -313,7 +318,9 @@ class AbstractBaseTrainer(ABC):
                     self.on_validation_epoch_end(val_outputs)
 
                 self.on_epoch_end()
-
+                if self.raise_reschedule_flag:
+                    # This is a signal that we need to resubmit, so we break the loop and exit gracefully
+                    raise KeyboardInterrupt
             self.on_train_end()
         except KeyboardInterrupt:
             self.print_to_log_file("Keyboard interrupt. Exiting gracefully.")
