@@ -197,7 +197,9 @@ class AbstractBaseTrainer(ABC):
 
         self.was_initialized = False
 
-        self.exit_training_flag = False # This is a signal flag that can be raised to exit gracefully
+        self.exit_training_flag = False  # This is a signal flag that can be raised to exit gracefully
+
+        signal.signal(signal.SIGUSR1, self.exit_training)
         self.print_to_log_file(
             "\n#######################################################################\n"
             "Please cite the following paper when using nnU-Net:\n"
@@ -226,9 +228,9 @@ class AbstractBaseTrainer(ABC):
 
             global_batch_size = self.config_plan.batch_size
 
-            assert global_batch_size >= world_size, (
-                f"Cannot run DDP if the batch size ({global_batch_size}) is smaller than the number of GPUs ({world_size})... Duh."
-            )
+            assert (
+                global_batch_size >= world_size
+            ), f"Cannot run DDP if the batch size ({global_batch_size}) is smaller than the number of GPUs ({world_size})... Duh."
 
             batch_size_per_GPU = np.ceil(global_batch_size / world_size).astype(int)
 
@@ -289,6 +291,7 @@ class AbstractBaseTrainer(ABC):
             )
 
     def exit_training(self):
+        self.print_to_log_file("Received exit signal. Terminating after finishing epoch.")
         self.exit_training_flag = True
 
     def run_training(self):
@@ -320,6 +323,7 @@ class AbstractBaseTrainer(ABC):
                 self.on_epoch_end()
                 if self.exit_training_flag:
                     # This is a signal that we need to resubmit, so we break the loop and exit gracefully
+                    self.print_to_log_file("Finished last epoch before restart.")
                     raise KeyboardInterrupt
             self.on_train_end()
         except KeyboardInterrupt:
