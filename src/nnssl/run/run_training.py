@@ -189,8 +189,8 @@ def run_ddp(
     *args,
     **kwargs,
 ):
-    import IPython
-    IPython.embed()    
+    #import IPython
+    #IPython.embed()    
     setup_ddp(rank, world_size)
     torch.cuda.set_device(torch.device("cuda", dist.get_rank()))
     
