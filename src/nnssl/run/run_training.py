@@ -176,7 +176,7 @@ def setup_ddp(rank, world_size):
     # initialize the process group
     # Unpacking actually takes about
     dist.init_process_group("nccl", rank=rank, world_size=world_size, timeout=timedelta(minutes=25))
-
+    torch.cuda.set_device(rank)
 
 def cleanup_ddp():
     dist.destroy_process_group()
@@ -205,9 +205,11 @@ def run_ddp(
     #import IPython
     #IPython.embed()    
     setup_ddp(rank, world_size)
-    torch.cuda.set_device(torch.device("cuda", dist.get_rank()))
+    #torch.cuda.set_device(torch.device("cuda", dist.get_rank()))
  
-    nnunet_trainer = get_trainer_from_args(dataset_name_or_id, configuration, fold, tr, p, device=torch.device("cuda", dist.get_rank()), *args, **kwargs)
+    device = torch.device(f"cuda:{rank}")
+
+    nnunet_trainer = get_trainer_from_args(dataset_name_or_id, configuration, fold, tr, p, device=device, *args, **kwargs)
 
     if disable_checkpointing:
         nnunet_trainer.disable_checkpointing = disable_checkpointing
