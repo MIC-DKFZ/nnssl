@@ -49,8 +49,7 @@ def get_trainer_from_args(
     plans_identifier: str = "nnsslPlans",
     device: torch.device = torch.device("cuda"),
     *args,
-    **kwargs,
-):  
+    **kwargs):  
     print(f' Args: {args}' )
     print(f' Kwargs: {kwargs}' )
     
@@ -205,11 +204,12 @@ def run_ddp(
     #import IPython
     #IPython.embed()    
     setup_ddp(rank, world_size)
+    
     #torch.cuda.set_device(torch.device("cuda", dist.get_rank()))
  
     device = torch.device(f"cuda:{rank}")
     print(device)
-    nnunet_trainer = get_trainer_from_args(dataset_name_or_id, configuration, fold, tr, p, device=device, *args, **kwargs)
+    nnunet_trainer = get_trainer_from_args(dataset_name_or_id, configuration, fold, tr, p, device=device, **kwargs)
 
     if disable_checkpointing:
         nnunet_trainer.disable_checkpointing = disable_checkpointing
