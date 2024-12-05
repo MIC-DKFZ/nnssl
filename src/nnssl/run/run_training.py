@@ -85,8 +85,7 @@ def get_trainer_from_args(
     plans_file = join(preprocessed_dataset_folder_base, plans_identifier + ".json")
     plans: Plan = Plan.load_from_file(plans_file)
     pretrain_json = load_json(join(preprocessed_dataset_folder_base, "pretrain_data.json"))
-    print(f' Args: {args}' )
-    print(f' Kwargs: {kwargs}' )
+    
     nnssl_trainer: AbstractBaseTrainer = nnssl_trainer_cls(
         plans,
         configuration,
@@ -241,12 +240,12 @@ def run_training(
     disable_checkpointing: bool = False,
     val_with_best: bool = False,
     device: torch.device = torch.device("cuda"),
-    *args,
     **kwargs,
 ):
     #import IPython
     #IPython.embed()
-
+    print('started run_training')
+    print(kwargs)
     if isinstance(fold, str):
         if fold != "all":
             try:
@@ -288,7 +287,7 @@ def run_training(
                 export_validation_probabilities,
                 val_with_best,
                 num_gpus,
-                *args,
+                #*args,
                 *kwargs,
             ),
             nprocs=num_gpus,
@@ -459,7 +458,7 @@ def run_training_entry():
             args.val,
             args.disable_checkpointing,
             args.val_best,
-            device=device,
+            device,
             mask_ratio = args.mask_ratio,
             vit_patch_size = args.vit_patch_size,
             embed_dim=args.embed_dim,
