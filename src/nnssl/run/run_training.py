@@ -195,9 +195,12 @@ def run_ddp(
     *args,
     **kwargs,
 ):
+    import IPython
+    IPython.embed()
+    
     setup_ddp(rank, world_size)
     torch.cuda.set_device(torch.device("cuda", dist.get_rank()))
-
+    
     nnunet_trainer = get_trainer_from_args(dataset_name_or_id, configuration, fold, tr, p, **kwargs)
 
     if disable_checkpointing:
@@ -264,7 +267,10 @@ def run_training(
             port = str(find_free_network_port())
             print(f"using port {port}")
             os.environ["MASTER_PORT"] = port  # str(port)
-
+        
+        #import IPython
+        #IPython.embed()
+        
         mp.spawn(
             run_ddp,
             args=(
@@ -280,6 +286,7 @@ def run_training(
                 export_validation_probabilities,
                 val_with_best,
                 num_gpus,
+                *args,
                 *kwargs,
             ),
             nprocs=num_gpus,
