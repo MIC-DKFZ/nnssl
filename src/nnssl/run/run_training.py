@@ -194,7 +194,7 @@ def run_ddp(
     setup_ddp(rank, world_size)
     torch.cuda.set_device(torch.device("cuda", dist.get_rank()))
 
-    print(p)
+    print(rank, p)
     
     nnunet_trainer = get_trainer_from_args(dataset_name_or_id, configuration, fold, tr, p, *args, **kwargs)
 
