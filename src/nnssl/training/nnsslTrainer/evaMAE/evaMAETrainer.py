@@ -32,6 +32,8 @@ class EvaMAETrainer(BaseMAETrainer):
         decoder_eva_numheads,
         bs,
     ):
+        #import IPython
+        #IPython.embed()
         super(EvaMAETrainer, self).__init__(plan,
                          configuration_name,
                          fold,

@@ -193,6 +193,8 @@ def run_ddp(
     #IPython.embed()    
     setup_ddp(rank, world_size)
     torch.cuda.set_device(torch.device("cuda", dist.get_rank()))
+
+    print(p)
     
     nnunet_trainer = get_trainer_from_args(dataset_name_or_id, configuration, fold, tr, p, *args, **kwargs)
 
@@ -237,6 +239,9 @@ def run_training(
     *args,
     **kwargs,
 ):
+    #import IPython
+    #IPython.embed()
+
     if isinstance(fold, str):
         if fold != "all":
             try:
@@ -263,7 +268,7 @@ def run_training(
         
         #import IPython
         #IPython.embed()
-        
+        print(plans_identifier)
         mp.spawn(
             run_ddp,
             args=(
