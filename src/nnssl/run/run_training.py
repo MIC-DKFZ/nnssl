@@ -50,7 +50,10 @@ def get_trainer_from_args(
     device: torch.device = torch.device("cuda"),
     *args,
     **kwargs,
-):
+):  
+    print(f' Args: {args}' )
+    print(f' Kwargs: {kwargs}' )
+    
     # load nnunet class and do sanity checks
     nnssl_trainer_cls: Type[AbstractBaseTrainer] = recursive_find_python_class(
         join(nnssl.__path__[0], "training", "nnsslTrainer"), trainer_name, "nnssl.training.nnsslTrainer"
