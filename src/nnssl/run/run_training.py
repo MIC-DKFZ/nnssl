@@ -188,9 +188,7 @@ def run_ddp(
     *args,
     **kwargs,
 ):
-    print(rank, p)vi
-    print(f' Args: {args}' )
-    print(f' Kwargs: {kwargs}' )
+
     #import IPython
     #IPython.embed()    
     setup_ddp(rank, world_size)
@@ -198,7 +196,6 @@ def run_ddp(
     #torch.cuda.set_device(torch.device("cuda", dist.get_rank()))
  
     device = torch.device(f"cuda:{rank}")
-    print(device)
     nnunet_trainer = get_trainer_from_args(dataset_name_or_id, configuration, fold, tr, p, device= device, *args)
     if disable_checkpointing:
         nnunet_trainer.disable_checkpointing = disable_checkpointing
@@ -270,7 +267,6 @@ def run_training(
         
         #import IPython
         #IPython.embed()
-        print(plans_identifier)
         mp.spawn(
             run_ddp,
             args=(
