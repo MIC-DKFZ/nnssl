@@ -350,6 +350,7 @@ class AbstractBaseTrainer(ABC):
                     self.on_validation_epoch_end(val_outputs)
 
                 self.on_epoch_end()
+
                 if self.exit_training_flag:
                     # This is a signal that we need to resubmit, so we break the loop and exit gracefully
                     print("Finished last epoch before restart.")
@@ -824,25 +825,10 @@ class AbstractBaseTrainer(ABC):
 
     @staticmethod
     def keep_valid(valid_image_names: list[str], dataset: nnSSLDatasetBlosc2):
-
         # --------------------------- Remove broken images --------------------------- #
         pre_removal_len = len(dataset.image_identifiers)
-        # Move to set to make this fast
-        valid_image_set = set(valid_image_names)
-        dataset.image_dataset = {k: v for k, v in dataset.image_dataset.items() if v.image_name in valid_image_set}
-        dataset.image_identifiers = list(dataset.image_dataset.keys())
-        post_removal_len = len(dataset.image_identifiers)
-        removed_images = pre_removal_len - post_removal_len
+        dataset.image_dataset = {k: v for k, v in dataset.image_dataset.items() if v.image_name in valid_image_names}
 
-        return removed_images
-
-    @staticmethod
-    def keep_valid_unique(valid_unique_image_ids: list[str], dataset: nnSSLDatasetBlosc2):
-        pre_removal_len = len(dataset.image_identifiers)
-        valid_unique_image_set = set(valid_unique_image_ids)
-        dataset.image_dataset = {
-            k: v for k, v in dataset.image_dataset.items() if v.get_unique_id() in valid_unique_image_set
-        }
         dataset.image_identifiers = list(dataset.image_dataset.keys())
         post_removal_len = len(dataset.image_identifiers)
         removed_images = pre_removal_len - post_removal_len
