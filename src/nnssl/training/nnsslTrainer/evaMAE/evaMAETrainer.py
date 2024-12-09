@@ -31,6 +31,7 @@ class EvaMAETrainer(BaseMAETrainer):
         decoder_eva_depth,
         decoder_eva_numheads,
         bs,
+        lr,
     ):
         super(EvaMAETrainer, self).__init__(plan,
                          configuration_name,
@@ -45,8 +46,10 @@ class EvaMAETrainer(BaseMAETrainer):
                          decoder_eva_depth,
                          decoder_eva_numheads,
                          bs,
+                         lr,
                          )
-        
+        if lr is not None:
+            self.initial_lr = lr
         self.mask_ratio = mask_ratio
         self.vit_patch_size = vit_patch_size
         self.embed_dim = embed_dim

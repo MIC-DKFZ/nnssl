@@ -73,6 +73,7 @@ class BaseMAETrainer(AbstractBaseTrainer):
         decoder_eva_depth,
         decoder_eva_numheads,
         bs,
+        lr,
         
 
     ):
@@ -84,7 +85,8 @@ class BaseMAETrainer(AbstractBaseTrainer):
                 encoder_eva_numheads,
                 decoder_eva_depth,
                 decoder_eva_numheads,
-                bs,)
+                bs,
+                lr,)
         self.mask_percentage: float = 0.75
 
         self.im_output_folder = os.path.join(self.output_folder, "img_log")
