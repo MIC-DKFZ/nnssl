@@ -68,6 +68,7 @@ class AbstractBaseTrainer(ABC):
         decoder_eva_depth,
         decoder_eva_numheads,
         bs,
+        lr,
         
     ):
         # From https://grugbrain.dev/. Worth a read ya big brains ;-)
@@ -255,11 +256,14 @@ class AbstractBaseTrainer(ABC):
                 f"Using DDP. Total Batch size {self.config_plan.batch_size} distributed across all {world_size} gpus."
             )
 
-            global_batch_size = self.config_plan.batch_size
-
-            assert (
-                global_batch_size >= world_size
-            ), f"Cannot run DDP if the batch size ({global_batch_size}) is smaller than the number of GPUs ({world_size})... Duh."
+            if self.batch_size_from_args is not None:
+                # set the batch size from the arguments
+                global_batch_size = self.batch_size_from_args
+            else:
+                global_batch_size = self.config_plan.batch_size
+            assert global_batch_size >= world_size, (
+                "Cannot run DDP if the batch size is smaller than the number of " "GPUs... Duh."
+            )
 
             batch_size_per_GPU = np.ceil(global_batch_size / world_size).astype(int)
 
