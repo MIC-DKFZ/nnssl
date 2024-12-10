@@ -736,6 +736,7 @@ class AbstractBaseTrainer(ABC):
                 self.network._orig_mod.load_state_dict(new_state_dict)
             else:
                 self.network.load_state_dict(new_state_dict)
+
         self.optimizer.load_state_dict(checkpoint["optimizer_state"])
         if self.grad_scaler is not None:
             if checkpoint["grad_scaler_state"] is not None:
