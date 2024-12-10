@@ -1,19 +1,23 @@
 import torch
 import os
-
+import sys
 from torch import nn
 from typing import Tuple
 from nnssl.training.nnsslTrainer.evaMAE.evaMAE_module import EvaMAE
 from torch import autocast
 from nnssl.utilities.helpers import dummy_context
-from batchgenerators.utilities.file_and_folder_operations import join
 from tqdm import tqdm
 from valohai.config import is_running_in_valohai
 from nnssl.experiment_planning.experiment_planners.plan import Plan
 from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
 from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import BaseMAETrainer
 import numpy as np
-
+from nnssl.paths import nnssl_results
+from torch import distributed as dist
+from nnssl.training.logging.nnssl_logger_wandb import nnSSLLogger_wandb
+from batchgenerators.utilities.file_and_folder_operations import join, isfile, save_json, maybe_mkdir_p, load_json
+import wandb
+from nnssl.utilities.helpers import empty_cache
 class EvaMAETrainer(BaseMAETrainer):
 
     def __init__(
@@ -22,42 +26,149 @@ class EvaMAETrainer(BaseMAETrainer):
         configuration_name: str,
         fold: int,
         pretrain_json: dict,
-        device: torch.device, 
-        mask_ratio,
-        vit_patch_size,
-        embed_dim,
-        encoder_eva_depth,
-        encoder_eva_numheads,
-        decoder_eva_depth,
-        decoder_eva_numheads,
-        bs,
-        lr,
+        device: torch.device,
     ):
         super(EvaMAETrainer, self).__init__(plan,
                          configuration_name,
                          fold,
                          pretrain_json,
                          device,
-                         mask_ratio,
-                         vit_patch_size,
-                         embed_dim,
-                         encoder_eva_depth,
-                         encoder_eva_numheads,
-                         decoder_eva_depth,
-                         decoder_eva_numheads,
-                         bs,
-                         lr,
                          )
-        if lr is not None:
-            self.initial_lr = lr
-        self.mask_ratio = mask_ratio
-        self.vit_patch_size = vit_patch_size
-        self.embed_dim = embed_dim
-        self.encoder_eva_depth = encoder_eva_depth
-        self.encoder_eva_numheads = encoder_eva_numheads
-        self.decoder_eva_depth = decoder_eva_depth
-        self.decoder_eva_numheads = decoder_eva_numheads
-    
+
+        # use wandb nnssl logger
+        self.use_wandb = True if self.local_rank == 0 else False
+        group_name = (
+                self.plan.dataset_name
+                + "_"
+                + self.__class__.__name__
+                + "_"
+                + self.plan.plans_name
+                + "_"
+                + self.configuration_name
+        )
+        if len(group_name) > 128:
+            group_name = group_name[:128]
+        wandb_init_args = {
+            "dir": self.output_folder,
+            "name": self.plan.dataset_name + "_fold" + str(fold),
+            "group": group_name,
+        }
+
+        self.logger = nnSSLLogger_wandb(
+            use_wandb=self.use_wandb,
+            dataset_name=self.plan.dataset_name,
+            wandb_init_args=wandb_init_args,
+        )
+
+        print(self.logger.get_dir())
+
+        self.output_folder_base = (
+            join(
+                nnssl_results,
+                self.plan.dataset_name,
+                self.__class__.__name__ + "__" + self.plan.plans_name + "__" + configuration_name,
+                )
+            if nnssl_results is not None
+            else None
+        )
+        self.output_folder = join(self.output_folder_base, f"fold_{fold}")
+
+        self.mask_ratio = self.config_plan['mask_ratio']
+        self.vit_patch_size = self.config_plan['vit_patch_size']
+        self.embed_dim = self.config_plan['embed_dim']
+        self.encoder_eva_depth = self.config_plan['encoder_eva_depth']
+        self.encoder_eva_numheads = self.config_plan['encoder_eva_numheads']
+        self.decoder_eva_depth = self.config_plan['decoder_eva_depth']
+        self.decoder_eva_numheads = self.config_plan['decoder_eva_numheads']
+        self.batch_size_from_args = self.config_plan['bs']
+        if self.config_plan['initial_lr'] is not None:
+            self.initial_lr = self.config_plan['initial_lr']
+        self._overwrite_batch_size()
+
+
+
+    def _overwrite_batch_size(self):
+        if not self.is_ddp:
+            if self.batch_size_from_args is not None:
+                # set the batch size from the arguments
+                self.batch_size = self.batch_size_from_args
+            else:
+                # set batch size to what the plan says, leave oversample untouched
+                self.batch_size = self.config_plan.batch_size
+
+        else:
+            # batch size is distributed over DDP workers and we need to change oversample_percent for each worker
+            batch_sizes = []
+
+            world_size = dist.get_world_size()
+            my_rank = dist.get_rank()
+
+            if self.batch_size_from_args is not None:
+                # set the batch size from the arguments
+                global_batch_size = self.batch_size_from_args
+            else:
+                global_batch_size = self.config_plan.batch_size
+            assert global_batch_size >= world_size, (
+                "Cannot run DDP if the batch size is smaller than the number of " "GPUs... Duh."
+            )
+
+            batch_size_per_GPU = np.ceil(global_batch_size / world_size).astype(int)
+
+            for rank in range(world_size):
+                if (rank + 1) * batch_size_per_GPU > global_batch_size:
+                    batch_size = batch_size_per_GPU - ((rank + 1) * batch_size_per_GPU - global_batch_size)
+                else:
+                    batch_size = batch_size_per_GPU
+
+                batch_sizes.append(batch_size)
+
+            print("worker", my_rank, "batch_size", batch_sizes[my_rank])
+            # self.print_to_log_file("worker", my_rank, "oversample", oversample_percents[my_rank])
+            # self.print_to_log_file("worker", my_rank, "batch_size", batch_sizes[my_rank])
+
+            self.batch_size = batch_sizes[my_rank]
+    def _save_debug_information(self):
+        # saving some debug information
+        if self.local_rank == 0:
+            dct = {}
+            for k in self.__dir__():
+                if not k.startswith("__"):
+                    if not callable(getattr(self, k)) or k in [
+                        "loss",
+                    ]:
+                        dct[k] = str(getattr(self, k))
+                    elif k in [
+                        "network",
+                    ]:
+                        dct[k] = str(getattr(self, k).__class__.__name__)
+                    else:
+                        # print(k)
+                        pass
+                if k in ["dataloader_train", "dataloader_val"]:
+                    if hasattr(getattr(self, k), "generator"):
+                        dct[k + ".generator"] = str(getattr(self, k).generator)
+                    if hasattr(getattr(self, k), "num_processes"):
+                        dct[k + ".num_processes"] = str(getattr(self, k).num_processes)
+                    if hasattr(getattr(self, k), "transform"):
+                        dct[k + ".transform"] = str(getattr(self, k).transform)
+            import subprocess
+
+            hostname = subprocess.getoutput(["hostname"])
+            dct["hostname"] = hostname
+            torch_version = torch.__version__
+            if self.device.type == "cuda":
+                gpu_name = torch.cuda.get_device_name()
+                dct["gpu_name"] = gpu_name
+                cudnn_version = torch.backends.cudnn.version()
+            else:
+                cudnn_version = "None"
+            dct["device"] = str(self.device)
+            dct["torch_version"] = torch_version
+            dct["cudnn_version"] = cudnn_version
+            save_json(dct, join(self.output_folder, "debug.json"))
+
+            if self.use_wandb and self.local_rank == 0:
+                self.logger.log_hypparams_to_wandb(self, dct)
     @staticmethod
     def create_mask(keep_indices: torch.Tensor, image_size: Tuple[int, int, int], patch_size: Tuple[int, int, int]) -> torch.Tensor:
         """
@@ -219,3 +330,49 @@ class EvaMAETrainer(BaseMAETrainer):
                 self.log_img_slices(data, reconstruction, mask, losses, batch_id)
 
         return
+
+    def on_train_end(self):
+    # dirty hack because on_epoch_end increments the epoch counter and this is executed afterwards.
+    # This will lead to the wrong current epoch to be stored
+        self.current_epoch -= 1
+        self.save_checkpoint(join(self.wandb_dir, "checkpoint_final.pth"))
+        self.current_epoch += 1
+
+        # now we can delete latest
+        if self.local_rank == 0 and isfile(join(self.output_folder, "checkpoint_latest.pth")):
+            os.remove(join(self.output_folder, "checkpoint_latest.pth"))
+
+        # shut down dataloaders
+        old_stdout = sys.stdout
+        with open(os.devnull, "w") as f:
+            sys.stdout = f
+            if self.dataloader_train is not None:
+                self.dataloader_train._finish()
+            if self.dataloader_val is not None:
+                self.dataloader_val._finish()
+            sys.stdout = old_stdout
+
+        empty_cache(self.device)
+        self.print_to_log_file("Training done.")
+
+    def on_train_start(self):
+        if not self.was_initialized:
+            self.initialize()
+
+        maybe_mkdir_p(self.output_folder)
+
+        self.print_plans()
+        empty_cache(self.device)
+
+        if self.is_ddp:
+            dist.barrier()
+
+        # dataloaders must be instantiated here because they need access to the training data which may not be present
+        # when doing inference
+        self.dataloader_train, self.dataloader_val = self.get_dataloaders()
+        # Guarantee to only use data that is readable and not inf or nan
+
+        # copy plans and dataset.json so that they can be used for restoring everything we need for inference
+        save_json(asdict(self.plan), join(self.output_folder_base, "plans.json"), sort_keys=False)
+
+        self._save_debug_information()

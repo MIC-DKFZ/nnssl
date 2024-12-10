@@ -65,28 +65,10 @@ class BaseMAETrainer(AbstractBaseTrainer):
         fold: int,
         pretrain_json: dict,
         device: torch.device,
-        mask_ratio,
-        vit_patch_size,
-        embed_dim,
-        encoder_eva_depth,
-        encoder_eva_numheads,
-        decoder_eva_depth,
-        decoder_eva_numheads,
-        bs,
-        lr,
-        
 
     ):
         # plan.configurations[configuration_name].batch_size = 1
-        super().__init__(plan, configuration_name, fold, pretrain_json, device, mask_ratio,
-                vit_patch_size,
-                embed_dim,
-                encoder_eva_depth,
-                encoder_eva_numheads,
-                decoder_eva_depth,
-                decoder_eva_numheads,
-                bs,
-                lr,)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.mask_percentage: float = 0.75
 
         self.im_output_folder = os.path.join(self.output_folder, "img_log")

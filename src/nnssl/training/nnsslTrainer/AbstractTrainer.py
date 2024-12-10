@@ -59,17 +59,7 @@ class AbstractBaseTrainer(ABC):
         configuration_name: str,
         fold: int,
         pretrain_json: dict,
-        device: torch.device,
-        mask_ratio,
-        vit_patch_size,
-        embed_dim,
-        encoder_eva_depth,
-        encoder_eva_numheads,
-        decoder_eva_depth,
-        decoder_eva_numheads,
-        bs,
-        lr,
-        
+        device: torch.device("cuda"),
     ):
         # From https://grugbrain.dev/. Worth a read ya big brains ;-)
         # apex predator of grug is complexity
@@ -119,8 +109,6 @@ class AbstractBaseTrainer(ABC):
         self.configuration_name = configuration_name
         self.pretrain_json = pretrain_json
         self.fold = fold
-        self.batch_size_from_args = bs
-
         if is_running_in_valohai():
             self.current_epoch_log = {}
 
@@ -179,31 +167,7 @@ class AbstractBaseTrainer(ABC):
             "training_log_%d_%d_%d_%02.0d_%02.0d_%02.0d.txt"
             % (timestamp.year, timestamp.month, timestamp.day, timestamp.hour, timestamp.minute, timestamp.second),
         )
-        # self.logger = nnSSLLogger()
-        self.use_wandb = True if self.local_rank == 0 else False
-        group_name = (
-            self.plan.dataset_name
-            + "_"
-            + self.__class__.__name__
-            + "_"
-            + self.plan.plans_name
-            + "_"
-            + self.configuration_name
-        )
-        if len(group_name) > 128:
-            group_name = group_name[:128]
-        wandb_init_args = {
-            "dir": self.output_folder,
-            "name": self.plan.dataset_name + "_fold" + str(fold),
-            "group": group_name,
-        }
-
-        self.logger = nnSSLLogger(
-            use_wandb=self.use_wandb,
-            dataset_name=self.plan.dataset_name,
-            wandb_init_args=wandb_init_args,
-        )
-
+        self.logger = nnSSLLogger()
 
         ### placeholders
         self.dataloader_train = self.dataloader_val = None  # see on_train_start
@@ -239,13 +203,9 @@ class AbstractBaseTrainer(ABC):
 
     def _set_batch_size(self):
         if not self.is_ddp:
-            if self.batch_size_from_args is not None:
-                # set the batch size from the arguments
-                self.batch_size = self.batch_size_from_args
-            else: 
-                # set batch size to what the plan says, leave oversample untouched
-                self.batch_size = self.config_plan.batch_size
-
+            # set batch size to what the plan says, leave oversample untouched
+            logger.info(f"Not using DDP. Setting batch size for single gpu to {self.config_plan.batch_size}.")
+            self.batch_size = self.config_plan.batch_size
         else:
             # batch size is distributed over DDP workers and we need to change oversample_percent for each worker
             batch_sizes = []
@@ -265,6 +225,12 @@ class AbstractBaseTrainer(ABC):
                 "Cannot run DDP if the batch size is smaller than the number of " "GPUs... Duh."
             )
 
+            global_batch_size = self.config_plan.batch_size
+
+            assert (
+                    global_batch_size >= world_size
+            ), f"Cannot run DDP if the batch size ({global_batch_size}) is smaller than the number of GPUs ({world_size})... Duh."
+
             batch_size_per_GPU = np.ceil(global_batch_size / world_size).astype(int)
 
             for rank in range(world_size):
@@ -280,6 +246,7 @@ class AbstractBaseTrainer(ABC):
             # self.print_to_log_file("worker", my_rank, "batch_size", batch_sizes[my_rank])
 
             self.batch_size = batch_sizes[my_rank]
+
 
     @abstractmethod
     def build_architecture(
@@ -364,7 +331,7 @@ class AbstractBaseTrainer(ABC):
         except KeyboardInterrupt:
             print("Keyboard interrupt.")
             self.print_to_log_file("Keyboard interrupt. Exiting gracefully.")
-            self.save_checkpoint(join(self.output_folder, "checkpoint_latest.pth"))
+            self.save_checkpoint(join(wandb.run.dir, "checkpoint_latest.pth"))
             raise KeyboardInterrupt
 
     def print_to_log_file(self, *args, also_print_to_console=True, add_timestamp=True):
@@ -823,9 +790,7 @@ class AbstractBaseTrainer(ABC):
             dct["torch_version"] = torch_version
             dct["cudnn_version"] = cudnn_version
             save_json(dct, join(self.output_folder, "debug.json"))
-            
-            if self.use_wandb and self.local_rank == 0:
-                self.logger.log_hypparams_to_wandb(self, dct)
+
 
     @staticmethod
     def keep_valid(valid_image_names: list[str], dataset: nnSSLDatasetBlosc2):

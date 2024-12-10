@@ -5,9 +5,10 @@ matplotlib.use("agg")
 import seaborn as sns
 import matplotlib.pyplot as plt
 from loguru import logger
+import wandb
 
 
-class nnSSLLogger(object):
+class nnSSLLogger_wandb(object):
     """
     This class is really trivial. Don't expect cool functionality here. This is my makeshift solution to problems
     arising from out-of-sync epoch numbers and numbers of logged loss values. It also simplifies the trainer class a
@@ -16,7 +17,7 @@ class nnSSLLogger(object):
     YOU MUST LOG EXACTLY ONE VALUE PER EPOCH FOR EACH OF THE LOGGING ITEMS! DONT FUCK IT UP
     """
 
-    def __init__(self, verbose: bool = False):
+    def __init__(self, verbose: bool = False, use_wandb: bool = False, wandb_init_args: dict = {},dataset_name: str = ""):
         self.my_fantastic_logging = {
             "train_losses": list(),
             "val_losses": list(),
@@ -27,7 +28,24 @@ class nnSSLLogger(object):
         self.verbose = verbose
         # shut up, this logging is great
 
-    def log(self, key, value, epoch: int):
+        self.wandb = use_wandb
+        if self.wandb:
+            wandb.init(project="nnssl_{}".format(dataset_name),entity='mic_rocket',allow_val_change=True, **wandb_init_args)
+
+
+    def get_dir(self):
+        return self.wandb_dir
+
+    def log(self, key, value, epoch: int):      
+        if self.wandb:
+            if not len(self.my_fantastic_logging['val_losses'])==epoch:
+                
+                #if len(self.my_fantastic_logging['train_losses'])>0 and len(self.my_fantastic_logging['val_losses']):
+                wandb.log({'train_loss': self.my_fantastic_logging['train_losses'][epoch], 
+                    'val_loss': self.my_fantastic_logging['val_losses'][epoch],
+                    #'epoch_duration': self.my_fantastic_logging['epoch_end_timestamps'][epoch]-self.my_fantastic_logging['epoch_start_timestamps'][epoch],
+                    'learning_rate': self.my_fantastic_logging['lrs'][epoch],
+                    'epoch': epoch})
         """
         sometimes shit gets messed up. We try to catch that here
         """
@@ -38,6 +56,10 @@ class nnSSLLogger(object):
             raise ValueError(f"Length of {key} list is '{len(dict_content)}'. Expected {epoch}")
         dict_content.append(value)
         return dict_content
+
+
+    def wandb_log(self, key, value):
+        wandb.log({key: value})
 
     def plot_progress_png(self, output_folder):
         # we infer the epoch form our internal logging
@@ -78,9 +100,9 @@ class nnSSLLogger(object):
             [
                 i - j
                 for i, j in zip(
-                self.my_fantastic_logging["epoch_end_timestamps"][: epoch + 1],
-                self.my_fantastic_logging["epoch_start_timestamps"],
-            )
+                    self.my_fantastic_logging["epoch_end_timestamps"][: epoch + 1],
+                    self.my_fantastic_logging["epoch_start_timestamps"],
+                )
             ][: epoch + 1],
             color="b",
             ls="-",
@@ -130,3 +152,30 @@ class nnSSLLogger(object):
         for key, value in self.my_fantastic_logging.items():
             self.my_fantastic_logging[key] = value[:min_length]
         return min_length
+    
+    def log_hypparams_to_wandb(self, trainer_class_instance, debug_dict):
+        
+        assert self.wandb, 'You need to use wandb for logging hyperparameters'
+        
+        trainer_class_instance.my_init_kwargs.pop('pretrain_json')
+        #trainer_class_instance.my_init_kwargs.pop('plan')
+        #import IPython
+        #IPython.embed()
+
+        #wandb.config.update(trainer_class_instance.my_init_kwargs)
+        #wandb.config.update({k:v for (k,v) in trainer_class_instance.my_init_kwargs.items() if not callable(v)})
+        for key, value in trainer_class_instance.my_init_kwargs.items():
+            wandb.config.update({key: value}, allow_val_change=True)
+        #debug_dict.pop("my_init_kwargs")
+        #debug_dict.pop("configuration_manager")
+        debug_dict.pop("device")
+        debug_dict.pop("my_init_kwargs")
+        debug_dict.pop("plan")
+        debug_dict.pop("configuration_name")
+        #debug_dict.pop("plan")
+        #debug_dict.pop("dataset_json")
+        #debug_dict.pop("unpack_dataset")
+        debug_dict.pop("fold")
+        debug_dict.pop("use_wandb")
+        #wandb.config.update(debug_dict, allow_val_change=True)
+        wandb.config.update({"TrainerClass": trainer_class_instance.__class__.__name__})
