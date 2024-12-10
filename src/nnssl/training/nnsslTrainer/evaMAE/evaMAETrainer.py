@@ -35,6 +35,20 @@ class EvaMAETrainer(BaseMAETrainer):
                          device,
                          )
 
+        self.output_folder_base = (
+            join(
+                nnssl_results,
+                self.plan.dataset_name,
+                self.__class__.__name__ + "__" + self.plan.plans_name + "__" + configuration_name,
+                )
+            if nnssl_results is not None
+            else None
+        )
+        self.output_folder = join(self.output_folder_base, f"fold_{fold}")
+        maybe_mkdir_p(self.output_folder)
+
+
+
         # use wandb nnssl logger
         self.use_wandb = True if self.local_rank == 0 else False
         group_name = (
@@ -60,18 +74,6 @@ class EvaMAETrainer(BaseMAETrainer):
             wandb_init_args=wandb_init_args,
         )
 
-        print(self.logger.get_dir())
-
-        self.output_folder_base = (
-            join(
-                nnssl_results,
-                self.plan.dataset_name,
-                self.__class__.__name__ + "__" + self.plan.plans_name + "__" + configuration_name,
-                )
-            if nnssl_results is not None
-            else None
-        )
-        self.output_folder = join(self.output_folder_base, f"fold_{fold}")
 
         self.mask_ratio = self.config_plan['mask_ratio']
         self.vit_patch_size = self.config_plan['vit_patch_size']
@@ -330,30 +332,6 @@ class EvaMAETrainer(BaseMAETrainer):
                 self.log_img_slices(data, reconstruction, mask, losses, batch_id)
 
         return
-
-    def on_train_end(self):
-    # dirty hack because on_epoch_end increments the epoch counter and this is executed afterwards.
-    # This will lead to the wrong current epoch to be stored
-        self.current_epoch -= 1
-        self.save_checkpoint(join(self.wandb_dir, "checkpoint_final.pth"))
-        self.current_epoch += 1
-
-        # now we can delete latest
-        if self.local_rank == 0 and isfile(join(self.output_folder, "checkpoint_latest.pth")):
-            os.remove(join(self.output_folder, "checkpoint_latest.pth"))
-
-        # shut down dataloaders
-        old_stdout = sys.stdout
-        with open(os.devnull, "w") as f:
-            sys.stdout = f
-            if self.dataloader_train is not None:
-                self.dataloader_train._finish()
-            if self.dataloader_val is not None:
-                self.dataloader_val._finish()
-            sys.stdout = old_stdout
-
-        empty_cache(self.device)
-        self.print_to_log_file("Training done.")
 
     def on_train_start(self):
         if not self.was_initialized:

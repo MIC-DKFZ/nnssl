@@ -6,9 +6,11 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from loguru import logger
 import wandb
+from copy import deepcopy
 
 
 class nnSSLLogger_wandb(object):
+
     """
     This class is really trivial. Don't expect cool functionality here. This is my makeshift solution to problems
     arising from out-of-sync epoch numbers and numbers of logged loss values. It also simplifies the trainer class a
@@ -32,20 +34,16 @@ class nnSSLLogger_wandb(object):
         if self.wandb:
             wandb.init(project="nnssl_{}".format(dataset_name),entity='mic_rocket',allow_val_change=True, **wandb_init_args)
 
-
-    def get_dir(self):
-        return self.wandb_dir
-
-    def log(self, key, value, epoch: int):      
+    def log(self, key, value, epoch: int):
         if self.wandb:
             if not len(self.my_fantastic_logging['val_losses'])==epoch:
-                
+
                 #if len(self.my_fantastic_logging['train_losses'])>0 and len(self.my_fantastic_logging['val_losses']):
-                wandb.log({'train_loss': self.my_fantastic_logging['train_losses'][epoch], 
-                    'val_loss': self.my_fantastic_logging['val_losses'][epoch],
-                    #'epoch_duration': self.my_fantastic_logging['epoch_end_timestamps'][epoch]-self.my_fantastic_logging['epoch_start_timestamps'][epoch],
-                    'learning_rate': self.my_fantastic_logging['lrs'][epoch],
-                    'epoch': epoch})
+                wandb.log({'train_loss': self.my_fantastic_logging['train_losses'][epoch],
+                           'val_loss': self.my_fantastic_logging['val_losses'][epoch],
+                           #'epoch_duration': self.my_fantastic_logging['epoch_end_timestamps'][epoch]-self.my_fantastic_logging['epoch_start_timestamps'][epoch],
+                           'learning_rate': self.my_fantastic_logging['lrs'][epoch],
+                           'epoch': epoch})
         """
         sometimes shit gets messed up. We try to catch that here
         """
@@ -100,9 +98,9 @@ class nnSSLLogger_wandb(object):
             [
                 i - j
                 for i, j in zip(
-                    self.my_fantastic_logging["epoch_end_timestamps"][: epoch + 1],
-                    self.my_fantastic_logging["epoch_start_timestamps"],
-                )
+                self.my_fantastic_logging["epoch_end_timestamps"][: epoch + 1],
+                self.my_fantastic_logging["epoch_start_timestamps"],
+            )
             ][: epoch + 1],
             color="b",
             ls="-",
@@ -152,13 +150,18 @@ class nnSSLLogger_wandb(object):
         for key, value in self.my_fantastic_logging.items():
             self.my_fantastic_logging[key] = value[:min_length]
         return min_length
-    
-    def log_hypparams_to_wandb(self, trainer_class_instance, debug_dict):
-        
+
+    def log_hypparams_to_wandb(self, trainer_class_instance_org, debug_dict):
+
         assert self.wandb, 'You need to use wandb for logging hyperparameters'
-        
+        trainer_class_instance = deepcopy(trainer_class_instance_org)
+
+        for key, value in trainer_class_instance.my_init_kwargs['plan']['configurations']['3d_fullres'].items():
+            if key in ['mask_ratio', 'vit_patch_size', 'embed_dim', 'encoder_eva_depth', 'encoder_eva_numheads', 'decoder_eva_depth', 'decoder_eva_numheads', 'initial_lr']:
+                wandb.config.update({key: value}, allow_val_change=True)
+
         trainer_class_instance.my_init_kwargs.pop('pretrain_json')
-        #trainer_class_instance.my_init_kwargs.pop('plan')
+        trainer_class_instance.my_init_kwargs.pop('plan')
         #import IPython
         #IPython.embed()
 
@@ -178,4 +181,4 @@ class nnSSLLogger_wandb(object):
         debug_dict.pop("fold")
         debug_dict.pop("use_wandb")
         #wandb.config.update(debug_dict, allow_val_change=True)
-        wandb.config.update({"TrainerClass": trainer_class_instance.__class__.__name__})
+

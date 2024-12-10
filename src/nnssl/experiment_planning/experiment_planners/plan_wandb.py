@@ -42,6 +42,8 @@ class ConfigurationPlan_wandb(ConfigurationPlan):
     resampling_fn_mask: str
     resampling_fn_mask_kwargs: dict[str, Any]
     mask_ratio: float=None
+    vit_patch_size: list[int]=None
+    embed_dim: int=None
     encoder_eva_depth: int=None
     encoder_eva_numheads: int=None
     decoder_eva_depth: int=None

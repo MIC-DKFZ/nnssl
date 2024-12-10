@@ -59,7 +59,7 @@ class AbstractBaseTrainer(ABC):
         configuration_name: str,
         fold: int,
         pretrain_json: dict,
-        device: torch.device("cuda"),
+        device: torch.device = torch.device("cuda"),
     ):
         # From https://grugbrain.dev/. Worth a read ya big brains ;-)
         # apex predator of grug is complexity
@@ -228,7 +228,7 @@ class AbstractBaseTrainer(ABC):
             global_batch_size = self.config_plan.batch_size
 
             assert (
-                    global_batch_size >= world_size
+                global_batch_size >= world_size
             ), f"Cannot run DDP if the batch size ({global_batch_size}) is smaller than the number of GPUs ({world_size})... Duh."
 
             batch_size_per_GPU = np.ceil(global_batch_size / world_size).astype(int)
@@ -246,7 +246,6 @@ class AbstractBaseTrainer(ABC):
             # self.print_to_log_file("worker", my_rank, "batch_size", batch_sizes[my_rank])
 
             self.batch_size = batch_sizes[my_rank]
-
 
     @abstractmethod
     def build_architecture(
@@ -321,7 +320,6 @@ class AbstractBaseTrainer(ABC):
                     self.on_validation_epoch_end(val_outputs)
 
                 self.on_epoch_end()
-
                 if self.exit_training_flag:
                     # This is a signal that we need to resubmit, so we break the loop and exit gracefully
                     print("Finished last epoch before restart.")
@@ -331,7 +329,7 @@ class AbstractBaseTrainer(ABC):
         except KeyboardInterrupt:
             print("Keyboard interrupt.")
             self.print_to_log_file("Keyboard interrupt. Exiting gracefully.")
-            self.save_checkpoint(join(wandb.run.dir, "checkpoint_latest.pth"))
+            self.save_checkpoint(join(self.output_folder, "checkpoint_latest.pth"))
             raise KeyboardInterrupt
 
     def print_to_log_file(self, *args, also_print_to_console=True, add_timestamp=True):
@@ -752,7 +750,7 @@ class AbstractBaseTrainer(ABC):
         )
 
     def _save_debug_information(self):
-        # saving some debug information     
+        # saving some debug information
         if self.local_rank == 0:
             dct = {}
             for k in self.__dir__():
@@ -791,19 +789,17 @@ class AbstractBaseTrainer(ABC):
             dct["cudnn_version"] = cudnn_version
             save_json(dct, join(self.output_folder, "debug.json"))
 
-
     @staticmethod
     def keep_valid(valid_image_names: list[str], dataset: nnSSLDatasetBlosc2):
+
         # --------------------------- Remove broken images --------------------------- #
         pre_removal_len = len(dataset.image_identifiers)
         dataset.image_dataset = {k: v for k, v in dataset.image_dataset.items() if v.image_name in valid_image_names}
-
         dataset.image_identifiers = list(dataset.image_dataset.keys())
         post_removal_len = len(dataset.image_identifiers)
         removed_images = pre_removal_len - post_removal_len
 
         return removed_images
-
 
     def do_split(self):
         """

@@ -85,8 +85,13 @@ def get_trainer_from_args(
     plans_file = join(preprocessed_dataset_folder_base, plans_identifier + ".json")
     plans: Plan = Plan_wandb.load_from_file(plans_file)
     for param in kwargs:
+        if param in ['mask_ratio', 'initial_lr','vit_patch_size']:
+            plans.plans_name =  plans.plans_name + "__" + param + str(kwargs[param]).replace('.','').replace('[', '').replace(']','').replace(',','').replace(' ','')
+        else:
+            plans.plans_name =  plans.plans_name + "__" + param + str(kwargs[param])
         for config in plans.configurations:
             plans.configurations[config][param] = kwargs[param]
+
     pretrain_json = load_json(join(preprocessed_dataset_folder_base, "pretrain_data.json"))
     
     nnssl_trainer: AbstractBaseTrainer = nnssl_trainer_cls(

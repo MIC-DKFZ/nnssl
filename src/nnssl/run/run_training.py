@@ -42,12 +42,12 @@ def find_free_network_port() -> int:
 
 
 def get_trainer_from_args(
-        dataset_name_or_id: Union[int, str],
-        configuration: str,
-        fold: int,
-        trainer_name: str = "nnsslTrainer",
-        plans_identifier: str = "nnsslPlans",
-        device: torch.device = torch.device("cuda"),
+    dataset_name_or_id: Union[int, str],
+    configuration: str,
+    fold: int,
+    trainer_name: str = "nnsslTrainer",
+    plans_identifier: str = "nnsslPlans",
+    device: torch.device = torch.device("cuda"),
 ):
     # load nnunet class and do sanity checks
     nnssl_trainer_cls: Type[AbstractBaseTrainer] = recursive_find_python_class(
@@ -100,7 +100,7 @@ def maybe_copy_ckpt_if_on_valohai(nnunet_output_folder: str):
         input_paths = os.path.join(INPUT_ROOT, "pp-data")
         potential_ckpts = [c for c in os.listdir(input_paths) if c.endswith(".pth")]
         assert (
-                len(potential_ckpts) == 1
+            len(potential_ckpts) == 1
         ), f"Expected exactly one checkpoint file in {input_paths}, got {potential_ckpts}"
         ckpt = potential_ckpts[0]
         ckpt_path = os.path.join(input_paths, ckpt)
@@ -112,10 +112,10 @@ def maybe_copy_ckpt_if_on_valohai(nnunet_output_folder: str):
 
 
 def maybe_load_checkpoint(
-        nnunet_trainer: AbstractBaseTrainer,
-        continue_training: bool,
-        validation_only: bool,
-        pretrained_weights_file: str = None,
+    nnunet_trainer: AbstractBaseTrainer,
+    continue_training: bool,
+    validation_only: bool,
+    pretrained_weights_file: str = None,
 ):
     if continue_training and pretrained_weights_file is not None:
         raise RuntimeError(
@@ -168,19 +168,19 @@ def cleanup_ddp():
 
 
 def run_ddp(
-        rank,
-        dataset_name_or_id,
-        configuration,
-        fold,
-        tr,
-        p,
-        disable_checkpointing,
-        c,
-        val,
-        pretrained_weights,
-        npz,
-        val_with_best,
-        world_size,
+    rank,
+    dataset_name_or_id,
+    configuration,
+    fold,
+    tr,
+    p,
+    disable_checkpointing,
+    c,
+    val,
+    pretrained_weights,
+    npz,
+    val_with_best,
+    world_size,
 ):
     setup_ddp(rank, world_size)
     torch.cuda.set_device(torch.device("cuda", dist.get_rank()))
@@ -212,19 +212,19 @@ def run_ddp(
 
 
 def run_training(
-        dataset_name_or_id: Union[str, int],
-        configuration: str,
-        fold: Union[int, str],
-        trainer_class_name: str = "nnsslTrainer",
-        plans_identifier: str = "nnsslPlans",
-        pretrained_weights: Optional[str] = None,
-        num_gpus: int = 1,
-        export_validation_probabilities: bool = False,
-        continue_training: bool = False,
-        only_run_validation: bool = False,
-        disable_checkpointing: bool = False,
-        val_with_best: bool = False,
-        device: torch.device = torch.device("cuda"),
+    dataset_name_or_id: Union[str, int],
+    configuration: str,
+    fold: Union[int, str],
+    trainer_class_name: str = "nnsslTrainer",
+    plans_identifier: str = "nnsslPlans",
+    pretrained_weights: Optional[str] = None,
+    num_gpus: int = 1,
+    export_validation_probabilities: bool = False,
+    continue_training: bool = False,
+    only_run_validation: bool = False,
+    disable_checkpointing: bool = False,
+    val_with_best: bool = False,
+    device: torch.device = torch.device("cuda"),
 ):
     if isinstance(fold, str):
         if fold != "all":
@@ -241,7 +241,7 @@ def run_training(
 
     if num_gpus > 1:
         assert (
-                device.type == "cuda"
+            device.type == "cuda"
         ), f"DDP training (triggered by num_gpus > 1) is only implemented for cuda devices. Your device: {device}"
 
         os.environ["MASTER_ADDR"] = "localhost"
@@ -287,7 +287,7 @@ def run_training(
             nnunet_trainer.disable_checkpointing = disable_checkpointing
 
         assert not (
-                continue_training and only_run_validation
+            continue_training and only_run_validation
         ), f"Cannot set --c and --val flag at the same time. Dummy."
 
         maybe_load_checkpoint(nnunet_trainer, continue_training, only_run_validation, pretrained_weights)
@@ -331,7 +331,7 @@ def run_training_entry():
         required=False,
         default=None,
         help="[OPTIONAL] path to nnU-Net checkpoint file to be used as pretrained model. Will only "
-             "be used when actually training. Beta. Use with caution.",
+        "be used when actually training. Beta. Use with caution.",
     )
     parser.add_argument(
         "-num_gpus", type=int, default=1, required=False, help="Specify the number of GPUs to use for training"
@@ -341,7 +341,7 @@ def run_training_entry():
         action="store_true",
         required=False,
         help="[OPTIONAL] Save softmax predictions from final validation as npz files (in addition to predicted "
-             "segmentations). Needed for finding the best ensemble.",
+        "segmentations). Needed for finding the best ensemble.",
     )
     parser.add_argument(
         "--c", action="store_true", required=False, help="[OPTIONAL] Continue training from latest checkpoint"
@@ -357,16 +357,16 @@ def run_training_entry():
         action="store_true",
         required=False,
         help="[OPTIONAL] If set, the validation will be performed with the checkpoint_best instead "
-             "of checkpoint_final. NOT COMPATIBLE with --disable_checkpointing! "
-             "WARNING: This will use the same 'validation' folder as the regular validation "
-             "with no way of distinguishing the two!",
+        "of checkpoint_final. NOT COMPATIBLE with --disable_checkpointing! "
+        "WARNING: This will use the same 'validation' folder as the regular validation "
+        "with no way of distinguishing the two!",
     )
     parser.add_argument(
         "--disable_checkpointing",
         action="store_true",
         required=False,
         help="[OPTIONAL] Set this flag to disable checkpointing. Ideal for testing things out and "
-             "you dont want to flood your hard drive with checkpoints.",
+        "you dont want to flood your hard drive with checkpoints.",
     )
     parser.add_argument(
         "-device",
@@ -374,8 +374,8 @@ def run_training_entry():
         default="cuda",
         required=False,
         help="Use this to set the device the training should run with. Available options are 'cuda' "
-             "(GPU), 'cpu' (CPU) and 'mps' (Apple M1/M2). Do NOT use this to set which GPU ID! "
-             "Use CUDA_VISIBLE_DEVICES=X nnUNetv2_train [...] instead!",
+        "(GPU), 'cpu' (CPU) and 'mps' (Apple M1/M2). Do NOT use this to set which GPU ID! "
+        "Use CUDA_VISIBLE_DEVICES=X nnUNetv2_train [...] instead!",
     )
     args = parser.parse_args()
 
@@ -395,7 +395,7 @@ def run_training_entry():
         config = args.configuration
 
     assert (
-            os.environ.get("nnssl_results") is not None
+        os.environ.get("nnssl_results") is not None
     ), "nnssl_results not set. Stopping as no outputs would be written otherwise."
 
     if args.device == "cpu":
