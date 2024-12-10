@@ -11,12 +11,13 @@ from valohai.config import is_running_in_valohai
 from nnssl.experiment_planning.experiment_planners.plan import Plan
 from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
 from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import BaseMAETrainer
+from nnssl.training.lr_scheduler.warmup import Lin_incr_LRScheduler, PolyLRScheduler_offset
 import numpy as np
 from nnssl.paths import nnssl_results
 from torch import distributed as dist
 from nnssl.training.logging.nnssl_logger_wandb import nnSSLLogger_wandb
 from batchgenerators.utilities.file_and_folder_operations import join, isfile, save_json, maybe_mkdir_p, load_json
-import wandb
+from torch.nn.parallel import DistributedDataParallel as DDP
 from nnssl.utilities.helpers import empty_cache
 class EvaMAETrainer(BaseMAETrainer):
 
@@ -73,6 +74,14 @@ class EvaMAETrainer(BaseMAETrainer):
             dataset_name=self.plan.dataset_name,
             wandb_init_args=wandb_init_args,
         )
+        ###settings taken from fabi
+        self.drop_path_rate = 0.2
+        self.grad_clip = 1
+        self.initial_lr = 3e-5
+        self.weight_decay = 5e-3
+        self.enable_deep_supervision = False
+        self.warmup_duration_whole_net = 50  # lin increase whole network
+        self.training_stage = None
 
 
         self.mask_ratio = self.config_plan['mask_ratio']
@@ -88,6 +97,47 @@ class EvaMAETrainer(BaseMAETrainer):
         self._overwrite_batch_size()
 
 
+    def configure_optimizers(self, stage: str = 'warmup_all'):
+        assert stage in ['warmup_all', 'train']
+
+        if self.training_stage == stage:
+            return self.optimizer, self.lr_scheduler
+
+        if isinstance(self.network, DDP):
+            params = self.network.module.parameters()
+        else:
+            params = self.network.parameters()
+
+        if stage == 'warmup_all':
+            self.print_to_log_file("train whole net, warmup")
+            optimizer = torch.optim.AdamW(params, self.initial_lr, weight_decay=self.weight_decay,
+                                          amsgrad=False, betas=(0.9, 0.98), fused=True)
+            lr_scheduler = Lin_incr_LRScheduler(optimizer, self.initial_lr, self.warmup_duration_whole_net)
+            self.print_to_log_file(f"Initialized warmup_all optimizer and lr_scheduler at epoch {self.current_epoch}")
+        else:
+            self.print_to_log_file("train whole net, default schedule")
+            if self.training_stage == 'warmup_all':
+                # we can keep the existing optimizer and don't need to create a new one. This will allow us to keep
+                # the accumulated momentum terms which already point in a useful driection
+                optimizer = self.optimizer
+            else:
+                optimizer = torch.optim.AdamW(params, self.initial_lr,
+                                              weight_decay=self.weight_decay,
+                                              amsgrad=False, betas=(0.9, 0.98), fused=True)
+            lr_scheduler = PolyLRScheduler_offset(optimizer, self.initial_lr, self.num_epochs,
+                                                  self.warmup_duration_whole_net)
+            self.print_to_log_file(f"Initialized train optimizer and lr_scheduler at epoch {self.current_epoch}")
+        self.training_stage = stage
+        empty_cache(self.device)
+        return optimizer, lr_scheduler
+
+    def on_train_epoch_start(self):
+        if self.current_epoch == 0:
+            self.optimizer, self.lr_scheduler = self.configure_optimizers('warmup_all')
+        elif self.current_epoch == self.warmup_duration_whole_net:
+            self.optimizer, self.lr_scheduler = self.configure_optimizers('train')
+
+        super().on_train_epoch_start()
 
     def _overwrite_batch_size(self):
         if not self.is_ddp:
@@ -217,7 +267,8 @@ class EvaMAETrainer(BaseMAETrainer):
             encoder_eva_numheads=self.encoder_eva_numheads,
             decoder_eva_depth=self.decoder_eva_depth,
             decoder_eva_numheads=self.decoder_eva_numheads,
-            patch_drop_rate=self.mask_ratio
+            patch_drop_rate=self.mask_ratio,
+            drop_path_rate=self.drop_path_rate
         )
         return network
     
@@ -243,12 +294,12 @@ class EvaMAETrainer(BaseMAETrainer):
         if self.grad_scaler is not None:
             self.grad_scaler.scale(l).backward()
             self.grad_scaler.unscale_(self.optimizer)
-            torch.nn.utils.clip_grad_norm_(self.network.parameters(), 12)
+            torch.nn.utils.clip_grad_norm_(self.network.parameters(), self.grad_clip)
             self.grad_scaler.step(self.optimizer)
             self.grad_scaler.update()
         else:
             l.backward()
-            torch.nn.utils.clip_grad_norm_(self.network.parameters(), 12)
+            torch.nn.utils.clip_grad_norm_(self.network.parameters(), self.grad_clip)
             self.optimizer.step()
 
         return {"loss": l.detach().cpu().numpy()}
@@ -333,9 +384,54 @@ class EvaMAETrainer(BaseMAETrainer):
 
         return
 
-    def on_train_start(self):
+    def load_checkpoint(self, filename_or_checkpoint: Union[dict, str]) -> None:
         if not self.was_initialized:
             self.initialize()
+
+        if isinstance(filename_or_checkpoint, str):
+            checkpoint = torch.load(filename_or_checkpoint, map_location=self.device)
+        # if state dict comes from nn.DataParallel but we use non-parallel model here then the state dict keys do not
+        # match. Use heuristic to make it match
+        new_state_dict = {}
+        for k, value in checkpoint["network_weights"].items():
+            key = k
+            if key not in self.network.state_dict().keys() and key.startswith("module."):
+                key = key[7:]
+            new_state_dict[key] = value
+
+        self.my_init_kwargs = checkpoint["init_args"]
+
+        self.current_epoch = checkpoint["current_epoch"]
+        min_epoch = self.logger.load_checkpoint(checkpoint["logging"])
+        # Apparently the val log is not written correctly when we currently save the checkpoint.
+        self.current_epoch = min_epoch
+        self._best_ema = checkpoint["_best_ema"]
+
+        # messing with state dict naming schemes. Facepalm.
+        if self.is_ddp:
+            if isinstance(self.network.module, OptimizedModule):
+                self.network.module._orig_mod.load_state_dict(new_state_dict)
+            else:
+                self.network.module.load_state_dict(new_state_dict)
+        else:
+            if isinstance(self.network, OptimizedModule):
+                self.network._orig_mod.load_state_dict(new_state_dict)
+            else:
+                self.network.load_state_dict(new_state_dict)
+
+        # it's fine to do this every time we load because configure_optimizers will be a no-op if the correct optimizer
+        # and lr scheduler are already set up
+        if self.current_epoch < self.warmup_duration_whole_net:
+            self.optimizer, self.lr_scheduler = self.configure_optimizers('warmup_all')
+        else:
+            self.optimizer, self.lr_scheduler = self.configure_optimizers('train')
+
+        self.optimizer.load_state_dict(checkpoint['optimizer_state'])
+        if self.grad_scaler is not None:
+            if checkpoint['grad_scaler_state'] is not None:
+                self.grad_scaler.load_state_dict(checkpoint['grad_scaler_state'])
+
+
 
         maybe_mkdir_p(self.output_folder)
 
