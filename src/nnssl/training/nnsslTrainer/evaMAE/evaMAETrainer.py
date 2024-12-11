@@ -91,7 +91,7 @@ class EvaMAETrainer(BaseMAETrainer):
         self.encoder_eva_numheads = self.config_plan['encoder_eva_numheads']
         self.decoder_eva_depth = self.config_plan['decoder_eva_depth']
         self.decoder_eva_numheads = self.config_plan['decoder_eva_numheads']
-        self.batch_size_from_args = self.config_plan['bs']
+        self.batch_size_from_args = self.config_plan['batch_size']
         if self.config_plan['initial_lr'] is not None:
             self.initial_lr = self.config_plan['initial_lr']
         self._overwrite_batch_size()
