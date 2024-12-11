@@ -398,7 +398,7 @@ def run_training_entry():
     parser.add_argument("--encoder_eva_numheads", required=False, default=12, type=int)
     parser.add_argument("--decoder_eva_depth", required=False, default=6, type=int)
     parser.add_argument("--decoder_eva_numheads", required=False, default=8, type=int)
-    parser.add_argument("--bs", required=False, default=None, type=int)
+    parser.add_argument("--batch_size", required=False, default=None, type=int)
     parser.add_argument("--initial_lr", required=False, default=None, type=float)
     args = parser.parse_args()
 
@@ -456,7 +456,7 @@ def run_training_entry():
             encoder_eva_numheads=args.encoder_eva_numheads,
             decoder_eva_depth=args.decoder_eva_depth,
             decoder_eva_numheads=args.decoder_eva_numheads,
-            bs=args.bs, initial_lr=args.initial_lr,
+            batch_size=args.batch_size, initial_lr=args.initial_lr,
         )
     except KeyboardInterrupt:
         if is_running_in_valohai():
