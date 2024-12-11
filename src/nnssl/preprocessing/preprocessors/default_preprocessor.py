@@ -271,26 +271,26 @@ def default_preprocess(
     wrongly_processed_imgs = [img for img, r in zip(all_independent_images, r) if not r]
 
     if total_parts > 1:
-        out_filename = join(nnssl_preprocessed, dataset_name, f"problematic_imgs__{part}_of_{total_parts}.json")
+        out_filename = join(nnssl_preprocessed, dataset_name, f"valid_imgs__{part}_of_{total_parts}.json")
     else:
-        out_filename = join(nnssl_preprocessed, dataset_name, "problematic_imgs.json")
+        out_filename = join(nnssl_preprocessed, dataset_name, "valid_imgs.json")
     save_json([img.to_dict() for img in wrongly_processed_imgs], out_filename)
 
     # ------------------------- Merge problematic images ------------------------- #
     if total_parts > 1:
-        all_problematic_files = []
+        all_valid_files = []
         content = os.listdir(join(nnssl_preprocessed, dataset_name))
         for c in content:
-            if c.startswith("problematic_imgs__") and f"_of_{total_parts}" in c:
-                all_problematic_files.append(c)
-        if len(all_problematic_files) == total_parts:
+            if c.startswith("valid_imgs__") and f"_of_{total_parts}" in c:
+                all_valid_files.append(c)
+        if len(all_valid_files) == total_parts:
             logger.info("All images have been processed. Merging the results.")
             # all parts have been processed
-            problematic_images = []
-            for f in all_problematic_files:
-                problematic_images += load_json(join(nnssl_preprocessed, dataset_name, f))
-            save_json(problematic_images, join(nnssl_preprocessed, dataset_name, "problematic_imgs.json"))
-            for f in all_problematic_files:
+            valid_images = []
+            for f in all_valid_files:
+                valid_images += load_json(join(nnssl_preprocessed, dataset_name, f))
+            save_json(valid_images, join(nnssl_preprocessed, dataset_name, "valid_imgs.json"))
+            for f in all_valid_files:
                 os.remove(join(nnssl_preprocessed, dataset_name, f))
 
     return
