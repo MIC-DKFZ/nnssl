@@ -439,6 +439,24 @@ class EvaMAETrainer(BaseMAETrainer):
                 self.grad_scaler.load_state_dict(checkpoint['grad_scaler_state'])
 
 
+class EvaMAETrainerDEBUG(EvaMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device,
+    ):
+        super(EvaMAETrainer, self).__init__(plan,
+                         configuration_name,
+                         fold,
+                         pretrain_json,
+                         device,
+                         )
+
+        self.num_iterations_per_epoch = 1
+        self.num_val_iterations_per_epoch = 1
 
         maybe_mkdir_p(self.output_folder)
 
