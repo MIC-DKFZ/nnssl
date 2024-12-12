@@ -448,7 +448,7 @@ class EvaMAETrainerDEBUG(EvaMAETrainer):
         pretrain_json: dict,
         device: torch.device,
     ):
-        super(EvaMAETrainer, self).__init__(plan,
+        super(EvaMAETrainerDEBUG, self).__init__(plan,
                          configuration_name,
                          fold,
                          pretrain_json,
