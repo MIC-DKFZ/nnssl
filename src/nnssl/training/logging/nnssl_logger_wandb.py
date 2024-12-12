@@ -1,3 +1,4 @@
+import os
 import matplotlib
 from batchgenerators.utilities.file_and_folder_operations import join
 
@@ -32,7 +33,22 @@ class nnSSLLogger_wandb(object):
 
         self.wandb = use_wandb
         if self.wandb:
-            wandb.init(project="nnssl_{}".format(dataset_name),entity='mic_rocket',allow_val_change=True, **wandb_init_args)
+            project_name = "nnssl_{}".format(dataset_name)
+            self._maybe_resume_logging(wandb_init_args)
+            wandb.init(project=project_name,entity='mic_rocket',allow_val_change=True, **wandb_init_args)
+
+    def _maybe_resume_logging(self, wandb_init_args):
+        """
+        """
+        # Check whether the env var WANDB_RUN_ID is set and if yes whether a logging folder already exists
+        runs = [d for d in os.listdir(os.path.join(wandb_init_args['dir'], 'wandb'))]
+        for run_dir in runs:
+            if os.getenv("WANDB_RUN_ID") in run_dir:
+                os.environ["WANDB_RESUME"] = "must"
+                print(f"Found existing run {os.getenv('WANDB_RUN_ID')} in {run_dir}. Resuming logging.")
+                return True
+        print(f"No existing run found in {wandb_init_args['dir']}. Starting new run.")
+        return False
 
     def log(self, key, value, epoch: int):
         if self.wandb:
