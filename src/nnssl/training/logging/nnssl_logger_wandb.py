@@ -41,14 +41,13 @@ class nnSSLLogger_wandb(object):
         """
         """
         # Check whether the env var WANDB_RUN_ID is set and if yes whether a logging folder already exists
-        runs = [d for d in os.listdir(os.path.join(wandb_init_args['dir'], 'wandb'))]
-        for run_dir in runs:
-            if os.getenv("WANDB_RUN_ID") in run_dir:
-                os.environ["WANDB_RESUME"] = "must"
-                print(f"Found existing run {os.getenv('WANDB_RUN_ID')} in {run_dir}. Resuming logging.")
-                return True
-        print(f"No existing run found in {wandb_init_args['dir']}. Starting new run.")
-        return False
+        if os.path.exists(os.path.join(wandb_init_args['dir'], 'wandb')):
+            runs = [d for d in os.listdir(os.path.join(wandb_init_args['dir'], 'wandb'))]
+            for run_dir in runs:
+                if os.getenv("WANDB_RUN_ID") in run_dir:
+                    os.environ["WANDB_RESUME"] = "must"
+                    print(f"Found existing run {os.getenv('WANDB_RUN_ID')} in {run_dir}. Resuming logging.")
+            print(f"No existing run found in {wandb_init_args['dir']}. Starting new run.")
 
     def log(self, key, value, epoch: int):
         if self.wandb:
