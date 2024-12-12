@@ -273,11 +273,11 @@ class EvaMAETrainer(BaseMAETrainer):
             attn_drop_rate=self.attention_drope_rate
         )
         return network
-    
+
     def on_validation_epoch_start(self):
         #self.network.eval()
         pass
-    
+
     def train_step(self, batch: dict) -> dict:
         data = batch["data"]
         data = data.to(self.device, non_blocking=True)
@@ -320,7 +320,7 @@ class EvaMAETrainer(BaseMAETrainer):
             l = self.loss(output, data, mask)
 
         return {"loss": l.detach().cpu().numpy()}
-    
+
     def run_training(self):
         try:
             self.on_train_start()
@@ -354,6 +354,11 @@ class EvaMAETrainer(BaseMAETrainer):
                             #     join(self.output_folder, f"checkpoint_epoch_{self.current_epoch}.pth"), live_upload=True
                             # )
 
+                if self.exit_training_flag:
+                    # This is a signal that we need to resubmit, so we break the loop and exit gracefully
+                    print("Finished last epoch before restart.")
+                    self.print_to_log_file("Finished last epoch before restart.")
+                    raise KeyboardInterrupt
                 self.on_epoch_end()
 
             self.on_train_end()
@@ -361,7 +366,7 @@ class EvaMAETrainer(BaseMAETrainer):
             self.print_to_log_file("Keyboard interrupt. Exiting gracefully.")
             self.save_checkpoint(join(self.output_folder, "checkpoint_latest.pth"))
             raise KeyboardInterrupt
-        
+
     def log_qualitative_reconstruction_step(self):
         """Log qualitative reconstructions for each sample in the validation dataloader."""
         with torch.no_grad():
