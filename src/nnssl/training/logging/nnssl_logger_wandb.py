@@ -35,7 +35,7 @@ class nnSSLLogger_wandb(object):
         if self.wandb:
             project_name = "nnssl_{}".format(dataset_name)
             self._maybe_resume_logging(wandb_init_args)
-            wandb.init(project=project_name,entity='mic_rocket',allow_val_change=True, **wandb_init_args)
+            wandb.init(project=project_name, entity='mic_rocket', allow_val_change=True, **wandb_init_args)
 
     def _maybe_resume_logging(self, wandb_init_args):
         """

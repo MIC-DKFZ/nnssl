@@ -42,10 +42,10 @@ class EvaMAE(nn.Module):
         super().__init__()
 
         # Patch embedding for encoder
-        self.encoder_embed = PatchEmbed(patch_embed_size, input_channels, embed_dim)
+        self.down_projection = PatchEmbed(patch_embed_size, input_channels, embed_dim)
 
         # Encoder using EVA
-        self.encoder = Eva(
+        self.eva = Eva(
             embed_dim=embed_dim,
             depth=encoder_eva_depth,
             num_heads=encoder_eva_numheads,
@@ -64,7 +64,7 @@ class EvaMAE(nn.Module):
         )
 
         # Patch embedding for decoder
-        self.decoder_embed = PatchDecode(patch_embed_size, embed_dim, output_channels,
+        self.up_projection = PatchDecode(patch_embed_size, embed_dim, output_channels,
                                          norm=decoder_norm,
                                          activation=decoder_act)
 
@@ -90,8 +90,8 @@ class EvaMAE(nn.Module):
         self.mask_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
         nn.init.normal_(self.mask_token, std=1e-6)
 
-        self.encoder_embed.apply(InitWeights_He(1e-2))
-        self.decoder_embed.apply(InitWeights_He(1e-2))
+        self.down_projection.apply(InitWeights_He(1e-2))
+        self.down_projection.apply(InitWeights_He(1e-2))
 
     def restore_full_sequence(self, x, keep_indices, num_patches):
         """
@@ -118,12 +118,12 @@ class EvaMAE(nn.Module):
 
     def forward(self, x):
         # Encode patches
-        x = self.encoder_embed(x)
+        x = self.down_projection(x)
         B, C, W, H, D = x.shape
         x = rearrange(x, 'b c w h d -> b (h w d) c')
 
         # Encode using EVA (internally applies masking with patch_drop_rate)
-        encoded, keep_indices = self.encoder(x)
+        encoded, keep_indices = self.eva(x)
         # Restore full sequence with mask tokens
         num_patches = W * H * D
         restored_x = self.restore_full_sequence(encoded, keep_indices, num_patches)
@@ -133,7 +133,7 @@ class EvaMAE(nn.Module):
 
         # Project back to output shape
         decoded = rearrange(decoded, 'b (h w d) c -> b c w h d', h=W, w=H, d=D)
-        decoded = self.decoder_embed(decoded)
+        decoded = self.up_projection(decoded)
 
         return decoded, keep_indices
 
