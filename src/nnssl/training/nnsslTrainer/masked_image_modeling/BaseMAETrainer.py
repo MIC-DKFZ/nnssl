@@ -11,7 +11,7 @@ from nnssl.architectures.build_architecture import build_network_architecture
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.ssl_data.configure_basic_dummyDA import configure_rotation_dummyDA_mirroring_and_inital_patch_size
 from nnssl.ssl_data.data_augmentation.transforms_for_dummy_2d import Convert2DTo3DTransform, Convert3DTo2DTransform
-from nnssl.ssl_data.dataloading.data_loader_3d import nnsslCenterCropDataLoader3D
+from nnssl.ssl_data.dataloading.data_loader_3d import nnsslIndexableCenterCropDataLoader3D
 from nnssl.ssl_data.dataloading.indexable_dataloader import IndexableSingleThreadedAugmenter
 from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
 from nnssl.training.loss.mse_loss import MAEMSELoss
@@ -358,7 +358,7 @@ class BaseMAETrainer(AbstractBaseTrainer):
         """Returns a centercropped dataloader."""
         _, dataset_val = self.get_tr_and_val_datasets()
 
-        dl_val = nnsslCenterCropDataLoader3D(
+        dl_val = nnsslIndexableCenterCropDataLoader3D(
             dataset_val,
             1,
             self.config_plan.patch_size,

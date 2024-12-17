@@ -1,4 +1,4 @@
-from nnssl.ssl_data.dataloading.data_loader_3d import nnsslCenterCropDataLoader3D
+from nnssl.ssl_data.dataloading.data_loader_3d import nnsslIndexableCenterCropDataLoader3D
 
 
 class IndexableSingleThreadedAugmenter(object):
@@ -14,7 +14,7 @@ class IndexableSingleThreadedAugmenter(object):
         use our Compose transform! Can be None (in that case no transform will be applied)
     """
 
-    def __init__(self, data_loader: nnsslCenterCropDataLoader3D, transform):
+    def __init__(self, data_loader: nnsslIndexableCenterCropDataLoader3D, transform):
         self.data_loader = data_loader
         self.transform = transform
 
