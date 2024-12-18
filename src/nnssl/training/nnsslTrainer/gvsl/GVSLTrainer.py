@@ -186,9 +186,9 @@ class GVSLTrainer(AbstractBaseTrainer):
                 imgsA_app = self.spatial_transforms.augment_spatial(imgsA_app, affine_mat, flow)
                 imgsB = self.spatial_transforms.augment_spatial(imgsB, affine_mat, flow)
 
-            self.visualize_brain_slices(imgsA, "imgsA_no_aug.png")
-            self.visualize_brain_slices(imgsB, "imgsB_no_aug.png")
-            return {"loss": np.array(1)}
+            # self.visualize_brain_slices(imgsA, "imgsA_no_aug.png")
+            # self.visualize_brain_slices(imgsB, "imgsB_no_aug.png")
+            # return {"loss": np.array(1)}
 
             self.optimizer.zero_grad(set_to_none=True)
             with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
