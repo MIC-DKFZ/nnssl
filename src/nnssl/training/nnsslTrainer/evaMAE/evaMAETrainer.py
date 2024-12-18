@@ -2,7 +2,8 @@ import torch
 import os
 import sys
 from torch import nn
-from typing import Tuple
+from torch._dynamo import OptimizedModule
+from typing import Tuple, Union
 from nnssl.training.nnsslTrainer.evaMAE.evaMAE_module import EvaMAE
 from torch import autocast
 from nnssl.utilities.helpers import dummy_context
