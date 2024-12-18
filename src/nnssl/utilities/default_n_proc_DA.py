@@ -38,7 +38,7 @@ def get_allowed_n_proc_DA():
         elif hostname.startswith('hdf19-gpu') or hostname.startswith('e071-gpu'):
             use_this = 12
         else:
-            use_this = 12  # default value
+            use_this = 20  # default value
 
     use_this = min(use_this, os.cpu_count())
     return use_this
