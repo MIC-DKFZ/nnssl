@@ -7,11 +7,9 @@ from nnssl.training.nnsslTrainer.gvsl.gvsl_specific_modules import DeformableTra
 
 
 class GVSLTransform(AbstractTransform):
-    def __init__(self, data_key="data", use_aug=True):
+    def __init__(self, data_key="data"):
         self.data_key = data_key
-        self.use_aug = use_aug
         self.appearance_transforms = AppearanceTransforms()
-        self.spatial_transforms = SpatialTransforms()
 
     def __call__(self, **data_dict):
         imgs = data_dict.get(self.data_key)
@@ -22,23 +20,10 @@ class GVSLTransform(AbstractTransform):
         # resulting in 2*batch_size images. Hence, the dataloader in GVSLTrainer samples 2*batch_size images,
         # which have to be split into 2 equal sized batches with the actual batch_size first.
         batch_size = imgs.shape[0] // 2
-        patch_size = imgs.shape[-3:]
         imgsA, imgsB = imgs[:batch_size], imgs[batch_size:]
         assert len(imgsA) == len(imgsB)
 
         imgsA_app = self.appearance_transforms.rand_aug(imgsA.copy())
-
-        imgsA = torch.from_numpy(imgsA) #.cuda()
-        imgsA_app = torch.from_numpy(imgsA_app) #.cuda()
-        imgsB = torch.from_numpy(imgsB) #.cuda()
-
-        # For some reason, the official implementation includes affine transformations and deformations as
-        # data augmentations... Mentioned nowhere in the paper
-        if self.use_aug:
-            affine_mat, flow = self.spatial_transforms.get_rand_spatial(batch_size, patch_size)
-            imgsA = self.spatial_transforms.augment_spatial(imgsA, affine_mat, flow)
-            imgsA_app = self.spatial_transforms.augment_spatial(imgsA_app, affine_mat, flow)
-            imgsB = self.spatial_transforms.augment_spatial(imgsB, affine_mat, flow)
 
         data_dict.update(
             {
@@ -86,17 +71,17 @@ class SpatialTransforms(object):
 
     def augment_spatial(self, data, affine_mat=None, deformable_map=None, mode='bilinear'):
         if affine_mat is not None:
-            data = self.affine_transformer(data, affine_mat, mode, use_cuda=False)
+            data = self.affine_transformer(data, affine_mat, mode)
         if deformable_map is not None:
-            data = self.deformable_transformer(data, deformable_map, mode=mode, padding_mode='zeros', use_cuda=False)
+            data = self.deformable_transformer(data, deformable_map, mode=mode, padding_mode='zeros')
         return data
 
-    def get_rand_spatial(self, batch_size: int, patch_size: tuple[int]):
+    def get_rand_spatial(self, batch_size: int, patch_size: tuple[int] | np.ndarray):
         affine_mat = []
         flow = []
         for i in range(batch_size):
-            _affine_mat = torch.from_numpy(np.identity(3, dtype=np.float32)) #.cuda()
-            _flow = torch.from_numpy(self.create_zero_centered_coordinate_mesh(patch_size)) #.cuda()
+            _affine_mat = torch.eye(3) #.cuda()
+            _flow = self.create_zero_centered_coordinate_mesh(patch_size) #.cuda()
             if self.do_rotation:
                 a_x = np.random.uniform(self.angle_x[0], self.angle_x[1])
                 a_y = np.random.uniform(self.angle_y[0], self.angle_y[1])
@@ -127,7 +112,7 @@ class SpatialTransforms(object):
                 s = np.random.uniform(self.sigma[0], self.sigma[1])
                 _flow = self.deform_coords(_flow, a, s)
 
-            center = torch.tensor([patch_size[0] // 2, patch_size[1] // 2, patch_size[2] // 2])
+            center = torch.tensor([patch_size[0] // 2, patch_size[1] // 2, patch_size[2] // 2]) #.cuda()
 
             vectors = [torch.arange(0, s) for s in patch_size]
             grids = torch.meshgrid(vectors, indexing="ij")
@@ -145,11 +130,12 @@ class SpatialTransforms(object):
         return affine_mat, flow
 
     def create_zero_centered_coordinate_mesh(self, shape):
-        tmp = tuple([np.arange(i) for i in shape])
-        coords = np.array(np.meshgrid(*tmp, indexing='ij'), dtype=np.float32)
+        tmp = [torch.arange(i) for i in shape]
+        coords = torch.stack(torch.meshgrid(*tmp, indexing='ij')).float()
+        offset = (torch.tensor(shape) - 1.) / 2.
         for d in range(len(shape)):
-            coords[d] -= ((np.array(shape, dtype=np.float32) - 1) / 2.)[d]
-        return coords[np.newaxis, :, :, :, :]
+            coords[d] -= offset[d]
+        return coords.unsqueeze(0)
 
     def rotate_mat(self, mat, angle_x, angle_y, angle_z):
         rot_mat_x = torch.tensor([[1, 0, 0], [0, np.cos(angle_x), -np.sin(angle_x)], [0, np.sin(angle_x), np.cos(angle_x)]], dtype=torch.float32) #.cuda()
@@ -160,11 +146,10 @@ class SpatialTransforms(object):
 
     def deform_coords(self, coords, alpha, sigma):
         offsets = torch.rand(coords.shape)*2-1 #.cuda()*2 -1
-        ker1d = self._gaussian_kernel1d(sigma).astype(np.float32).reshape(1, 1, -1)
-        ker1d = torch.from_numpy(ker1d) #.cuda()
-        ker1d1 = ker1d[:, :, :, np.newaxis, np.newaxis]
-        ker1d2 = ker1d[:, :, np.newaxis, :, np.newaxis]
-        ker1d3 = ker1d[:, :, np.newaxis, np.newaxis, :]
+        ker1d = self._gaussian_kernel1d(sigma).reshape(1, 1, -1)
+        ker1d1 = ker1d[:, :, :, None, None]
+        ker1d2 = ker1d[:, :, None, :, None]
+        ker1d3 = ker1d[:, :, None, None, :]
 
         for i in range(3):
             offsets[:, i:i+1] = torch.conv3d(input=offsets[:, i:i+1], weight=ker1d1, padding=[ker1d.shape[-1]//2, 0, 0])
@@ -177,9 +162,9 @@ class SpatialTransforms(object):
     def _gaussian_kernel1d(self, sigma):
         sd = float(sigma)
         radius = int(4 * sd + 0.5)
-        sigma2 = sigma * sigma
-        x = np.arange(-radius, radius + 1)
-        phi_x = np.exp(-0.5 / sigma2 * x ** 2)
+        sigma2 = sigma ** 2
+        x = torch.arange(-radius, radius + 1)
+        phi_x = torch.exp(-0.5 / sigma2 * x ** 2)
         phi_x = phi_x / phi_x.sum()
 
         return phi_x

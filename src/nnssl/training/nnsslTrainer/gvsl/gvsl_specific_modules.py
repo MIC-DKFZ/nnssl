@@ -7,15 +7,13 @@ class DeformableTransformer(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self, data, flow, mode="bilinear", padding_mode="zeros", use_cuda=True):
+    def forward(self, data, flow, mode="bilinear", padding_mode="zeros"):
         shape = flow.shape[2:]
 
         vectors = [torch.arange(0, s) for s in shape]
         grids = torch.meshgrid(vectors, indexing="ij")
         grid = torch.stack(grids)
-        grid = grid.unsqueeze(0).float()
-        if use_cuda:
-            grid = grid.cuda()
+        grid = grid.unsqueeze(0).float() #.cuda()
 
         deformable_map = grid + flow
 
@@ -32,23 +30,11 @@ class AffineTransformer(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self, data, affine_mat, mode="bilinear", use_cuda=True):
+    def forward(self, data, affine_mat, mode="bilinear"):
         norm = torch.tensor(
             [[1, 1, 1, data.shape[2]], [1, 1, 1, data.shape[3]], [1, 1, 1, data.shape[4]]], dtype=torch.float32
-        ).unsqueeze(0)
-        if use_cuda:
-            norm = norm.cuda()
+        ).unsqueeze(0) #.cuda()
         norm_affine_mat = affine_mat / norm
         grid = F.affine_grid(norm_affine_mat, [data.shape[0], 3, data.shape[2], data.shape[3], data.shape[4]], align_corners=False)
         return F.grid_sample(data, grid, mode=mode, align_corners=False)
 
-
-# class Re_SpatialTransformer(nn.Module):
-#     def __init__(self):
-#         super(Re_SpatialTransformer, self).__init__()
-#         self.stn = SpatialTransformer()
-#
-#     def forward(self, src, flow, mode="bilinear"):
-#         flow = -1 * self.stn(flow, flow, mode="bilinear")
-#
-#         return self.stn(src, flow, mode)

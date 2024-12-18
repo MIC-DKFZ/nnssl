@@ -14,7 +14,7 @@ class GVSLLoss(nn.Module):
 
     def __call__(self, imgsA, recon_A, warped_BA, flow_BA):
         ncc_loss = self.L_ncc(warped_BA, imgsA)
-        mse_loss = self.L_mse(recon_A, imgsA)
+        mse_loss = self.L_mse(imgsA, recon_A)
         smooth_loss = self.L_smooth(flow_BA)
         return ncc_loss + mse_loss + smooth_loss
 
@@ -36,7 +36,7 @@ def L_ncc(I, J, win=None):
     ndims = I.dim() - 2
     if win is None:
         win = [9] * ndims
-    sum_filt = torch.ones([1, 1, *win]).cuda()
+    sum_filt = torch.ones([1, 1, *win]) #.cuda()
     pad_no = math.floor(win[0] / 2)
 
     stride = (1, 1, 1)

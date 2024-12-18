@@ -29,7 +29,7 @@ class SwinUNETRArchitecture(nn.Module):
         self.encoder = encoder
         features_per_stage = encoder.output_channels
         strides = encoder.strides
-        num_output_channels =features_per_stage[-1]
+        num_output_channels = features_per_stage[-1]
 
         self.rotation_proj_head = nn.Linear(num_output_channels, 4)
         self.contrast_proj_head = nn.Linear(num_output_channels, 512)

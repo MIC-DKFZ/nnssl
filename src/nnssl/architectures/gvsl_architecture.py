@@ -10,6 +10,8 @@ class GVSLArchitecture(nn.Module):
         super().__init__()
         self.backbone = backbone
         features_per_stage = self.backbone.encoder.output_channels
+
+        # Maybe get num_channels from global_f_layer and local_f_layer instead of this?
         local_f_num_channels = features_per_stage[0]
         global_f_num_channels = features_per_stage[-1]
 
@@ -35,6 +37,11 @@ class GVSLArchitecture(nn.Module):
         self.deformable_transformer = DeformableTransformer()
 
         self.outputs = {}
+
+        # In order to access the output from the second to last layer and the output from the encoder bottleneck
+        # forward hooks are used. Depending on the backbone architecture, global_f_layer and local_f_layer can be
+        # adjusted to direct GVSL to the correct layers from where to take the outputs from
+        # ToDo: implement this
         self.backbone.encoder.stages[-1].blocks[-1].nonlin2.register_forward_hook(self.get_hook("global_f", self.outputs))
         self.backbone.decoder.stages[-1].convs[-1].all_modules[-1].register_forward_hook(self.get_hook("local_f", self.outputs))
 
@@ -67,6 +74,7 @@ class GVSLArchitecture(nn.Module):
         return hook
 
     def forward(self, A, B):
+        # pass imgs through network, but acquire outputs from forward hook
         _ = self.backbone(A)
         fA_g, fA_l = self.outputs["global_f"], self.outputs["local_f"]
         _ = self.backbone(B)
@@ -106,22 +114,22 @@ class GVSLArchitecture(nn.Module):
         affine_mat = []
         for i in range(len(rot)):
             rot_mat_x = torch.tensor([[1, 0, 0], [0, torch.cos(theta_x[i]), -torch.sin(theta_x[i])],
-                                           [0, torch.sin(theta_x[i]), torch.cos(theta_x[i])]], device="cuda")
-            rot_mat_x = rot_mat_x[np.newaxis, :, :]
+                                           [0, torch.sin(theta_x[i]), torch.cos(theta_x[i])]])
+            rot_mat_x = rot_mat_x[None, :, :]
             rot_mat_y = torch.tensor([[torch.cos(theta_y[i]), 0, torch.sin(theta_y[i])], [0, 1, 0],
-                                           [-torch.sin(theta_y[i]), 0, torch.cos(theta_y[i])]], device="cuda")
-            rot_mat_y = rot_mat_y[np.newaxis, :, :]
+                                           [-torch.sin(theta_y[i]), 0, torch.cos(theta_y[i])]])
+            rot_mat_y = rot_mat_y[None, :, :]
             rot_mat_z = torch.tensor(
                 [[torch.cos(theta_z[i]), -torch.sin(theta_z[i]), 0], [torch.sin(theta_z[i]), torch.cos(theta_z[i]), 0],
-                 [0, 0, 1]], device="cuda")
-            rot_mat_z = rot_mat_z[np.newaxis, :, :]
-            scale_mat = torch.tensor([[scale_x[i], 0, 0], [0, scale_y[i], 0], [0, 0, scale_z[i]]], device="cuda")
-            scale_mat = scale_mat[np.newaxis, :, :]
+                 [0, 0, 1]])
+            rot_mat_z = rot_mat_z[None, :, :]
+            scale_mat = torch.tensor([[scale_x[i], 0, 0], [0, scale_y[i], 0], [0, 0, scale_z[i]]])
+            scale_mat = scale_mat[None, :, :]
             shear_mat = torch.tensor(
                 [[1, torch.tan(shear_xy[i]), torch.tan(shear_xz[i])], [torch.tan(shear_yx[i]), 1, torch.tan(shear_yz[i])],
-                 [torch.tan(shear_zx[i]), torch.tan(shear_zy[i]), 1]], device="cuda")
-            trans = torch.tensor([trans_x[i], trans_y[i], trans_z[i]], device="cuda")
-            trans = trans[np.newaxis, :, np.newaxis]
+                 [torch.tan(shear_zx[i]), torch.tan(shear_zy[i]), 1]])
+            trans = torch.tensor([trans_x[i], trans_y[i], trans_z[i]])
+            trans = trans[None, :, None]
             _affine_mat = torch.matmul(shear_mat,
                                torch.matmul(scale_mat, torch.matmul(rot_mat_z, torch.matmul(rot_mat_y, rot_mat_x))))
             _affine_mat = torch.cat([_affine_mat, trans], dim=-1)
