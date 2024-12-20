@@ -30,33 +30,47 @@ class nnSSLLogger_wandb(object):
             "epoch_end_timestamps": list(),
         }
         self.verbose = verbose
-        # shut up, this logging is great
-
         self.wandb = use_wandb
-        if self.wandb:
-            project_name = "nnssl_{}".format(dataset_name)
-            run_id = os.getenv("WANDB_RUN_ID")
-            maybe_resume_logging = self._maybe_resume_logging(wandb_init_args)
-            if maybe_resume_logging:
-                wandb.init(project=project_name, entity='mic_rocket', id=run_id, allow_val_change=True, resume=maybe_resume_logging, **wandb_init_args)
-            else:
-                wandb.init(project=project_name, entity='mic_rocket', id=run_id, allow_val_change=True, **wandb_init_args)
+        self.dataset_name = dataset_name
+        self.wandb_init_args = wandb_init_args
+        self.project_name = f"nnssl_{dataset_name}"
 
-    def _maybe_resume_logging(self, wandb_init_args) -> Union[None, str]:
-        """
-        """
-        # Check whether the env var WANDB_RUN_ID is set and if yes whether a logging folder already exists
-        is_continuation = False
-        if os.path.exists(os.path.join(wandb_init_args['dir'], 'wandb')):
-            runs = [d for d in os.listdir(os.path.join(wandb_init_args['dir'], 'wandb'))]
-            for run_dir in runs:
-                if os.getenv("WANDB_RUN_ID") in run_dir:
-                    os.environ["WANDB_RESUME"] = "must"
-                    print(f"Found existing run {os.getenv('WANDB_RUN_ID')} in {run_dir}. Resuming logging.")
-                    return "must"
-            print(f"No existing run found in {wandb_init_args['dir']}. Starting new run.")
-        return None
-        
+        if self.wandb:
+            self._init_wandb()
+
+
+    def _init_wandb(self):
+        # 1. Check for a run state file:
+        run_state_file = os.path.join(self.wandb_init_args.get("dir", "."), "run_state.json")
+
+        if os.path.exists(run_state_file):
+            # Load run state:
+            with open(run_state_file, "r") as f:
+                run_state = json.load(f)
+            run_id = run_state["run_id"]
+            print(f"Resuming run with ID: {run_id}")
+            resume = "must"
+        else:
+            # Generate new run ID:
+            run_id = wandb.util.generate_id()
+            print(f"Starting new run with ID: {run_id}")
+            resume = None  # Or None, depending on your preference
+            # Save run state:
+            with open(run_state_file, "w") as f:
+                json.dump({"run_id": run_id}, f)
+
+        # Set the environment variable for the run ID:
+        os.environ["WANDB_RUN_ID"] = run_id
+
+        # 2. Initialize WandB (only once or resume):
+        wandb.init(
+            project=self.project_name,
+            entity="mic_rocket",
+            id=run_id,
+            resume=resume,
+            **self.wandb_init_args
+        )
+
 
     def log(self, key, value, epoch: int):
         if self.wandb:
