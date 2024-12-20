@@ -76,6 +76,7 @@ class EvaMAETrainer(BaseMAETrainer):
         )
         ###settings taken from fabi
         self.drop_path_rate = 0.2
+        self.attention_drope_rate = 0.2
         self.grad_clip = 1
         self.initial_lr = 3e-5
         self.weight_decay = 5e-3
@@ -268,7 +269,8 @@ class EvaMAETrainer(BaseMAETrainer):
             decoder_eva_depth=self.decoder_eva_depth,
             decoder_eva_numheads=self.decoder_eva_numheads,
             patch_drop_rate=self.mask_ratio,
-            drop_path_rate=self.drop_path_rate
+            drop_path_rate=self.drop_path_rate,
+            attn_drop_rate=self.attention_drope_rate
         )
         return network
     
