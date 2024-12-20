@@ -77,7 +77,7 @@ class EvaMAETrainer(BaseMAETrainer):
         )
         ###settings taken from fabi
         self.drop_path_rate = 0.2
-        self.attention_drope_rate = 0.2
+        self.attention_drop_rate = 0.2
         self.grad_clip = 1
         self.initial_lr = 3e-5
         self.weight_decay = 5e-3
@@ -96,6 +96,8 @@ class EvaMAETrainer(BaseMAETrainer):
         self.batch_size_from_args = self.config_plan['batch_size']
         if self.config_plan['initial_lr'] is not None:
             self.initial_lr = self.config_plan['initial_lr']
+        if self.config_plan['attention_drop_rate'] is not None:
+            self.attention_drop_rate = self.config_plan['attention_drop_rate']
         self._overwrite_batch_size()
 
 
@@ -271,7 +273,7 @@ class EvaMAETrainer(BaseMAETrainer):
             decoder_eva_numheads=self.decoder_eva_numheads,
             patch_drop_rate=self.mask_ratio,
             drop_path_rate=self.drop_path_rate,
-            attn_drop_rate=self.attention_drope_rate
+            attn_drop_rate=self.attention_drop_rate
         )
         return network
 
@@ -459,20 +461,38 @@ class EvaMAETrainerDEBUG(EvaMAETrainer):
         self.num_iterations_per_epoch = 1
         self.num_val_iterations_per_epoch = 1
 
-        maybe_mkdir_p(self.output_folder)
+class EvaMAETrainer2kEpochs(EvaMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device,
+    ):
+        super(EvaMAETrainerDEBUG, self).__init__(plan,
+                         configuration_name,
+                         fold,
+                         pretrain_json,
+                         device,
+                         )
 
-        self.print_plans()
-        empty_cache(self.device)
+        self.num_epochs = 2000
 
-        if self.is_ddp:
-            dist.barrier()
+class EvaMAETrainer4kEpochs(EvaMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device,
+    ):
+        super(EvaMAETrainerDEBUG, self).__init__(plan,
+                         configuration_name,
+                         fold,
+                         pretrain_json,
+                         device,
+                         )
 
-        # dataloaders must be instantiated here because they need access to the training data which may not be present
-        # when doing inference
-        self.dataloader_train, self.dataloader_val = self.get_dataloaders()
-        # Guarantee to only use data that is readable and not inf or nan
-
-        # copy plans and dataset.json so that they can be used for restoring everything we need for inference
-        save_json(asdict(self.plan), join(self.output_folder_base, "plans.json"), sort_keys=False)
-
-        self._save_debug_information()
+        self.num_epochs = 4000

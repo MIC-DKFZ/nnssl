@@ -48,7 +48,7 @@ def get_trainer_from_args(
     plans_identifier: str = "nnsslPlans",
     device: torch.device = torch.device("cuda"),
     #*args,
-    **kwargs):  
+    **kwargs):
 
     # load nnunet class and do sanity checks
     nnssl_trainer_cls: Type[AbstractBaseTrainer] = recursive_find_python_class(
@@ -85,7 +85,7 @@ def get_trainer_from_args(
     plans_file = join(preprocessed_dataset_folder_base, plans_identifier + ".json")
     plans: Plan = Plan_wandb.load_from_file(plans_file)
     for param in kwargs:
-        if param in ['mask_ratio', 'initial_lr','vit_patch_size']:
+        if param in ['mask_ratio', 'initial_lr','vit_patch_size','attention_drop_rate']:
             plans.plans_name =  plans.plans_name + "__" + param + str(kwargs[param]).replace('.','').replace('[', '').replace(']','').replace(',','').replace(' ','')
         else:
             plans.plans_name =  plans.plans_name + "__" + param + str(kwargs[param])
@@ -93,7 +93,7 @@ def get_trainer_from_args(
             plans.configurations[config][param] = kwargs[param]
 
     pretrain_json = load_json(join(preprocessed_dataset_folder_base, "pretrain_data.json"))
-    
+
     nnssl_trainer: AbstractBaseTrainer = nnssl_trainer_cls(
         plans,
         configuration,
@@ -198,7 +198,7 @@ def run_ddp(
     add_params
 ):
     setup_ddp(rank, world_size)
-    
+
     #torch.cuda.set_device(torch.device("cuda", dist.get_rank()))
 
     device = torch.device(f"cuda:{rank}")
@@ -391,7 +391,7 @@ def run_training_entry():
         "(GPU), 'cpu' (CPU) and 'mps' (Apple M1/M2). Do NOT use this to set which GPU ID! "
         "Use CUDA_VISIBLE_DEVICES=X nnUNetv2_train [...] instead!",
     )
-    parser.add_argument("--mask_ratio", required=False, default=0.5, type=float)  
+    parser.add_argument("--mask_ratio", required=False, default=0.5, type=float)
     parser.add_argument("--vit_patch_size", required=False, default=[8, 8, 8], nargs="+", type=int)
     parser.add_argument("--embed_dim", required=False, default=864, type=int)
     parser.add_argument("--encoder_eva_depth", required=False, default=16, type=int)
@@ -400,6 +400,7 @@ def run_training_entry():
     parser.add_argument("--decoder_eva_numheads", required=False, default=8, type=int)
     parser.add_argument("--batch_size", required=False, default=None, type=int)
     parser.add_argument("--initial_lr", required=False, default=None, type=float)
+    parser.add_argument("--attention_drop_rate", required=False, default=None, type=float)
     args = parser.parse_args()
 
     assert args.device in [
@@ -456,7 +457,9 @@ def run_training_entry():
             encoder_eva_numheads=args.encoder_eva_numheads,
             decoder_eva_depth=args.decoder_eva_depth,
             decoder_eva_numheads=args.decoder_eva_numheads,
-            batch_size=args.batch_size, initial_lr=args.initial_lr,
+            batch_size=args.batch_size,
+            initial_lr=args.initial_lr,
+            attention_drop_rate=args.attention_drop_rate,
         )
     except KeyboardInterrupt:
         if is_running_in_valohai():
