@@ -1,11 +1,11 @@
 #!/bin/bash -x
 #SBATCH --account=cthrp
-#SBATCH --job-name=evamae
+#SBATCH --job-name=%J
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=4
 #SBATCH --cpus-per-task=12
-#SBATCH --output=logs/gpu-out--first_run.%j
-#SBATCH --error=logs/gpu-err-first_run.%j
+#SBATCH --output=logs/%x.%j
+#SBATCH --error=logs/%x.%j
 #SBATCH --time=23:30:00
 #SBATCH --partition=booster
 #SBATCH --gres=gpu:4
@@ -44,8 +44,17 @@ export nnssl_raw=""
 export nnssl_results="/p/data1/thrp/experiments/MAE"
 export rocket_preprocessed="/p/data1/thrp/datasets/development_data"
 
-# Define JOB_ID
-export WANDB_RUN_ID="attempt_6"
+# Extract the first argument for job-name log file names and WANDB_RUN_ID
+JOB_NAME_PREFIX="$1"
+
+# Set job name based on the first argument
+sed -i "s/%J/${JOB_NAME_PREFIX}/" "$0"
+
+# Set log output and error file names
+sed -i "s/%x/${JOB_NAME_PREFIX}/" "$0"
+
+# Define JOB_ID based on first argument
+export WANDB_RUN_ID="${JOB_NAME_PREFIX}"
 
 # resubmission logic
 resubmit_job() {
