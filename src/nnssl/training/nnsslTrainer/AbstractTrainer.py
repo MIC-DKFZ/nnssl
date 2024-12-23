@@ -373,7 +373,7 @@ class AbstractBaseTrainer(ABC):
         lr_scheduler = PolyLRScheduler(optimizer, self.initial_lr, self.num_epochs)
         return optimizer, lr_scheduler
 
-    def get_existing_images(self, dataset: nnSSLDatasetBlosc2, n_processes: int = 48) -> dict[str, dict[str, bool]]:
+    def get_existing_images(self, dataset: nnSSLDatasetBlosc2, n_processes: int = 12) -> dict[str, dict[str, bool]]:
         # --------------------------- Remove broken images --------------------------- #
         img_dataset = dataset.image_dataset
         identifiers = dataset.image_identifiers
@@ -427,10 +427,10 @@ class AbstractBaseTrainer(ABC):
         existing_valid_img_ids = [k for k, v in joint_existing_imgs.items() if v["image_pkl"]]
         tr_imgs_removed = self.keep_valid_unique(existing_valid_img_ids, dataset_tr)
         logger.info(f"Removed {tr_imgs_removed} non-existing images from train dataset.")
-        logger.info(f"Number of existing valid training images: {len(dataset_tr.image_identifiers)}")
+        logger.info(f"Number of existing and valid training images: {len(dataset_tr.image_identifiers)}")
         vl_imgs_removed = self.keep_valid_unique(existing_valid_img_ids, dataset_val)
         logger.info(f"Removed {vl_imgs_removed} non-existing images from train dataset.")
-        logger.info(f"Number of existing valid training images: {len(dataset_val.image_identifiers)}")
+        logger.info(f"Number of existing and valid training images: {len(dataset_val.image_identifiers)}")
 
         return dataset_tr, dataset_val
 
@@ -631,9 +631,7 @@ class AbstractBaseTrainer(ABC):
             f"Epoch time: {np.round(self.logger.my_fantastic_logging['epoch_end_timestamps'][-1] - self.logger.my_fantastic_logging['epoch_start_timestamps'][-1], decimals=2)} s"
         )
         # handling periodic checkpointing
-        current_epoch = self.current_epoch
-        if (current_epoch + 1) % self.save_every == 0 and current_epoch != (self.num_epochs - 1):
-            self.save_checkpoint(join(self.output_folder, "checkpoint_latest.pth"))
+        self.save_checkpoint(join(self.output_folder, "checkpoint_latest.pth"))
 
         # handle 'best' checkpointing. val_loss smaller than best_ema
         if self._best_ema is None or self.logger.my_fantastic_logging["val_losses"][-1] < self._best_ema:
@@ -787,7 +785,9 @@ class AbstractBaseTrainer(ABC):
 
         # --------------------------- Remove broken images --------------------------- #
         pre_removal_len = len(dataset.image_identifiers)
-        dataset.image_dataset = {k: v for k, v in dataset.image_dataset.items() if v.image_name in valid_image_names}
+        # Move to set to make this fast
+        valid_image_set = set(valid_image_names)
+        dataset.image_dataset = {k: v for k, v in dataset.image_dataset.items() if v.image_name in valid_image_set}
         dataset.image_identifiers = list(dataset.image_dataset.keys())
         post_removal_len = len(dataset.image_identifiers)
         removed_images = pre_removal_len - post_removal_len
@@ -797,8 +797,9 @@ class AbstractBaseTrainer(ABC):
     @staticmethod
     def keep_valid_unique(valid_unique_image_ids: list[str], dataset: nnSSLDatasetBlosc2):
         pre_removal_len = len(dataset.image_identifiers)
+        valid_unique_image_set = set(valid_unique_image_ids)
         dataset.image_dataset = {
-            k: v for k, v in dataset.image_dataset.items() if v.get_unique_id() in valid_unique_image_ids
+            k: v for k, v in dataset.image_dataset.items() if v.get_unique_id() in valid_unique_image_set
         }
         dataset.image_identifiers = list(dataset.image_dataset.keys())
         post_removal_len = len(dataset.image_identifiers)

@@ -72,7 +72,7 @@ class BaseMAETrainer(AbstractBaseTrainer):
 
         self.im_output_folder = os.path.join(self.output_folder, "img_log")
         os.makedirs(self.im_output_folder, exist_ok=True)
-        self.save_imgs_every_n_epochs = 50
+        self.save_imgs_every_n_epochs = 200
 
     def initialize(self):
         self.recon_dataloader = self.get_qual_recon_dataloader()
@@ -303,6 +303,8 @@ class BaseMAETrainer(AbstractBaseTrainer):
         """For each sample in the validation dataloader,"""
         with torch.no_grad():
             for batch_id in range(len(self.recon_dataloader)):
+                if batch_id > 50:
+                    break
                 image = self.recon_dataloader[batch_id]
                 data = image["data"]
                 meta_info = image["properties"]

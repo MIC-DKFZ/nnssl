@@ -28,7 +28,7 @@ class nnSSLBaseDataset(ABC):
         # print('loading dataset')
 
         self.dataset_dir: str = dataset_dir
-        self.subject_identifiers = subject_identifiers
+        self.subject_identifiers = set(subject_identifiers)  # Make it a set for faster lookup
         self.collection = deepcopy(collection)
 
         all_images: list[IndependentImage] = self.collection.to_independent_images()
