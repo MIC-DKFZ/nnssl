@@ -418,6 +418,7 @@ class AbstractBaseTrainer(ABC):
             existing_tr_imgs = self.get_existing_images(dataset_tr)
             existing_vl_imgs = self.get_existing_images(dataset_val)
             joint_existing_imgs = {**existing_tr_imgs, **existing_vl_imgs}
+            save_json(joint_existing_imgs, join(self.preprocessed_dataset_folder_base, "valid_existing_imgs.json"))
         else:
             joint_existing_imgs = load_json(join(self.preprocessed_dataset_folder_base, "valid_existing_imgs.json"))
 
