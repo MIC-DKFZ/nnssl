@@ -52,16 +52,6 @@ from torch.cuda.amp import GradScaler
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 
-def verify_img(img_id, dataset_dir: str, image_dataset: dict[str, IndependentImage]):
-    try:
-        data, anon, anat, properties = nnSSLDatasetBlosc2.load_case(dataset_dir, image_dataset, img_id)
-    except Exception as e:
-        return "not_readable"
-    if np.isinf(data[:]).any() or np.isnan(data[:]).any():
-        return "inf_or_nan"
-    return "ok"
-
-
 class AbstractBaseTrainer(ABC):
     def __init__(
         self,
@@ -383,6 +373,25 @@ class AbstractBaseTrainer(ABC):
         lr_scheduler = PolyLRScheduler(optimizer, self.initial_lr, self.num_epochs)
         return optimizer, lr_scheduler
 
+    def get_existing_images(self, dataset: nnSSLDatasetBlosc2, n_processes: int = 48) -> dict[str, dict[str, bool]]:
+        # --------------------------- Remove broken images --------------------------- #
+        img_dataset = dataset.image_dataset
+        identifiers = dataset.image_identifiers
+        #  dataset_dir: str, image_dataset: dict[str, IndependentImage],
+        file_exist_check = partial(
+            dataset.verify_file_exists, dataset_dir=dataset.dataset_dir, image_dataset=img_dataset
+        )
+
+        with Pool(n_processes) as p:
+            valid_images = p.map(file_exist_check, identifiers)
+
+        exist_status = {}
+        for img_id, valid in zip(identifiers, valid_images):
+            # dataset.image_identifiers.remove(img_id)
+            exist_status[img_id] = {"image_pkl": valid[0], "anon": valid[1], "anat": valid[2]}
+
+        return exist_status
+
     def get_tr_and_val_datasets(self):
         # create dataset split (We only have 'all' as splits anyway!)
         tr_subjects, val_subjects = self.do_split()
@@ -396,12 +405,31 @@ class AbstractBaseTrainer(ABC):
         valid_images = load_json(join(self.preprocessed_dataset_folder_base, "valid_imgs.json"))
         valid_image_ids = [i["image_name"] for i in valid_images]
 
+        # ----------------------- Check which images are valid (precomputed) ----------------------- #
         tr_imgs_removed = self.keep_valid(valid_image_ids, dataset_tr)
         logger.info(f"Removed {tr_imgs_removed} broken images from train dataset.")
-        logger.info(f"Number of training images: {len(dataset_tr.image_identifiers)}")
+        logger.info(f"Number of valid training images: {len(dataset_tr.image_identifiers)}")
         vl_imgs_removed = self.keep_valid(valid_image_ids, dataset_val)
         logger.info(f"Removed {vl_imgs_removed} broken images from val dataset.")
-        logger.info(f"Number of validation images: {len(dataset_val.image_identifiers)}")
+        logger.info(f"Number of valid validation images: {len(dataset_val.image_identifiers)}")
+
+        # ---------------------- Check which images are existing --------------------- #
+        if not os.path.exists(join(self.preprocessed_dataset_folder_base, "valid_existing_imgs.json")):
+            existing_tr_imgs = self.get_existing_images(dataset_tr)
+            existing_vl_imgs = self.get_existing_images(dataset_val)
+            joint_existing_imgs = {**existing_tr_imgs, **existing_vl_imgs}
+        else:
+            joint_existing_imgs = load_json(join(self.preprocessed_dataset_folder_base, "valid_existing_imgs.json"))
+
+        # If a trainer wants to use masks he has to do their filtering by that.
+        #   Here we only care about images and associated .pkl files.
+        existing_valid_img_ids = [k for k, v in joint_existing_imgs.items() if v["image_pkl"]]
+        tr_imgs_removed = self.keep_valid_unique(existing_valid_img_ids, dataset_tr)
+        logger.info(f"Removed {tr_imgs_removed} non-existing images from train dataset.")
+        logger.info(f"Number of existing valid training images: {len(dataset_tr.image_identifiers)}")
+        vl_imgs_removed = self.keep_valid_unique(existing_valid_img_ids, dataset_val)
+        logger.info(f"Removed {vl_imgs_removed} non-existing images from train dataset.")
+        logger.info(f"Number of existing valid training images: {len(dataset_val.image_identifiers)}")
 
         return dataset_tr, dataset_val
 
@@ -759,6 +787,18 @@ class AbstractBaseTrainer(ABC):
         # --------------------------- Remove broken images --------------------------- #
         pre_removal_len = len(dataset.image_identifiers)
         dataset.image_dataset = {k: v for k, v in dataset.image_dataset.items() if v.image_name in valid_image_names}
+        dataset.image_identifiers = list(dataset.image_dataset.keys())
+        post_removal_len = len(dataset.image_identifiers)
+        removed_images = pre_removal_len - post_removal_len
+
+        return removed_images
+
+    @staticmethod
+    def keep_valid_unique(valid_unique_image_ids: list[str], dataset: nnSSLDatasetBlosc2):
+        pre_removal_len = len(dataset.image_identifiers)
+        dataset.image_dataset = {
+            k: v for k, v in dataset.image_dataset.items() if v.get_unique_id() in valid_unique_image_ids
+        }
         dataset.image_identifiers = list(dataset.image_dataset.keys())
         post_removal_len = len(dataset.image_identifiers)
         removed_images = pre_removal_len - post_removal_len

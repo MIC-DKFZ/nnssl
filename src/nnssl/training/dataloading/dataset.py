@@ -97,6 +97,27 @@ class nnSSLDatasetBlosc2(nnSSLBaseDataset):
         return data, anon, anat, properties
 
     @staticmethod
+    def verify_file_exists(
+        image_identifier: str, dataset_dir: str, image_dataset: dict[str, IndependentImage],
+    ) -> tuple[bool, bool, bool]:
+        img: IndependentImage
+        img = image_dataset[image_identifier]
+        output_img_path = img.get_output_path("image", ext=".b2nd")
+        output_img_pkl_path = img.get_output_path("image", ext=".pkl")
+        output_anat_mask_path = img.get_output_path("anat_mask", ext=".b2nd")
+        output_anon_mask_path = img.get_output_path("anon_mask", ext=".b2nd")
+        data_b2nd_file = join(dataset_dir, output_img_path)
+        data_and_pkl_exists = isfile(data_b2nd_file) and isfile(join(dataset_dir, output_img_pkl_path))
+
+        anon_b2nd_file = join(dataset_dir, output_anon_mask_path)
+        anon_exists = isfile(anon_b2nd_file)
+
+        anat_b2nd_file = join(dataset_dir, output_anat_mask_path)
+        anat_exists = isfile(anat_b2nd_file)
+
+        return data_and_pkl_exists, anon_exists, anat_exists
+
+    @staticmethod
     def save_case(
         data: np.ndarray,
         anon_mask: np.ndarray | None,
