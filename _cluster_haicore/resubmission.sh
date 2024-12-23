@@ -4,8 +4,8 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=4
 #SBATCH --cpus-per-task=12
-#SBATCH --output=logs/%x.%j
-#SBATCH --error=logs/%x.%j
+#SBATCH --output=logs/out-%x.%j
+#SBATCH --error=logs/err-%x.%j
 #SBATCH --time=23:30:00
 #SBATCH --partition=booster
 #SBATCH --gres=gpu:4
@@ -44,17 +44,8 @@ export nnssl_raw=""
 export nnssl_results="/p/data1/thrp/experiments/MAE"
 export rocket_preprocessed="/p/data1/thrp/datasets/development_data"
 
-# Extract the first argument for job-name log file names and WANDB_RUN_ID
-JOB_NAME_PREFIX="$1"
-
-# Set job name based on the first argument
-sed -i "s/%J/${JOB_NAME_PREFIX}/" "$0"
-
-# Set log output and error file names
-sed -i "s/%x/${JOB_NAME_PREFIX}/" "$0"
-
 # Define JOB_ID based on first argument
-export WANDB_RUN_ID="${JOB_NAME_PREFIX}"
+export WANDB_RUN_ID="attempt_1"
 
 # resubmission logic
 resubmit_job() {
@@ -80,7 +71,7 @@ resubmit_job() {
 }
 trap 'resubmit_job "$@"' USR1
 # Start script as background job
-nnssl_train_wandb $@ &
+nnssl_train_wandb "$@" &
 PID=$!
 echo "PID of nnssl_train: ${PID}"
 PGID=$(ps -o pgid= -p ${PID} | grep -o '[0-9]*') # get the process group ID
