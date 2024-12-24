@@ -1,6 +1,7 @@
 import os
 from abc import ABC, abstractmethod
 from copy import deepcopy
+from random import choice
 from typing import List, Union, Type, Tuple
 
 import numpy as np
@@ -67,7 +68,10 @@ class nnSSLDatasetBlosc2(nnSSLBaseDataset):
         blosc2.set_nthreads(1)
 
     def __getitem__(self, image_identifier):
-        return self.load_case(self.dataset_dir, self.image_dataset, image_identifier)
+        try:
+            return self.load_case(self.dataset_dir, self.image_dataset, image_identifier)
+        except RuntimeError as e:
+            return self.__getitem__(choice(self.image_identifiers))
 
     @staticmethod
     def load_case(dataset_dir: str, image_dataset: dict[str, IndependentImage], image_identifier: str):
@@ -98,7 +102,9 @@ class nnSSLDatasetBlosc2(nnSSLBaseDataset):
 
     @staticmethod
     def verify_file_exists(
-        image_identifier: str, dataset_dir: str, image_dataset: dict[str, IndependentImage],
+        image_identifier: str,
+        dataset_dir: str,
+        image_dataset: dict[str, IndependentImage],
     ) -> tuple[bool, bool, bool]:
         img: IndependentImage
         img = image_dataset[image_identifier]
