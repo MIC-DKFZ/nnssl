@@ -391,8 +391,10 @@ class AbstractBaseTrainer(ABC):
                 enumerate(identifiers),
                 disable=True if (("LSF_JOBID" in os.environ) or ("SLURM_JOB_ID" in os.environ)) else False,
             ):
-                if cnt + 1 % 10000 == 0:
-                    print(f"Checking image {cnt+1} of {len(identifiers)}")
+                if cnt + 1 % 10000 == 0:  # print every 10k images
+                    if self.local_rank == 0:
+                        self.print_to_log_file(f"Checking image {cnt+1} of {len(identifiers)}")
+                        logger.info(f"Checking image {cnt+1} of {len(identifiers)}")
                 valid_images.append(dataset.verify_file_exists(i, dataset.dataset_dir, img_dataset))
 
         exist_status = {}
