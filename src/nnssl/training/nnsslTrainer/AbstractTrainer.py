@@ -387,8 +387,12 @@ class AbstractBaseTrainer(ABC):
                 valid_images = p.map(file_exist_check, identifiers)
         else:
             valid_images = []
-            for i in tqdm(identifiers,
-                    disable=True if (("LSF_JOBID" in os.environ) or ("SLURM_JOB_ID" in os.environ)) else False):
+            for cnt, i in tqdm(
+                enumerate(identifiers),
+                disable=True if (("LSF_JOBID" in os.environ) or ("SLURM_JOB_ID" in os.environ)) else False,
+            ):
+                if cnt + 1 % 10000 == 0:
+                    print(f"Checking image {cnt+1} of {len(identifiers)}")
                 valid_images.append(dataset.verify_file_exists(i, dataset.dataset_dir, img_dataset))
 
         exist_status = {}
