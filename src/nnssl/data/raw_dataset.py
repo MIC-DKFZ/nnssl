@@ -262,7 +262,7 @@ class Collection:
         not_found_imgs = []
         not_found_anon_masks = []
         not_found_anat_masks = []
-        for img in tqdm(all_imgs):
+        for img in tqdm(all_imgs, disable=True if (("LSF_JOBID" in os.environ) or ("SLURM_JOB_ID" in os.environ)) else False):
             if not os.path.exists(img.image_path + ".b2nd"):
                 not_found_imgs.append(img)
             if img.associated_masks is not None:

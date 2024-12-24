@@ -384,7 +384,7 @@ class BaseMAETrainer(AbstractBaseTrainer):
                 for batch_id in tqdm(
                     range(self.num_iterations_per_epoch),
                     desc=f"Epoch {epoch}",
-                    disable=True if (("LSF_JOBID" in os.environ) or is_running_in_valohai()) else False,
+                    disable=True if (("LSF_JOBID" in os.environ) or ("SLURM_JOB_ID" in os.environ)) else False,
                 ):
                     train_outputs.append(self.train_step(next(self.dataloader_train)))
                 self.on_train_epoch_end(train_outputs)

@@ -297,7 +297,7 @@ class AbstractBaseTrainer(ABC):
                 for batch_id in tqdm(
                     range(self.num_iterations_per_epoch),
                     desc=f"Epoch {epoch}",
-                    disable=True if (("LSF_JOBID" in os.environ) or is_running_in_valohai()) else False,
+                    disable=True if (("LSF_JOBID" in os.environ) or ("SLURM_JOB_ID" in os.environ)) else False,
                 ):
                     train_outputs.append(self.train_step(next(self.dataloader_train)))
 
@@ -387,7 +387,8 @@ class AbstractBaseTrainer(ABC):
                 valid_images = p.map(file_exist_check, identifiers)
         else:
             valid_images = []
-            for i in tqdm(identifiers):
+            for i in tqdm(identifiers,
+                    disable=True if (("LSF_JOBID" in os.environ) or ("SLURM_JOB_ID" in os.environ)) else False):
                 valid_images.append(dataset.verify_file_exists(i, dataset.dataset_dir, img_dataset))
 
         exist_status = {}
