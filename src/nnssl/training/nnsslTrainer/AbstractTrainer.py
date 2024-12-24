@@ -381,9 +381,14 @@ class AbstractBaseTrainer(ABC):
         file_exist_check = partial(
             dataset.verify_file_exists, dataset_dir=dataset.dataset_dir, image_dataset=img_dataset
         )
-
-        with Pool(n_processes) as p:
-            valid_images = p.map(file_exist_check, identifiers)
+        n_processes = 1
+        if n_processes > 1:
+            with Pool(n_processes) as p:
+                valid_images = p.map(file_exist_check, identifiers)
+        else:
+            valid_images = []
+            for i in tqdm(identifiers):
+                valid_images.append(dataset.verify_file_exists(i, dataset.dataset_dir, img_dataset))
 
         exist_status = {}
         for img_id, valid in zip(identifiers, valid_images):
@@ -402,28 +407,21 @@ class AbstractBaseTrainer(ABC):
         dataset_tr = nnSSLDatasetBlosc2(self.preprocessed_dataset_folder, collection, tr_subjects)
         dataset_val = nnSSLDatasetBlosc2(self.preprocessed_dataset_folder, collection, val_subjects)
 
-        valid_images = load_json(join(self.preprocessed_dataset_folder_base, "valid_imgs.json"))
-        valid_image_ids = [i["image_name"] for i in valid_images]
-
-        # ----------------------- Check which images are valid (precomputed) ----------------------- #
-        tr_imgs_removed = self.keep_valid(valid_image_ids, dataset_tr)
-        logger.info(f"Removed {tr_imgs_removed} broken images from train dataset.")
-        logger.info(f"Number of valid training images: {len(dataset_tr.image_identifiers)}")
-        vl_imgs_removed = self.keep_valid(valid_image_ids, dataset_val)
-        logger.info(f"Removed {vl_imgs_removed} broken images from val dataset.")
-        logger.info(f"Number of valid validation images: {len(dataset_val.image_identifiers)}")
-
         # ---------------------- Check which images are existing --------------------- #
+        logger.info("Checking which images are existing...")
         if not os.path.exists(join(self.preprocessed_dataset_folder_base, "valid_existing_imgs.json")):
+            logger.info("No existing valid_existing_imgs.json found. Creating a new one.")
             existing_tr_imgs = self.get_existing_images(dataset_tr)
             existing_vl_imgs = self.get_existing_images(dataset_val)
             joint_existing_imgs = {**existing_tr_imgs, **existing_vl_imgs}
             save_json(joint_existing_imgs, join(self.preprocessed_dataset_folder_base, "valid_existing_imgs.json"))
         else:
+            logger.info("Existing valid_existing_imgs.json found. Loading from file...")
             joint_existing_imgs = load_json(join(self.preprocessed_dataset_folder_base, "valid_existing_imgs.json"))
 
         # If a trainer wants to use masks he has to do their filtering by that.
         #   Here we only care about images and associated .pkl files.
+        logger.info("Removing non-existing images from datasets...")
         existing_valid_img_ids = [k for k, v in joint_existing_imgs.items() if v["image_pkl"]]
         tr_imgs_removed = self.keep_valid_unique(existing_valid_img_ids, dataset_tr)
         logger.info(f"Removed {tr_imgs_removed} non-existing images from train dataset.")
@@ -431,6 +429,30 @@ class AbstractBaseTrainer(ABC):
         vl_imgs_removed = self.keep_valid_unique(existing_valid_img_ids, dataset_val)
         logger.info(f"Removed {vl_imgs_removed} non-existing images from train dataset.")
         logger.info(f"Number of existing and valid training images: {len(dataset_val.image_identifiers)}")
+
+        # ----------------------- Check which images are duplicates ----------------------- #
+
+        duplicate_images = load_json(join(self.preprocessed_dataset_folder_base, "duplicate_image_ids.json"))
+        duplicate_image_ids = [i["image_name"] for i in duplicate_images]
+        # Removes in-place of the dataset_tr object!
+        tr_imgs_removed = self.remove_duplicates(duplicate_image_ids, dataset_tr)
+        logger.info(f"Removed {tr_imgs_removed} duplicate images from train dataset.")
+        logger.info(f"Number of unique training images: {len(dataset_tr.image_identifiers)}")
+        # Removes in-place of the dataset_val object!
+        vl_imgs_removed = self.remove_duplicates(duplicate_image_ids, dataset_val)
+        logger.info(f"Removed {vl_imgs_removed} duplicate images from val dataset.")
+        logger.info(f"Number of unique validation images: {len(dataset_val.image_identifiers)}")
+
+        # valid_images = load_json(join(self.preprocessed_dataset_folder_base, "valid_imgs.json"))
+        # valid_image_ids = [i["image_name"] for i in valid_images]
+
+        # # ----------------------- Check which images are valid (precomputed) ----------------------- #
+        # tr_imgs_removed = self.keep_valid(valid_image_ids, dataset_tr)
+        # logger.info(f"Removed {tr_imgs_removed} broken images from train dataset.")
+        # logger.info(f"Number of valid training images: {len(dataset_tr.image_identifiers)}")
+        # vl_imgs_removed = self.keep_valid(valid_image_ids, dataset_val)
+        # logger.info(f"Removed {vl_imgs_removed} broken images from val dataset.")
+        # logger.info(f"Number of valid validation images: {len(dataset_val.image_identifiers)}")
 
         return dataset_tr, dataset_val
 
@@ -779,6 +801,20 @@ class AbstractBaseTrainer(ABC):
             dct["torch_version"] = torch_version
             dct["cudnn_version"] = cudnn_version
             save_json(dct, join(self.output_folder, "debug.json"))
+
+    @staticmethod
+    def remove_duplicates(duplicate_image_names: list[str], dataset: nnSSLDatasetBlosc2):
+        pre_removal_len = len(dataset.image_identifiers)
+        # Move to set to make this fast
+        duplicate_image_set = set(duplicate_image_names)
+        dataset.image_dataset = {
+            k: v for k, v in dataset.image_dataset.items() if v.image_name not in duplicate_image_set
+        }
+        dataset.image_identifiers = list(dataset.image_dataset.keys())
+        post_removal_len = len(dataset.image_identifiers)
+        removed_images = pre_removal_len - post_removal_len
+
+        return removed_images
 
     @staticmethod
     def keep_valid(valid_image_names: list[str], dataset: nnSSLDatasetBlosc2):
