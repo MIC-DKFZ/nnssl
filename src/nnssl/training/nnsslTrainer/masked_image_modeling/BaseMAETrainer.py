@@ -535,3 +535,17 @@ class BaseMAETrainer_BS8_100ep(BaseMAETrainer):
         plan.configurations[configuration_name].batch_size = 8
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.num_epochs = 100
+
+
+class BaseMAETrainer_BS8_1000ep(BaseMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.num_epochs = 1000
