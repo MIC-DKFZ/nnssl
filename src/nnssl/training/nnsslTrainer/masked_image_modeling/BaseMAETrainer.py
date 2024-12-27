@@ -375,7 +375,8 @@ class BaseMAETrainer(AbstractBaseTrainer):
         try:
             self.on_train_start()
             if self.local_rank == 0:
-                self.log_qualitative_reconstruction_step()  # Do a quick test everything works.
+                pass
+                # self.log_qualitative_reconstruction_step()  # Do a quick test everything works.
             for epoch in range(self.current_epoch, self.num_epochs):
                 self.on_epoch_start()
 
@@ -535,6 +536,20 @@ class BaseMAETrainer_BS8_100ep(BaseMAETrainer):
         plan.configurations[configuration_name].batch_size = 8
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.num_epochs = 100
+
+
+class BaseMAETrainer_BS1(BaseMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 1
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.num_epochs = 1000
 
 
 class BaseMAETrainer_BS8_1000ep(BaseMAETrainer):
