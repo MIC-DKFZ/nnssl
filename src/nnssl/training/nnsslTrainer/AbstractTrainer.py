@@ -438,17 +438,17 @@ class AbstractBaseTrainer(ABC):
         logger.info(f"Number of existing and valid training images: {len(dataset_val.image_identifiers)}")
 
         # ----------------------- Check which images are duplicates ----------------------- #
-
-        duplicate_images = load_json(join(self.preprocessed_dataset_folder_base, "duplicate_image_ids.json"))
-        duplicate_image_ids = [i["image_name"] for i in duplicate_images]
-        # Removes in-place of the dataset_tr object!
-        tr_imgs_removed = self.remove_duplicates(duplicate_image_ids, dataset_tr)
-        logger.info(f"Removed {tr_imgs_removed} duplicate images from train dataset.")
-        logger.info(f"Number of unique training images: {len(dataset_tr.image_identifiers)}")
-        # Removes in-place of the dataset_val object!
-        vl_imgs_removed = self.remove_duplicates(duplicate_image_ids, dataset_val)
-        logger.info(f"Removed {vl_imgs_removed} duplicate images from val dataset.")
-        logger.info(f"Number of unique validation images: {len(dataset_val.image_identifiers)}")
+        if os.path.exists(join(self.preprocessed_dataset_folder_base, "duplicate_image_ids.json")):
+            duplicate_images = load_json(join(self.preprocessed_dataset_folder_base, "duplicate_image_ids.json"))
+            duplicate_image_ids = [i["image_name"] for i in duplicate_images]
+            # Removes in-place of the dataset_tr object!
+            tr_imgs_removed = self.remove_duplicates(duplicate_image_ids, dataset_tr)
+            logger.info(f"Removed {tr_imgs_removed} duplicate images from train dataset.")
+            logger.info(f"Number of unique training images: {len(dataset_tr.image_identifiers)}")
+            # Removes in-place of the dataset_val object!
+            vl_imgs_removed = self.remove_duplicates(duplicate_image_ids, dataset_val)
+            logger.info(f"Removed {vl_imgs_removed} duplicate images from val dataset.")
+            logger.info(f"Number of unique validation images: {len(dataset_val.image_identifiers)}")
 
         # valid_images = load_json(join(self.preprocessed_dataset_folder_base, "valid_imgs.json"))
         # valid_image_ids = [i["image_name"] for i in valid_images]
