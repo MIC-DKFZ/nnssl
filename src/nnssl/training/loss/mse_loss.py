@@ -60,7 +60,7 @@ class MAESSIMLoss(AbstractLoss):
 
         ssim_loss = 1 - ssim(rescaled_out, rescaled_target, data_range=1, size_average=False, nonnegative_ssim=True)
 
-        return ssim_loss
+        return torch.mean(ssim_loss)
 
 
 class MAE_MS_SSIMLoss(AbstractLoss):
@@ -87,4 +87,4 @@ class MAE_MS_SSIMLoss(AbstractLoss):
 
         ssim_loss = 1 - ms_ssim(rescaled_out, rescaled_target, data_range=1, size_average=False, win_size=7)
 
-        return ssim_loss
+        return torch.mean(ssim_loss)
