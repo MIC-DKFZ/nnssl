@@ -58,7 +58,9 @@ dependencies = [
     "pytest",
     "nnunetv2",
     "blosc2>=3.0.0b1",
-    "deprecated"
+    "deprecated",
+    "pytorch-msssim",
+    "lpips"
 ]
 
 [project.urls]
