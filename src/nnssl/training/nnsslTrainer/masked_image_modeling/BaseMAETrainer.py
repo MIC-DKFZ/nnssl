@@ -2,7 +2,6 @@ import os
 from typing import List, Tuple, Union
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from valohai.config import is_running_in_valohai
 from deprecated import deprecated
 
 
@@ -23,7 +22,6 @@ from batchgenerators.transforms.utility_transforms import NumpyToTensor
 from batchgenerators.dataloading.single_threaded_augmenter import SingleThreadedAugmenter
 from torch import autocast
 from nnssl.utilities.helpers import dummy_context
-import valohai
 from torch.nn.parallel import DistributedDataParallel as DDP
 from batchgenerators.utilities.file_and_folder_operations import join
 import SimpleITK as sitk
