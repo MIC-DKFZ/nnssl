@@ -1,10 +1,10 @@
 import torch
 from nnssl.experiment_planning.experiment_planners.plan import Plan
-from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import BaseMAETrainer
+from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import BaseMAETrainer, BaseMAETrainer_BS8_1000ep
 import numpy as np
 
 
-class BaseMAETrainer_BS8_ep1000_patch_128(BaseMAETrainer):
+class BaseMAETrainer_BS8_ep1000_patch_128(BaseMAETrainer_BS8_1000ep):
 
     def __init__(
         self,
@@ -18,7 +18,7 @@ class BaseMAETrainer_BS8_ep1000_patch_128(BaseMAETrainer):
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
 
 
-class BaseMAETrainer_BS8_ep1000_patch_160(BaseMAETrainer):
+class BaseMAETrainer_BS8_ep1000_patch_160(BaseMAETrainer_BS8_1000ep):
 
     def __init__(
         self,
@@ -32,7 +32,7 @@ class BaseMAETrainer_BS8_ep1000_patch_160(BaseMAETrainer):
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
 
 
-class BaseMAETrainer_BS8_ep1000_patch_224(BaseMAETrainer):
+class BaseMAETrainer_BS8_ep1000_patch_224(BaseMAETrainer_BS8_1000ep):
 
     def __init__(
         self,
