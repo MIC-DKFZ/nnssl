@@ -8,7 +8,7 @@ from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import Bas
 from random import sample
 
 
-class BaseMAETrainer_BS8_ep1000_Dataset_1div2(BaseMAETrainer_BS8_1000ep):
+class BaseMAETrainer_BS8_ep1000_Dataset_1div4(BaseMAETrainer_BS8_1000ep):
 
     def __init__(
         self,
@@ -54,7 +54,7 @@ class BaseMAETrainer_BS8_ep1000_Dataset_1div2(BaseMAETrainer_BS8_1000ep):
         return dl_tr, dl_val
 
 
-class BaseMAETrainer_BS8_ep1000_Dataset_1div16(BaseMAETrainer_BS8_ep1000_Dataset_1div2):
+class BaseMAETrainer_BS8_ep1000_Dataset_1div16(BaseMAETrainer_BS8_ep1000_Dataset_1div4):
 
     def __init__(
         self,
@@ -68,7 +68,7 @@ class BaseMAETrainer_BS8_ep1000_Dataset_1div16(BaseMAETrainer_BS8_ep1000_Dataset
         self.fraction = 1 / 16
 
 
-class BaseMAETrainer_BS8_ep1000_Dataset_1div64(BaseMAETrainer_BS8_ep1000_Dataset_1div2):
+class BaseMAETrainer_BS8_ep1000_Dataset_1div64(BaseMAETrainer_BS8_ep1000_Dataset_1div4):
 
     def __init__(
         self,
@@ -82,7 +82,7 @@ class BaseMAETrainer_BS8_ep1000_Dataset_1div64(BaseMAETrainer_BS8_ep1000_Dataset
         self.fraction = 1 / 64
 
 
-class BaseMAETrainer_BS8_ep1000_Dataset_1div256(BaseMAETrainer_BS8_ep1000_Dataset_1div2):
+class BaseMAETrainer_BS8_ep1000_Dataset_1div256(BaseMAETrainer_BS8_ep1000_Dataset_1div4):
 
     def __init__(
         self,
@@ -96,7 +96,7 @@ class BaseMAETrainer_BS8_ep1000_Dataset_1div256(BaseMAETrainer_BS8_ep1000_Datase
         self.fraction = 1 / 256
 
 
-class BaseMAETrainer_BS8_ep1000_Dataset_1div1024(BaseMAETrainer_BS8_ep1000_Dataset_1div2):
+class BaseMAETrainer_BS8_ep1000_Dataset_1div1024(BaseMAETrainer_BS8_ep1000_Dataset_1div4):
 
     def __init__(
         self,
