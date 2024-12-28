@@ -1,5 +1,13 @@
 import torch
-from nnssl.training.loss.mse_loss import L1Loss_NoMask, MAESSIMLoss, MAE_MS_SSIMLoss, MAEL1Loss, MSELoss_NoMask
+from nnssl.training.loss.mse_loss import (
+    L1Loss_NoMask,
+    MAESSIMLoss,
+    MAE_MS_SSIMLoss,
+    MAEL1Loss,
+    MSELoss_NoMask,
+    MAE_MS_SSIMLoss_WithMask,
+    MAESSIMLoss_WithMask,
+)
 from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import (
     BaseMAETrainer_BS1,
     BaseMAETrainer_BS2,
@@ -39,9 +47,19 @@ class BaseMAETrainer_BS8_ep1000_SSIM(BaseMAETrainer_BS8_1000ep):
         return MAESSIMLoss()
 
 
+class BaseMAETrainer_BS8_ep1000_SSIM_wMask(BaseMAETrainer_BS8_1000ep):
+    def build_loss(self):
+        return MAESSIMLoss_WithMask()
+
+
 class BaseMAETrainer_BS8_ep1000_MSSSIM(BaseMAETrainer_BS8_1000ep):
     def build_loss(self):
         return MAE_MS_SSIMLoss()
+
+
+class BaseMAETrainer_BS8_ep1000_MSSSIM_wMask(BaseMAETrainer_BS8_1000ep):
+    def build_loss(self):
+        return MAE_MS_SSIMLoss_WithMask()
 
 
 class BaseMAETrainer_BS8_ep1000_L1(BaseMAETrainer_BS8_1000ep):
