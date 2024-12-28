@@ -14,7 +14,7 @@ class BaseMAETrainer_BS8_ep1000_patch_128(BaseMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        self.config_plan.patch_size = [128, 128, 128]
+        plan.configurations[configuration_name].patch_size = [128, 128, 128]
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
 
 
