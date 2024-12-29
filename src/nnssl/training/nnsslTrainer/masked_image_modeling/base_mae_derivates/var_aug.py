@@ -372,7 +372,7 @@ class AugMAETrainer_BS8_ep1000_aug_slow_imed(AugMAETrainer_BS8_ep1000_aug_slow_i
         self.intensity_aug_level = "medium"
 
 
-class AugMAETrainer_BS8_ep1000_aug_slow_imed(AugMAETrainer_BS8_ep1000_aug_slow_ioff):
+class AugMAETrainer_BS8_ep1000_aug_slow_ihig(AugMAETrainer_BS8_ep1000_aug_slow_ioff):
 
     def __init__(
         self,
