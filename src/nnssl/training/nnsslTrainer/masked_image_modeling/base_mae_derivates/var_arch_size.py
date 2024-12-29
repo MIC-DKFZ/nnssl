@@ -1,5 +1,5 @@
 from dynamic_network_architectures.architectures.unet import ResidualEncoderUNet
-
+from dynamic_network_architectures.building_blocks.residual import BottleneckD
 from torch import nn
 
 from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import (
@@ -254,5 +254,140 @@ class BaseMAETrainer_BS1_ep1000_Arch_Width_B_Depth_B_BatchNorm(BaseMAETrainer_BS
             nonlin=nn.LeakyReLU,
             nonlin_kwargs={"inplace": True},
             deep_supervision=False,
+        )
+        return network
+
+
+class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop005(BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B):
+
+    def build_architecture(self, *args, **kwargs) -> nn.Module:
+        # Move to same plan as SPARK
+        n_stages = 6
+        network = ResidualEncoderUNet(
+            input_channels=1,
+            n_stages=n_stages,
+            features_per_stage=[32, 64, 128, 256, 320, 320],
+            conv_op=nn.Conv3d,
+            kernel_sizes=[[3, 3, 3] for _ in range(n_stages)],
+            strides=[[1, 1, 1], [2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2]],
+            n_blocks_per_stage=[1, 4, 6, 8, 8, 8],
+            num_classes=1,
+            n_conv_per_stage_decoder=[1, 1, 1, 1, 1],
+            conv_bias=True,
+            norm_op=nn.LayerNorm,
+            norm_op_kwargs={"eps": 1e-5},
+            nonlin=nn.LeakyReLU,
+            nonlin_kwargs={"inplace": True},
+            deep_supervision=False,
+            dropout_op=nn.Dropout3d,
+            dropout_op_kwargs={"p": 0.05},
+        )
+        return network
+
+
+class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop01(BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B):
+
+    def build_architecture(self, *args, **kwargs) -> nn.Module:
+        # Move to same plan as SPARK
+        n_stages = 6
+        network = ResidualEncoderUNet(
+            input_channels=1,
+            n_stages=n_stages,
+            features_per_stage=[32, 64, 128, 256, 320, 320],
+            conv_op=nn.Conv3d,
+            kernel_sizes=[[3, 3, 3] for _ in range(n_stages)],
+            strides=[[1, 1, 1], [2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2]],
+            n_blocks_per_stage=[1, 4, 6, 8, 8, 8],
+            num_classes=1,
+            n_conv_per_stage_decoder=[1, 1, 1, 1, 1],
+            conv_bias=True,
+            norm_op=nn.LayerNorm,
+            norm_op_kwargs={"eps": 1e-5},
+            nonlin=nn.LeakyReLU,
+            nonlin_kwargs={"inplace": True},
+            deep_supervision=False,
+            dropout_op=nn.Dropout3d,
+            dropout_op_kwargs={"p": 0.1},
+        )
+        return network
+
+
+class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop015(BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B):
+
+    def build_architecture(self, *args, **kwargs) -> nn.Module:
+        # Move to same plan as SPARK
+        n_stages = 6
+        network = ResidualEncoderUNet(
+            input_channels=1,
+            n_stages=n_stages,
+            features_per_stage=[32, 64, 128, 256, 320, 320],
+            conv_op=nn.Conv3d,
+            kernel_sizes=[[3, 3, 3] for _ in range(n_stages)],
+            strides=[[1, 1, 1], [2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2]],
+            n_blocks_per_stage=[1, 4, 6, 8, 8, 8],
+            num_classes=1,
+            n_conv_per_stage_decoder=[1, 1, 1, 1, 1],
+            conv_bias=True,
+            norm_op=nn.LayerNorm,
+            norm_op_kwargs={"eps": 1e-5},
+            nonlin=nn.LeakyReLU,
+            nonlin_kwargs={"inplace": True},
+            deep_supervision=False,
+            dropout_op=nn.Dropout3d,
+            dropout_op_kwargs={"p": 0.15},
+        )
+        return network
+
+
+class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop015(BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B):
+
+    def build_architecture(self, *args, **kwargs) -> nn.Module:
+        # Move to same plan as SPARK
+        n_stages = 6
+        network = ResidualEncoderUNet(
+            input_channels=1,
+            n_stages=n_stages,
+            features_per_stage=[32, 64, 128, 256, 320, 320],
+            conv_op=nn.Conv3d,
+            kernel_sizes=[[3, 3, 3] for _ in range(n_stages)],
+            strides=[[1, 1, 1], [2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2]],
+            n_blocks_per_stage=[1, 4, 6, 8, 8, 8],
+            num_classes=1,
+            n_conv_per_stage_decoder=[1, 1, 1, 1, 1],
+            conv_bias=True,
+            norm_op=nn.LayerNorm,
+            norm_op_kwargs={"eps": 1e-5},
+            nonlin=nn.LeakyReLU,
+            nonlin_kwargs={"inplace": True},
+            deep_supervision=False,
+            dropout_op=nn.Dropout3d,
+            dropout_op_kwargs={"p": 0.2},
+        )
+        return network
+
+
+class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Bneck(BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B):
+
+    def build_architecture(self, *args, **kwargs) -> nn.Module:
+        # Move to same plan as SPARK
+        n_stages = 6
+        network = ResidualEncoderUNet(
+            input_channels=1,
+            n_stages=n_stages,
+            features_per_stage=[32, 64, 128, 256, 320, 320],
+            conv_op=nn.Conv3d,
+            kernel_sizes=[[3, 3, 3] for _ in range(n_stages)],
+            strides=[[1, 1, 1], [2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2]],
+            n_blocks_per_stage=[1, 4, 6, 8, 8, 8],
+            num_classes=1,
+            n_conv_per_stage_decoder=[1, 1, 1, 1, 1],
+            conv_bias=True,
+            norm_op=nn.LayerNorm,
+            norm_op_kwargs={"eps": 1e-5},
+            nonlin=nn.LeakyReLU,
+            nonlin_kwargs={"inplace": True},
+            deep_supervision=False,
+            block=BottleneckD,
+            bottleneck_channels=[64, 128, 256, 512, 640, 640],
         )
         return network
