@@ -90,7 +90,39 @@ class BaseMAETrainer_BS8_ep1000_MSSSIM(BaseMAETrainer_BS8_1000ep):
         return MAE_MS_SSIMLoss()
 
 
+class BaseMAETrainer_BS8_ep1000_MSSSIM_LR1e3(BaseMAETrainer_BS8_1000ep):
+    def __init__(
+        self,
+        plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.initial_lr = 1e-3
+
+    def build_loss(self):
+        return MAE_MS_SSIMLoss()
+
+
 class BaseMAETrainer_BS8_ep1000_MSSSIM_wMask(BaseMAETrainer_BS8_1000ep):
+    def build_loss(self):
+        return MAE_MS_SSIMLoss_WithMask()
+
+
+class BaseMAETrainer_BS8_ep1000_MSSSIM_wMask_LR1e3(BaseMAETrainer_BS8_1000ep):
+    def __init__(
+        self,
+        plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.initial_lr = 1e-3
+
     def build_loss(self):
         return MAE_MS_SSIMLoss_WithMask()
 
