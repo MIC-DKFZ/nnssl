@@ -229,6 +229,21 @@ class SliceMaskMAETrainer_BS8_ep1000_mask60(SliceMaskMAE):
         self.mask_percentage: float = 0.60
 
 
+class SliceMaskMAETrainer_BS8_ep1000_mask45(SliceMaskMAE):
+
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.mask_percentage: float = 0.45
+
+
 class SameSliceMaskMAETrainer_BS8_ep1000_mask60(SameSliceMaskMAE):
 
     def __init__(
@@ -242,6 +257,21 @@ class SameSliceMaskMAETrainer_BS8_ep1000_mask60(SameSliceMaskMAE):
         plan.configurations[configuration_name].batch_size = 8
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.mask_percentage: float = 0.60
+
+
+class SameSliceMaskMAETrainer_BS8_ep1000_mask45(SameSliceMaskMAE):
+
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.mask_percentage: float = 0.45
 
 
 class SameSliceMaskMAETrainer_BS8_ep1000_mask75(SameSliceMaskMAE):
@@ -317,6 +347,21 @@ class GridMaskMAE_BS8_ep1000_mask90(GridMaskMAE):
         plan.configurations[configuration_name].batch_size = 8
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.mask_percentage: float = 0.90
+
+
+class GridMaskMAE_BS8_ep1000_mask45(GridMaskMAE):
+
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.mask_percentage: float = 0.45
 
 
 class GridMaskMAE_BS1_mask75(GridMaskMAE):
