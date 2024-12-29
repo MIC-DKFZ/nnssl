@@ -339,7 +339,7 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop015(BaseMAETrainer_BS8_
         return network
 
 
-class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop015(BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B):
+class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop02(BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B):
 
     def build_architecture(self, *args, **kwargs) -> nn.Module:
         # Move to same plan as SPARK
