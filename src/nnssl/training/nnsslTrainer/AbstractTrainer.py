@@ -216,6 +216,15 @@ class AbstractBaseTrainer(ABC):
                 f"Using DDP. Total Batch size {self.config_plan.batch_size} distributed across all {world_size} gpus."
             )
 
+            if self.batch_size_from_args is not None:
+                # set the batch size from the arguments
+                global_batch_size = self.batch_size_from_args
+            else:
+                global_batch_size = self.config_plan.batch_size
+            assert global_batch_size >= world_size, (
+                "Cannot run DDP if the batch size is smaller than the number of " "GPUs... Duh."
+            )
+
             global_batch_size = self.config_plan.batch_size
 
             assert (
@@ -756,6 +765,7 @@ class AbstractBaseTrainer(ABC):
                 self.network._orig_mod.load_state_dict(new_state_dict)
             else:
                 self.network.load_state_dict(new_state_dict)
+
         self.optimizer.load_state_dict(checkpoint["optimizer_state"])
         if self.grad_scaler is not None:
             if checkpoint["grad_scaler_state"] is not None:
@@ -828,22 +838,7 @@ class AbstractBaseTrainer(ABC):
 
         # --------------------------- Remove broken images --------------------------- #
         pre_removal_len = len(dataset.image_identifiers)
-        # Move to set to make this fast
-        valid_image_set = set(valid_image_names)
-        dataset.image_dataset = {k: v for k, v in dataset.image_dataset.items() if v.image_name in valid_image_set}
-        dataset.image_identifiers = list(dataset.image_dataset.keys())
-        post_removal_len = len(dataset.image_identifiers)
-        removed_images = pre_removal_len - post_removal_len
-
-        return removed_images
-
-    @staticmethod
-    def keep_valid_unique(valid_unique_image_ids: list[str], dataset: nnSSLDatasetBlosc2):
-        pre_removal_len = len(dataset.image_identifiers)
-        valid_unique_image_set = set(valid_unique_image_ids)
-        dataset.image_dataset = {
-            k: v for k, v in dataset.image_dataset.items() if v.get_unique_id() in valid_unique_image_set
-        }
+        dataset.image_dataset = {k: v for k, v in dataset.image_dataset.items() if v.image_name in valid_image_names}
         dataset.image_identifiers = list(dataset.image_dataset.keys())
         post_removal_len = len(dataset.image_identifiers)
         removed_images = pre_removal_len - post_removal_len
