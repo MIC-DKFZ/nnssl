@@ -10,10 +10,8 @@ class ContrastLoss(nn.Module):
         self.register_buffer("temp", torch.tensor(temperature).to(device))
         self.register_buffer("neg_mask", (~torch.eye(batch_size * 2, batch_size * 2, dtype=torch.bool).to(device)).float())
 
-    def forward(self, x_i, x_j):
-        z_i = F.normalize(x_i, dim=1)
-        z_j = F.normalize(x_j, dim=1)
-        z = torch.cat([z_i, z_j], dim=0)
+    def forward(self, x):
+        z = F.normalize(x, dim=1)
         sim = F.cosine_similarity(z.unsqueeze(1), z.unsqueeze(0), dim=2)
         sim_ij = torch.diag(sim, self.batch_size)
         sim_ji = torch.diag(sim, -self.batch_size)
@@ -34,9 +32,9 @@ class SwinUNETRLoss(nn.Module):
         self.contrast_loss_weight = contrast_loss_weight
         self.rot_loss_weight = rot_loss_weight
 
-    def __call__(self, rotations_pred, rotations, contrast1, contrast2, reconstructions, imgs_rotated):
+    def __call__(self, rotations_pred, rotations, contrast, reconstructions, imgs_rotated):
         rec_loss = self.rec_loss(reconstructions, imgs_rotated)
-        contrast_loss = self.contrast_loss(contrast1, contrast2)
+        contrast_loss = self.contrast_loss(contrast)
         rot_loss = self.rot_loss(rotations_pred, rotations)
         return (self.rec_loss_weight * rec_loss
                 + self.contrast_loss_weight * contrast_loss
