@@ -2,7 +2,6 @@ import os
 from typing import List, Tuple, Union
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from valohai.config import is_running_in_valohai
 from deprecated import deprecated
 
 
@@ -23,7 +22,6 @@ from batchgenerators.transforms.utility_transforms import NumpyToTensor
 from batchgenerators.dataloading.single_threaded_augmenter import SingleThreadedAugmenter
 from torch import autocast
 from nnssl.utilities.helpers import dummy_context
-import valohai
 from torch.nn.parallel import DistributedDataParallel as DDP
 from batchgenerators.utilities.file_and_folder_operations import join
 import SimpleITK as sitk
@@ -72,7 +70,7 @@ class BaseMAETrainer(AbstractBaseTrainer):
 
         self.im_output_folder = os.path.join(self.output_folder, "img_log")
         os.makedirs(self.im_output_folder, exist_ok=True)
-        self.save_imgs_every_n_epochs = 50
+        self.save_imgs_every_n_epochs = 200
 
     def initialize(self):
         self.recon_dataloader = self.get_qual_recon_dataloader()
@@ -303,6 +301,8 @@ class BaseMAETrainer(AbstractBaseTrainer):
         """For each sample in the validation dataloader,"""
         with torch.no_grad():
             for batch_id in range(len(self.recon_dataloader)):
+                if batch_id > 50:
+                    break
                 image = self.recon_dataloader[batch_id]
                 data = image["data"]
                 meta_info = image["properties"]
@@ -373,7 +373,8 @@ class BaseMAETrainer(AbstractBaseTrainer):
         try:
             self.on_train_start()
             if self.local_rank == 0:
-                self.log_qualitative_reconstruction_step()  # Do a quick test everything works.
+                pass
+                # self.log_qualitative_reconstruction_step()  # Do a quick test everything works.
             for epoch in range(self.current_epoch, self.num_epochs):
                 self.on_epoch_start()
 
@@ -382,7 +383,7 @@ class BaseMAETrainer(AbstractBaseTrainer):
                 for batch_id in tqdm(
                     range(self.num_iterations_per_epoch),
                     desc=f"Epoch {epoch}",
-                    disable=True if (("LSF_JOBID" in os.environ) or is_running_in_valohai()) else False,
+                    disable=True if (("LSF_JOBID" in os.environ) or ("SLURM_JOB_ID" in os.environ)) else False,
                 ):
                     train_outputs.append(self.train_step(next(self.dataloader_train)))
                 self.on_train_epoch_end(train_outputs)
@@ -533,3 +534,45 @@ class BaseMAETrainer_BS8_100ep(BaseMAETrainer):
         plan.configurations[configuration_name].batch_size = 8
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.num_epochs = 100
+
+
+class BaseMAETrainer_BS1(BaseMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 1
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.num_epochs = 1000
+
+
+class BaseMAETrainer_BS2(BaseMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 2
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.num_epochs = 1000
+
+
+class BaseMAETrainer_BS8_1000ep(BaseMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.num_epochs = 1000

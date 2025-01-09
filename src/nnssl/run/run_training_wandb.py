@@ -2,7 +2,6 @@ from datetime import datetime, timedelta
 import os
 from pathlib import Path
 import shutil
-import signal
 import socket
 from typing import Type, Union, Optional
 
@@ -13,7 +12,7 @@ import torch.cuda
 import torch.distributed as dist
 import torch.multiprocessing as mp
 from batchgenerators.utilities.file_and_folder_operations import join, isfile, load_json
-from nnssl.experiment_planning.experiment_planners.plan import Plan
+from nnssl.experiment_planning.experiment_planners.plan_wandb import Plan_wandb
 from nnssl.paths import nnssl_preprocessed
 from nnssl.run.load_pretrained_weights import load_pretrained_weights
 from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
@@ -48,12 +47,16 @@ def get_trainer_from_args(
     trainer_name: str = "nnsslTrainer",
     plans_identifier: str = "nnsslPlans",
     device: torch.device = torch.device("cuda"),
-):
+    #*args,
+    **kwargs):
+
     # load nnunet class and do sanity checks
     nnssl_trainer_cls: Type[AbstractBaseTrainer] = recursive_find_python_class(
         join(nnssl.__path__[0], "training", "nnsslTrainer"), trainer_name, "nnssl.training.nnsslTrainer"
     )
+    print(nnssl_trainer_cls, trainer_name)
     if nnssl_trainer_cls is None:
+
         raise RuntimeError(
             f"Could not find requested nnunet trainer {trainer_name} in "
             f"nnssl.training.nnsslTrainer ("
@@ -80,14 +83,25 @@ def get_trainer_from_args(
     # initialize nnunet trainer
     preprocessed_dataset_folder_base = join(nnssl_preprocessed, maybe_convert_to_dataset_name(dataset_name_or_id))
     plans_file = join(preprocessed_dataset_folder_base, plans_identifier + ".json")
-    plans: Plan = Plan.load_from_file(plans_file)
+    plans: Plan = Plan_wandb.load_from_file(plans_file)
+    for param in kwargs:
+        if param in ['mask_ratio', 'initial_lr','vit_patch_size','attention_drop_rate']:
+            plans.plans_name =  plans.plans_name + "__" + param + str(kwargs[param]).replace('.','').replace('[', '').replace(']','').replace(',','').replace(' ','')
+        else:
+            plans.plans_name =  plans.plans_name + "__" + param + str(kwargs[param])
+        for config in plans.configurations:
+            plans.configurations[config][param] = kwargs[param]
+
     pretrain_json = load_json(join(preprocessed_dataset_folder_base, "pretrain_data.json"))
+
     nnssl_trainer: AbstractBaseTrainer = nnssl_trainer_cls(
-        plan=plans,
-        configuration_name=configuration,
-        fold=fold,
-        pretrain_json=pretrain_json,
-        device=device,
+        plans,
+        configuration,
+        fold,
+        pretrain_json,
+        device,
+        #*args,
+        #**kwargs
     )
     return nnssl_trainer
 
@@ -161,7 +175,7 @@ def setup_ddp(rank, world_size):
     # initialize the process group
     # Unpacking actually takes about
     dist.init_process_group("nccl", rank=rank, world_size=world_size, timeout=timedelta(minutes=25))
-
+    torch.cuda.set_device(rank)
 
 def cleanup_ddp():
     dist.destroy_process_group()
@@ -181,12 +195,15 @@ def run_ddp(
     npz,
     val_with_best,
     world_size,
+    add_params
 ):
     setup_ddp(rank, world_size)
-    torch.cuda.set_device(torch.device("cuda", dist.get_rank()))
+
+    #torch.cuda.set_device(torch.device("cuda", dist.get_rank()))
 
     device = torch.device(f"cuda:{rank}")
     nnunet_trainer = get_trainer_from_args(dataset_name_or_id, configuration, fold, tr, p, device, **add_params)
+
     if disable_checkpointing:
         nnunet_trainer.disable_checkpointing = disable_checkpointing
 
@@ -197,10 +214,6 @@ def run_ddp(
     if torch.cuda.is_available():
         cudnn.deterministic = False
         cudnn.benchmark = True
-
-    # Prepare the auto-exiting in case wall-time is exceeded.
-    #  This sets a internal flag, letting the trainer know it's 10 minutes till wall-clock time is up.
-    signal.signal(signal.SIGUSR1, nnunet_trainer.exit_training)
 
     if not val:
         nnunet_trainer.run_training()
@@ -225,6 +238,8 @@ def run_training(
     disable_checkpointing: bool = False,
     val_with_best: bool = False,
     device: torch.device = torch.device("cuda"),
+    *args,
+    **kwargs,
 ):
     if isinstance(fold, str):
         if fold != "all":
@@ -249,6 +264,7 @@ def run_training(
             port = str(find_free_network_port())
             print(f"using port {port}")
             os.environ["MASTER_PORT"] = port  # str(port)
+        add_params = kwargs
 
         mp.spawn(
             run_ddp,
@@ -265,6 +281,7 @@ def run_training(
                 export_validation_probabilities,
                 val_with_best,
                 num_gpus,
+                add_params,
             ),
             nprocs=num_gpus,
             join=True,
@@ -277,11 +294,8 @@ def run_training(
             trainer_class_name,
             plans_identifier,
             device=device,
+            **kwargs,
         )
-
-        # Prepare the auto-exiting in case wall-time is exceeded.
-        #  This sets a internal flag, letting the trainer know it's 10 minutes till wall-clock time is up.
-        signal.signal(signal.SIGUSR1, nnunet_trainer.exit_training)
 
         if disable_checkpointing:
             nnunet_trainer.disable_checkpointing = disable_checkpointing
@@ -377,6 +391,16 @@ def run_training_entry():
         "(GPU), 'cpu' (CPU) and 'mps' (Apple M1/M2). Do NOT use this to set which GPU ID! "
         "Use CUDA_VISIBLE_DEVICES=X nnUNetv2_train [...] instead!",
     )
+    parser.add_argument("--mask_ratio", required=False, default=0.5, type=float)
+    parser.add_argument("--vit_patch_size", required=False, default=[8, 8, 8], nargs="+", type=int)
+    parser.add_argument("--embed_dim", required=False, default=864, type=int)
+    parser.add_argument("--encoder_eva_depth", required=False, default=16, type=int)
+    parser.add_argument("--encoder_eva_numheads", required=False, default=12, type=int)
+    parser.add_argument("--decoder_eva_depth", required=False, default=6, type=int)
+    parser.add_argument("--decoder_eva_numheads", required=False, default=8, type=int)
+    parser.add_argument("--batch_size", required=False, default=None, type=int)
+    parser.add_argument("--initial_lr", required=False, default=None, type=float)
+    parser.add_argument("--attention_drop_rate", required=False, default=None, type=float)
     args = parser.parse_args()
 
     assert args.device in [
@@ -425,7 +449,17 @@ def run_training_entry():
             args.val,
             args.disable_checkpointing,
             args.val_best,
-            device=device,
+            device,
+            mask_ratio = args.mask_ratio,
+            vit_patch_size = args.vit_patch_size,
+            embed_dim=args.embed_dim,
+            encoder_eva_depth=args.encoder_eva_depth,
+            encoder_eva_numheads=args.encoder_eva_numheads,
+            decoder_eva_depth=args.decoder_eva_depth,
+            decoder_eva_numheads=args.decoder_eva_numheads,
+            batch_size=args.batch_size,
+            initial_lr=args.initial_lr,
+            attention_drop_rate=args.attention_drop_rate,
         )
     except KeyboardInterrupt:
         if is_running_in_valohai():
@@ -435,4 +469,5 @@ def run_training_entry():
 
 
 if __name__ == "__main__":
+    os.environ["WANDB__SERVICE_WAIT"] = "500"
     run_training_entry()

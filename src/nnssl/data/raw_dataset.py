@@ -96,12 +96,12 @@ class IndependentImage:
             dataset_name (str): The name of the dataset. `Dataset800_Rocketv0`
             data_identifier (str): The data identifier. e.g. `nnsslPlans_3d_fullres`
         """
-        img_path = f"{nnssl_preprocessed}/{dataset_name}/{data_identifier}/{self.get_output_path("image", ext)}"
+        img_path = f"{nnssl_preprocessed}/{dataset_name}/{data_identifier}/{self.get_output_path('image', ext)}"
         anon_mask_path = (
-            f"{nnssl_preprocessed}/{dataset_name}/{data_identifier}/{self.get_output_path("anon_mask", ext)}"
+            f"{nnssl_preprocessed}/{dataset_name}/{data_identifier}/{self.get_output_path('anon_mask', ext)}"
         )
         anat_mask_path = (
-            f"{nnssl_preprocessed}/{dataset_name}/{data_identifier}/{self.get_output_path("anat_mask", ext)}"
+            f"{nnssl_preprocessed}/{dataset_name}/{data_identifier}/{self.get_output_path('anat_mask', ext)}"
         )
         return img_path, anon_mask_path, anat_mask_path
 
@@ -262,7 +262,7 @@ class Collection:
         not_found_imgs = []
         not_found_anon_masks = []
         not_found_anat_masks = []
-        for img in tqdm(all_imgs):
+        for img in tqdm(all_imgs, disable=True if (("LSF_JOBID" in os.environ) or ("SLURM_JOB_ID" in os.environ)) else False):
             if not os.path.exists(img.image_path + ".b2nd"):
                 not_found_imgs.append(img)
             if img.associated_masks is not None:

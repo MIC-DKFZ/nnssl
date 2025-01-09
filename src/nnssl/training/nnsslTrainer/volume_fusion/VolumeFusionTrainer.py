@@ -315,9 +315,36 @@ class VolumeFusionTrainerBS6(VolumeFusionTrainer):
         plan: Plan,
         configuration_name: str,
         fold: int,
-
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].batch_size = 6
-        super().__init__(plan, configuration_name, fold,  pretrain_json, device)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+
+
+class VolumeFusionTrainerBS8(VolumeFusionTrainer):
+
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+
+
+class VolumeFusionTrainerBS16(VolumeFusionTrainer):
+
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)

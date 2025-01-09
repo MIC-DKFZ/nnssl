@@ -1,6 +1,7 @@
 import os
 from abc import ABC, abstractmethod
 from copy import deepcopy
+from random import choice
 from typing import List, Union, Type, Tuple
 
 import numpy as np
@@ -28,7 +29,7 @@ class nnSSLBaseDataset(ABC):
         # print('loading dataset')
 
         self.dataset_dir: str = dataset_dir
-        self.subject_identifiers = subject_identifiers
+        self.subject_identifiers = set(subject_identifiers)  # Make it a set for faster lookup
         self.collection = deepcopy(collection)
 
         all_images: list[IndependentImage] = self.collection.to_independent_images()
@@ -67,7 +68,10 @@ class nnSSLDatasetBlosc2(nnSSLBaseDataset):
         blosc2.set_nthreads(1)
 
     def __getitem__(self, image_identifier):
-        return self.load_case(self.dataset_dir, self.image_dataset, image_identifier)
+        try:
+            return self.load_case(self.dataset_dir, self.image_dataset, image_identifier)
+        except RuntimeError as e:
+            return self.__getitem__(choice(self.image_identifiers))
 
     @staticmethod
     def load_case(dataset_dir: str, image_dataset: dict[str, IndependentImage], image_identifier: str):
@@ -95,6 +99,29 @@ class nnSSLDatasetBlosc2(nnSSLBaseDataset):
 
         properties = load_pickle(join(dataset_dir, output_img_pkl_path))
         return data, anon, anat, properties
+
+    @staticmethod
+    def verify_file_exists(
+        image_identifier: str,
+        dataset_dir: str,
+        image_dataset: dict[str, IndependentImage],
+    ) -> tuple[bool, bool, bool]:
+        img: IndependentImage
+        img = image_dataset[image_identifier]
+        output_img_path = img.get_output_path("image", ext=".b2nd")
+        output_img_pkl_path = img.get_output_path("image", ext=".pkl")
+        output_anat_mask_path = img.get_output_path("anat_mask", ext=".b2nd")
+        output_anon_mask_path = img.get_output_path("anon_mask", ext=".b2nd")
+        data_b2nd_file = join(dataset_dir, output_img_path)
+        data_and_pkl_exists = isfile(data_b2nd_file) and isfile(join(dataset_dir, output_img_pkl_path))
+
+        anon_b2nd_file = join(dataset_dir, output_anon_mask_path)
+        anon_exists = isfile(anon_b2nd_file)
+
+        anat_b2nd_file = join(dataset_dir, output_anat_mask_path)
+        anat_exists = isfile(anat_b2nd_file)
+
+        return data_and_pkl_exists, anon_exists, anat_exists
 
     @staticmethod
     def save_case(

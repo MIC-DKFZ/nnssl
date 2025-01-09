@@ -337,3 +337,18 @@ class VoCoTrainer_BS12(VoCoTrainer):
         super().__init__(plan, configuration_name, fold,  pretrain_json, device)
         # plan.configurations[configuration_name].patch_size = (192, 192, 128)
         # self.voco_base_crop_count = (3, 3, 2)
+
+
+class VoCoTrainer_BS24(VoCoTrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 24
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        # plan.configurations[configuration_name].patch_size = (192, 192, 128)
+        # self.voco_base_crop_count = (3, 3, 2)
