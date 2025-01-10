@@ -110,12 +110,14 @@ def get_subject_identifiers(folder: str, suffix: str = "npz") -> List[str]:
     pretrain_json = Path(folder).parent / "pretrain_data.json"
     assert pretrain_json.is_file(), f"pretrain_data.json not found in {folder}"
     pretrain_json = Collection.from_dict(load_json(pretrain_json))
-    all_subjects = []
-    for ds in pretrain_json.datasets.values():
-        assert isinstance(ds, Dataset)
-        all_subjects.extend(list(ds.subjects.keys()))
+    # all_subjects = []
+    # for ds in pretrain_json.datasets.values():
+    #     assert isinstance(ds, Dataset)
+    #     all_subjects.extend(list(ds.subjects.keys()))
+    # return all_subjects
 
-    return all_subjects
+    subject_identifiers = list(set(iimg.get_unique_subject_id() for iimg in pretrain_json.to_independent_images()))
+    return subject_identifiers
 
 
 if __name__ == "__main__":

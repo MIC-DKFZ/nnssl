@@ -406,6 +406,8 @@ class BaseMAETrainer(AbstractBaseTrainer):
 
                 self.on_epoch_end()
                 if self.exit_training_flag:
+                    print("Finished last epoch before restart.")
+                    self.print_to_log_file("Finished last epoch before restart.")
                     raise KeyboardInterrupt
 
             self.on_train_end()

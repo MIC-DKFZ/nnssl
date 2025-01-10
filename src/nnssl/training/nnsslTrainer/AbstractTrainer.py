@@ -423,41 +423,44 @@ class AbstractBaseTrainer(ABC):
         dataset_tr = nnSSLDatasetBlosc2(self.preprocessed_dataset_folder, collection, tr_subjects)
         dataset_val = nnSSLDatasetBlosc2(self.preprocessed_dataset_folder, collection, val_subjects)
 
-        # ---------------------- Check which images are existing --------------------- #
-        logger.info("Checking which images are existing...")
-        if not os.path.exists(join(self.preprocessed_dataset_folder_base, "valid_existing_imgs.json")):
-            logger.info("No existing valid_existing_imgs.json found. Creating a new one.")
-            existing_tr_imgs = self.get_existing_images(dataset_tr)
-            existing_vl_imgs = self.get_existing_images(dataset_val)
-            joint_existing_imgs = {**existing_tr_imgs, **existing_vl_imgs}
-            save_json(joint_existing_imgs, join(self.preprocessed_dataset_folder_base, "valid_existing_imgs.json"))
-        else:
-            logger.info("Existing valid_existing_imgs.json found. Loading from file...")
-            joint_existing_imgs = load_json(join(self.preprocessed_dataset_folder_base, "valid_existing_imgs.json"))
+        logger.info(f"Train dataset contains {len(dataset_tr.image_dataset)} images.")
+        logger.info(f"Validation dataset contains {len(dataset_val.image_dataset)} images.")
 
+        # ---------------------- Check which images are existing --------------------- #
+        # logger.info("Checking which images are existing...")
+        # if not os.path.exists(join(self.preprocessed_dataset_folder_base, "valid_existing_imgs.json")):
+        #     logger.info("No existing valid_existing_imgs.json found. Creating a new one.")
+        #     existing_tr_imgs = self.get_existing_images(dataset_tr)
+        #     existing_vl_imgs = self.get_existing_images(dataset_val)
+        #     joint_existing_imgs = {**existing_tr_imgs, **existing_vl_imgs}
+        #     save_json(joint_existing_imgs, join(self.preprocessed_dataset_folder_base, "valid_existing_imgs.json"))
+        # else:
+        #     logger.info("Existing valid_existing_imgs.json found. Loading from file...")
+        #     joint_existing_imgs = load_json(join(self.preprocessed_dataset_folder_base, "valid_existing_imgs.json"))
+        #
         # If a trainer wants to use masks he has to do their filtering by that.
         #   Here we only care about images and associated .pkl files.
-        logger.info("Removing non-existing images from datasets...")
-        existing_valid_img_ids = [k for k, v in joint_existing_imgs.items() if v["image_pkl"]]
-        tr_imgs_removed = self.keep_valid_unique(existing_valid_img_ids, dataset_tr)
-        logger.info(f"Removed {tr_imgs_removed} non-existing images from train dataset.")
-        logger.info(f"Number of existing and valid training images: {len(dataset_tr.image_identifiers)}")
-        vl_imgs_removed = self.keep_valid_unique(existing_valid_img_ids, dataset_val)
-        logger.info(f"Removed {vl_imgs_removed} non-existing images from train dataset.")
-        logger.info(f"Number of existing and valid training images: {len(dataset_val.image_identifiers)}")
+        # logger.info("Removing non-existing images from datasets...")
+        # existing_valid_img_ids = [k for k, v in joint_existing_imgs.items() if v["image_pkl"]]
+        # tr_imgs_removed = self.keep_valid(existing_valid_img_ids, dataset_tr)
+        # logger.info(f"Removed {tr_imgs_removed} non-existing images from train dataset.")
+        # logger.info(f"Number of existing and valid training images: {len(dataset_tr.image_identifiers)}")
+        # vl_imgs_removed = self.keep_valid(existing_valid_img_ids, dataset_val)
+        # logger.info(f"Removed {vl_imgs_removed} non-existing images from train dataset.")
+        # logger.info(f"Number of existing and valid training images: {len(dataset_val.image_identifiers)}")
 
         # ----------------------- Check which images are duplicates ----------------------- #
-        if os.path.exists(join(self.preprocessed_dataset_folder_base, "duplicate_image_ids.json")):
-            duplicate_images = load_json(join(self.preprocessed_dataset_folder_base, "duplicate_image_ids.json"))
-            duplicate_image_ids = [i["image_name"] for i in duplicate_images]
-            # Removes in-place of the dataset_tr object!
-            tr_imgs_removed = self.remove_duplicates(duplicate_image_ids, dataset_tr)
-            logger.info(f"Removed {tr_imgs_removed} duplicate images from train dataset.")
-            logger.info(f"Number of unique training images: {len(dataset_tr.image_identifiers)}")
-            # Removes in-place of the dataset_val object!
-            vl_imgs_removed = self.remove_duplicates(duplicate_image_ids, dataset_val)
-            logger.info(f"Removed {vl_imgs_removed} duplicate images from val dataset.")
-            logger.info(f"Number of unique validation images: {len(dataset_val.image_identifiers)}")
+        # if os.path.exists(join(self.preprocessed_dataset_folder_base, "duplicate_image_ids.json")):
+        #     duplicate_images = load_json(join(self.preprocessed_dataset_folder_base, "duplicate_image_ids.json"))
+        #     duplicate_image_ids = [i["image_name"] for i in duplicate_images]
+        #     # Removes in-place of the dataset_tr object!
+        #     tr_imgs_removed = self.remove_duplicates(duplicate_image_ids, dataset_tr)
+        #     logger.info(f"Removed {tr_imgs_removed} duplicate images from train dataset.")
+        #     logger.info(f"Number of unique training images: {len(dataset_tr.image_identifiers)}")
+        #     # Removes in-place of the dataset_val object!
+        #     vl_imgs_removed = self.remove_duplicates(duplicate_image_ids, dataset_val)
+        #     logger.info(f"Removed {vl_imgs_removed} duplicate images from val dataset.")
+        #     logger.info(f"Number of unique validation images: {len(dataset_val.image_identifiers)}")
 
         # valid_images = load_json(join(self.preprocessed_dataset_folder_base, "valid_imgs.json"))
         # valid_image_ids = [i["image_name"] for i in valid_images]
@@ -834,11 +837,12 @@ class AbstractBaseTrainer(ABC):
         return removed_images
 
     @staticmethod
-    def keep_valid(valid_image_names: list[str], dataset: nnSSLDatasetBlosc2):
+    def keep_valid(valid_image_names: list[str], dataset: nnSSLDatasetBlosc2, n_processes=24):
 
         # --------------------------- Remove broken images --------------------------- #
         pre_removal_len = len(dataset.image_identifiers)
-        dataset.image_dataset = {k: v for k, v in dataset.image_dataset.items() if v.image_name in valid_image_names}
+        valid_image_names_set = set(valid_image_names)
+        dataset.image_dataset = {k: v for k, v in list(dataset.image_dataset.items()) if v.get_unique_id() in valid_image_names_set}
         dataset.image_identifiers = list(dataset.image_dataset.keys())
         post_removal_len = len(dataset.image_identifiers)
         removed_images = pre_removal_len - post_removal_len
@@ -862,13 +866,23 @@ class AbstractBaseTrainer(ABC):
         #   so we use all samples for training and validation
         splits_file = join(self.preprocessed_dataset_folder_base, "splits_final.json")
         if not isfile(splits_file):
+            # self.print_to_log_file("Creating new 5-fold cross-validation split...")
+            # subject_identifiers = get_subject_identifiers(self.preprocessed_dataset_folder)
+            # assert len(subject_identifiers) != 0, "No subjects found. Aborting"
+            # all_keys_sorted = sorted(list(np.sort(subject_identifiers)))
+            # n_val_subjects = min(50, int(len(subject_identifiers) / 100))
+            # val_subjects = sample(all_keys_sorted, n_val_subjects)
+            # train_subjects = list(set(all_keys_sorted) - set(val_subjects))
+            # splits = {"train": list(train_subjects), "val": list(val_subjects)}
+            # save_json(splits, splits_file)
+
             self.print_to_log_file("Creating new 5-fold cross-validation split...")
             subject_identifiers = get_subject_identifiers(self.preprocessed_dataset_folder)
             assert len(subject_identifiers) != 0, "No subjects found. Aborting"
-            all_keys_sorted = sorted(list(np.sort(subject_identifiers)))
-            n_val_subjects = min(50, int(len(subject_identifiers) / 100))
-            val_subjects = sample(all_keys_sorted, n_val_subjects)
-            train_subjects = list(set(all_keys_sorted) - set(val_subjects))
+            subject_identifiers = sorted(subject_identifiers)
+            n_val_subjects = min(200, int(len(subject_identifiers) / 100))
+            val_subjects = sample(subject_identifiers, n_val_subjects)
+            train_subjects = list(set(subject_identifiers) - set(val_subjects))
             splits = {"train": list(train_subjects), "val": list(val_subjects)}
             save_json(splits, splits_file)
         else:

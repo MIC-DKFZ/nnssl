@@ -88,6 +88,11 @@ class IndependentImage:
             f"{self.collection_name}__{self.dataset_index}__{self.subject_id}__{self.session_id}__{self.image_name}"
         )
 
+    def get_unique_subject_id(self) -> str:
+        return (
+            f"{self.collection_name}__{self.dataset_index}__{self.subject_id}"
+        )
+
     def get_absolute_pp_path(self, dataset_name: str, data_identifier: str, ext: str) -> str:
         """
         Allows to get the absolute path where the preprocessed images will be located.
