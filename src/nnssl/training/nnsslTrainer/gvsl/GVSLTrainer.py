@@ -181,7 +181,7 @@ class GVSLTrainer(AbstractBaseTrainer):
             # These augmentations benefit from GPU acceleration, and since batchgenerators does not provide GPU support
             # for their transforms, they have to be conducted here
             if self.do_spatial_aug:
-                affine_mat, flow = self.spatial_transforms.get_rand_spatial(self.config_plan.batch_size, self.config_plan.patch_size)
+                affine_mat, flow = self.spatial_transforms.get_rand_spatial(self.batch_size, self.config_plan.patch_size)
                 imgsA = self.spatial_transforms.augment_spatial(imgsA, affine_mat, flow)
                 imgsA_app = self.spatial_transforms.augment_spatial(imgsA_app, affine_mat, flow)
                 imgsB = self.spatial_transforms.augment_spatial(imgsB, affine_mat, flow)
@@ -222,7 +222,7 @@ class GVSLTrainer(AbstractBaseTrainer):
 
         with torch.no_grad(), torch.device(self.device):
             if self.do_spatial_aug:
-                affine_mat, flow = self.spatial_transforms.get_rand_spatial(self.config_plan.batch_size, self.config_plan.patch_size)
+                affine_mat, flow = self.spatial_transforms.get_rand_spatial(self.batch_size, self.config_plan.patch_size)
                 imgsA = self.spatial_transforms.augment_spatial(imgsA, affine_mat, flow)
                 imgsA_app = self.spatial_transforms.augment_spatial(imgsA_app, affine_mat, flow)
                 imgsB = self.spatial_transforms.augment_spatial(imgsB, affine_mat, flow)
