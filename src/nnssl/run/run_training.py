@@ -132,16 +132,19 @@ def maybe_load_checkpoint(
         # special case where --c is used to run a previously aborted validation
         if not isfile(expected_checkpoint_file):
             expected_checkpoint_file = join(nnunet_trainer.output_folder, "checkpoint_best.pth")
-        if not isfile(expected_checkpoint_file):
-            print(
-                f"WARNING: Cannot continue training because there seems to be no checkpoint available to "
-                f"continue from. Starting a new training..."
-            )
-            raise RuntimeError(
-                f"Cannot continue training because there seems to be no checkpoint available to continue from. Starting a new training..."
-            )
-        logger.info(f"Using {expected_checkpoint_file} as the starting checkpoint for training...")
-
+        # if not isfile(expected_checkpoint_file):
+        #     print(
+        #         f"WARNING: Cannot continue training because there seems to be no checkpoint available to "
+        #         f"continue from. Starting a new training..."
+        #     )
+            # raise RuntimeError(
+            #     f"Cannot continue training because there seems to be no checkpoint available to continue from. Starting a new training..."
+            # )
+        if isfile(expected_checkpoint_file):
+            logger.info(f"Using {expected_checkpoint_file} as the starting checkpoint for training...")
+        else:
+            expected_checkpoint_file = None
+            logger.info(f"No starting checkpoint available, starting a new training...")
     elif validation_only:
         expected_checkpoint_file = join(nnunet_trainer.output_folder, "checkpoint_final.pth")
         if not isfile(expected_checkpoint_file):
@@ -154,7 +157,10 @@ def maybe_load_checkpoint(
         expected_checkpoint_file = None
 
     if expected_checkpoint_file is not None:
-        nnunet_trainer.load_checkpoint(expected_checkpoint_file)
+        try:
+            nnunet_trainer.load_checkpoint(expected_checkpoint_file)
+        except EOFError:
+            os.remove(expected_checkpoint_file)
 
 
 def setup_ddp(rank, world_size):

@@ -35,6 +35,15 @@ class GVSLTransform(AbstractTransform):
         return data_dict
 
 class SpatialTransforms(object):
+    # orig
+    # def __init__(self, do_rotation=True, angle_x=(-np.pi / 9, np.pi / 9), angle_y=(-np.pi / 9, np.pi / 9),
+    #              angle_z=(-np.pi / 9, np.pi / 9), do_scale=True, scale_x=(0.75, 1.25), scale_y=(0.75, 1.25),
+    #              scale_z=(0.75, 1.25), do_translate=True, trans_x=(-0.1, 0.1), trans_y=(-0.1, 0.1), trans_z=(-0.1, 0.1),
+    #              do_shear=True, shear_xy=(-np.pi / 18, np.pi / 18), shear_xz=(-np.pi / 18, np.pi / 18),
+    #              shear_yx=(-np.pi / 18, np.pi / 18), shear_yz=(-np.pi / 18, np.pi / 18),
+    #              shear_zx=(-np.pi / 18, np.pi / 18), shear_zy=(-np.pi / 18, np.pi / 18),
+    #              do_elastic_deform=True, alpha=(0., 512.), sigma=(10., 13.)):
+
     def __init__(self, do_rotation=True, angle_x=(-np.pi / 9, np.pi / 9), angle_y=(-np.pi / 9, np.pi / 9),
                  angle_z=(-np.pi / 9, np.pi / 9), do_scale=True, scale_x=(0.75, 1.25), scale_y=(0.75, 1.25),
                  scale_z=(0.75, 1.25), do_translate=True, trans_x=(-0.1, 0.1), trans_y=(-0.1, 0.1), trans_z=(-0.1, 0.1),
@@ -42,6 +51,7 @@ class SpatialTransforms(object):
                  shear_yx=(-np.pi / 18, np.pi / 18), shear_yz=(-np.pi / 18, np.pi / 18),
                  shear_zx=(-np.pi / 18, np.pi / 18), shear_zy=(-np.pi / 18, np.pi / 18),
                  do_elastic_deform=True, alpha=(0., 512.), sigma=(10., 13.)):
+
         self.do_rotation = do_rotation
         self.angle_x = angle_x
         self.angle_y = angle_y
@@ -201,14 +211,14 @@ class AppearanceTransforms(object):
 
 
     def rand_aug(self, imgs):
-        _imgs = np.zeros(imgs.shape)
+        _imgs = imgs.copy()
         for i in range(len(imgs)):
             if self.is_local:
-                _imgs[i] = self.local_pixel_shuffling(imgs[i], prob=self.local_rate)
+                _imgs[i] = self.local_pixel_shuffling(_imgs[i], prob=self.local_rate)
             if self.is_nonlinear:
-                _imgs[i] = self.nonlinear_transformation(imgs[i], self.nonlinear_rate)
+                _imgs[i] = self.nonlinear_transformation(_imgs[i], self.nonlinear_rate)
             if self.is_in_painting:
-                _imgs[i] = self.image_in_painting(imgs[i])
+                _imgs[i] = self.image_in_painting(_imgs[i])
         _imgs = _imgs.astype(np.float32)
         return _imgs
 

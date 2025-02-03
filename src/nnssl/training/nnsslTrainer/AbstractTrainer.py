@@ -34,7 +34,7 @@ from nnssl.data.raw_dataset import Collection, Dataset, IndependentImage
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.paths import nnssl_preprocessed, nnssl_results
 from nnssl.ssl_data.configure_basic_dummyDA import configure_rotation_dummyDA_mirroring_and_inital_patch_size
-from nnssl.ssl_data.dataloading.data_loader_3d import nnsslDataLoader3D
+from nnssl.ssl_data.dataloading.data_loader_3d import nnsslDataLoader3D, nnsslAnatDataLoader3D
 from nnssl.ssl_data.dataloading.utils import get_subject_identifiers
 from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
 from valohai.config import is_running_in_valohai
@@ -554,6 +554,29 @@ class AbstractBaseTrainer(ABC):
         )
         return dl_tr, dl_val
 
+    def get_foreground_dataloaders(self, initial_patch_size: Tuple[int, ...], oversample_foreground_percent: float = 1.0):
+        dataset_tr, dataset_val = self.get_tr_and_val_datasets()
+
+        dl_tr = nnsslAnatDataLoader3D(
+            dataset_tr,
+            self.batch_size,
+            initial_patch_size,
+            self.config_plan.patch_size,
+            sampling_probabilities=None,
+            pad_sides=None,
+            oversample_foreground_percent=oversample_foreground_percent
+        )
+        dl_val = nnsslAnatDataLoader3D(
+            dataset_val,
+            self.batch_size,
+            self.config_plan.patch_size,
+            self.config_plan.patch_size,
+            sampling_probabilities=None,
+            pad_sides=None,
+            oversample_foreground_percent=oversample_foreground_percent
+        )
+        return dl_tr, dl_val
+
     @staticmethod
     @abstractmethod
     def get_training_transforms(
@@ -677,11 +700,11 @@ class AbstractBaseTrainer(ABC):
             self.save_checkpoint(join(self.output_folder, "checkpoint_best.pth"))
 
         if self.local_rank == 0:
-            if self.current_epoch % 50 == 0:
-                self.print_to_log_file("Saving checkpoint...")
-                self.save_checkpoint(
-                    join(self.output_folder, f"checkpoint_epoch_{self.current_epoch}.pth"), live_upload=True
-                )
+            # if self.current_epoch % 50 == 0:
+            #     self.print_to_log_file("Saving checkpoint...")
+            #     self.save_checkpoint(
+            #         join(self.output_folder, f"checkpoint_epoch_{self.current_epoch}.pth"), live_upload=True
+            #     )
             self.logger.plot_progress_png(self.output_folder)
 
         if is_running_in_valohai():
@@ -860,7 +883,13 @@ class AbstractBaseTrainer(ABC):
         # if fold==all then we use all images for training and validation
         # There used to be a if/else for the case that we don't use all samples, but we only do self-supervised thingies,
         #   so we use all samples for training and validation
-        splits_file = join(self.preprocessed_dataset_folder_base, "splits_final.json")
+        splits_file_name = "splits_final.json"
+        #DEBUG
+        if self.plan.dataset_name != "Dataset745_OpenNeuro_v2":
+            splits_file_name = "splits_final_v2.json"   # for ABCD, since other branch uses different
+                                                        # subject_identifiers in splits_final.json
+
+        splits_file = join(self.preprocessed_dataset_folder_base, splits_file_name)
         if not isfile(splits_file):
             # self.print_to_log_file("Creating new 5-fold cross-validation split...")
             # subject_identifiers = get_subject_identifiers(self.preprocessed_dataset_folder)

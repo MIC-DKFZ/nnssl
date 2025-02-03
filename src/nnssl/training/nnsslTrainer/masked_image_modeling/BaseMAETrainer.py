@@ -13,7 +13,7 @@ from nnssl.ssl_data.data_augmentation.transforms_for_dummy_2d import Convert2DTo
 from nnssl.ssl_data.dataloading.data_loader_3d import nnsslIndexableCenterCropDataLoader3D
 from nnssl.ssl_data.dataloading.indexable_dataloader import IndexableSingleThreadedAugmenter
 from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
-from nnssl.training.loss.mse_loss import MAEMSELoss
+from nnssl.training.loss.mse_loss import MAEMSELoss, LossMaskMSELoss
 from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
 from torch import nn
 from batchgenerators.transforms.spatial_transforms import SpatialTransform, MirrorTransform
@@ -73,7 +73,7 @@ class BaseMAETrainer(AbstractBaseTrainer):
         self.save_imgs_every_n_epochs = 200
 
     def initialize(self):
-        self.recon_dataloader = self.get_qual_recon_dataloader()
+        # self.recon_dataloader = self.get_qual_recon_dataloader()
         super(BaseMAETrainer, self).initialize()
 
     @staticmethod
@@ -397,9 +397,9 @@ class BaseMAETrainer(AbstractBaseTrainer):
                     self.on_validation_epoch_end(val_outputs)
 
                     # ------------------------ Maybe Log qualitative recon ----------------------- #
-                    if (self.current_epoch + 1) % self.save_imgs_every_n_epochs == 0:
-                        if self.local_rank == 0:
-                            self.log_qualitative_reconstruction_step()
+                    # if (self.current_epoch + 1) % self.save_imgs_every_n_epochs == 0:
+                    #     if self.local_rank == 0:
+                    #         self.log_qualitative_reconstruction_step()
                             # self.save_checkpoint(
                             #     join(self.output_folder, f"checkpoint_epoch_{self.current_epoch}.pth"), live_upload=True
                             # )
@@ -472,19 +472,152 @@ class BaseMAETrainer(AbstractBaseTrainer):
             tr_transforms.append(MirrorTransform(mirror_axes))
 
         tr_transforms.append(NumpyToTensor(["data"], "float"))
+        tr_transforms.append(NumpyToTensor(["seg"], "long"))
         tr_transforms = Compose(tr_transforms)
         return tr_transforms
 
     @staticmethod
     def get_validation_transforms() -> AbstractTransform:
-        pass
         val_transforms = []
         val_transforms.append(NumpyToTensor(["data"], "float"))
+        val_transforms.append(NumpyToTensor(["seg"], "long"))
         val_transforms = Compose(val_transforms)
         return val_transforms
 
 
-class BaseMAETrainer_BS6(BaseMAETrainer):
+class BaseMAETrainer_ANAT(BaseMAETrainer):
+
+    def build_loss(self):
+        return LossMaskMSELoss()
+
+    def get_dataloaders(self):
+        patch_size = self.config_plan.patch_size
+        (
+            rotation_for_DA,
+            do_dummy_2d_data_aug,
+            initial_patch_size,
+            mirror_axes,
+        ) = configure_rotation_dummyDA_mirroring_and_inital_patch_size(patch_size)
+        if do_dummy_2d_data_aug:
+            self.print_to_log_file("Using dummy 2D data augmentation")
+
+        # ------------------------ Training data augmentations ----------------------- #
+        tr_transforms = self.get_training_transforms(
+            patch_size,
+            rotation_for_DA,
+            mirror_axes,
+            do_dummy_2d_data_aug,
+            order_resampling_data=3,
+            order_resampling_seg=1,
+            use_mask_for_norm=self.config_plan.use_mask_for_norm,
+        )
+
+        # ----------------------- Validation data augmentations ---------------------- #
+        val_transforms = self.get_validation_transforms()
+
+        dl_tr, dl_val = self.get_foreground_dataloaders(initial_patch_size)
+
+        allowed_num_processes = get_allowed_n_proc_DA()
+        if allowed_num_processes == 0:
+            mt_gen_train = SingleThreadedAugmenter(dl_tr, tr_transforms)
+            mt_gen_val = SingleThreadedAugmenter(dl_val, val_transforms)
+        else:
+            mt_gen_train = LimitedLenWrapper(
+                self.num_iterations_per_epoch,
+                data_loader=dl_tr,
+                transform=tr_transforms,
+                num_processes=allowed_num_processes,
+                num_cached=6,
+                seeds=None,
+                pin_memory=self.device.type == "cuda",
+                wait_time=0.02,
+            )
+            mt_gen_val = LimitedLenWrapper(
+                self.num_val_iterations_per_epoch,
+                data_loader=dl_val,
+                transform=val_transforms,
+                num_processes=max(1, allowed_num_processes // 2),
+                num_cached=3,
+                seeds=None,
+                pin_memory=self.device.type == "cuda",
+                wait_time=0.02,
+            )
+        return mt_gen_train, mt_gen_val
+
+
+class BaseMAETrainer_ANON(BaseMAETrainer):
+
+    def train_step(self, batch: dict) -> dict:
+        data = batch["data"]
+        anon = batch["seg"]
+        data = data.to(self.device, non_blocking=True)
+        anon = anon.to(self.device, non_blocking=True)
+
+        # We use the self.batch_size as it is not identical with the plan batch_size in ddp cases.
+        mask = self.mask_creation(self.batch_size, self.config_plan.patch_size, self.mask_percentage).to(
+            self.device, non_blocking=True
+        )
+        # Make the mask the same size as the data
+        rep_D, rep_H, rep_W = (
+            data.shape[2] // mask.shape[2],
+            data.shape[3] // mask.shape[3],
+            data.shape[4] // mask.shape[4],
+        )
+        mask = mask.repeat_interleave(rep_D, dim=2).repeat_interleave(rep_H, dim=3).repeat_interleave(rep_W, dim=4)
+
+        masked_data = data * mask
+        loss_mask = (1 - mask) * (1 - anon)
+
+        self.optimizer.zero_grad(set_to_none=True)
+
+        with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+            output = self.network(masked_data)
+            # del data
+            l = self.loss(output, data, loss_mask)
+
+        if self.grad_scaler is not None:
+            self.grad_scaler.scale(l).backward()
+            self.grad_scaler.unscale_(self.optimizer)
+            torch.nn.utils.clip_grad_norm_(self.network.parameters(), 12)
+            self.grad_scaler.step(self.optimizer)
+            self.grad_scaler.update()
+        else:
+            l.backward()
+            torch.nn.utils.clip_grad_norm_(self.network.parameters(), 12)
+            self.optimizer.step()
+        return {"loss": l.detach().cpu().numpy()}
+
+    def validation_step(self, batch: dict) -> dict:
+        data = batch["data"]
+        anon = batch["seg"]
+        data = data.to(self.device, non_blocking=True)
+        anon = anon.to(self.device, non_blocking=True)
+
+        mask = self.mask_creation(self.batch_size, self.config_plan.patch_size, self.mask_percentage).to(
+            self.device, non_blocking=True
+        )
+        # Make the mask the same size as the data
+        rep_D, rep_H, rep_W = (
+            data.shape[2] // mask.shape[2],
+            data.shape[3] // mask.shape[3],
+            data.shape[4] // mask.shape[4],
+        )
+        mask = mask.repeat_interleave(rep_D, dim=2).repeat_interleave(rep_H, dim=3).repeat_interleave(rep_W, dim=4)
+
+        masked_data = data * mask
+        loss_mask = (1 - mask) * (1 - anon)
+
+        with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+            output = self.network(masked_data)
+            l = self.loss(output, data, loss_mask)
+
+        return {"loss": l.detach().cpu().numpy()}
+
+class BaseMAETrainer_ANAT_ANON(BaseMAETrainer_ANAT, BaseMAETrainer_ANON):
+    pass
+
+
+class BaseMAETrainer_test(BaseMAETrainer):
     def __init__(
         self,
         plan: Plan,
@@ -493,9 +626,22 @@ class BaseMAETrainer_BS6(BaseMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 6
+        plan.configurations[configuration_name].batch_size = 2
+        plan.configurations[configuration_name].patch_size = (96, 96, 96)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
 
+class BaseMAETrainer_ANAT_ANON_test(BaseMAETrainer_ANAT_ANON):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 2
+        plan.configurations[configuration_name].patch_size = (128, 128, 128)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
 
 class BaseMAETrainer_BS8(BaseMAETrainer):
     def __init__(
@@ -507,10 +653,11 @@ class BaseMAETrainer_BS8(BaseMAETrainer):
         device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].batch_size = 8
+        plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
 
 
-class BaseMAETrainer_BS8_5ep(BaseMAETrainer):
+class BaseMAETrainer_ANAT_ANON_BS8(BaseMAETrainer_ANAT_ANON):
     def __init__(
         self,
         plan: Plan,
@@ -520,9 +667,8 @@ class BaseMAETrainer_BS8_5ep(BaseMAETrainer):
         device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].batch_size = 8
+        plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
-        self.num_epochs = 5
-
 
 class BaseMAETrainer_BS8_100ep(BaseMAETrainer):
     def __init__(

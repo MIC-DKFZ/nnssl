@@ -39,8 +39,9 @@ class VoCoLoss(nn.Module):
         #       ce_loss = - torch.sum(torch.log(1 - sim_dist), dim=(1, 2)) / N
         pos_dist = torch.abs(gt_overlaps - logits)
         pos_pos = torch.where(gt_overlaps > 0, torch.ones_like(gt_overlaps), torch.zeros_like(gt_overlaps))
-        pos_loss = ((-torch.log(1 - pos_dist + 1e-6)) * pos_pos).sum() / (pos_pos.sum())
-        neg_loss = ((logits**2) * (1 - pos_pos)).sum() / (1 - pos_pos).sum()
+        # pos_loss = ((-torch.log(1 - pos_dist + 1e-6)) * pos_pos).sum() / (pos_pos.sum())
+        pos_loss = ((-torch.log(1 - pos_dist + 1e-6)) * gt_overlaps).sum() / (gt_overlaps.sum())    # use overlap factor
+        neg_loss = ((logits**2) * (1 - pos_pos)).sum() / (1 - pos_pos + 1e-6).sum()
 
         # Best thing is: They are not even consistent in their old and new code version.
         #   In the new version, they weight the pos_loss by their overlap factor
@@ -78,10 +79,10 @@ class VoCoLoss(nn.Module):
         self,
         base_embeddings: torch.Tensor,
         target_embeddings: torch.Tensor,
-        predicted_base_target_crop_overlaps: torch.Tensor,
+        gt_overlaps: torch.Tensor,
     ):
         """Implements the joint VoCo Loss (EQ7) from https://arxiv.org/pdf/2402.17300."""
-        pred_loss = self.prediction_loss(base_embeddings, target_embeddings, predicted_base_target_crop_overlaps)
+        pred_loss = self.prediction_loss(base_embeddings, target_embeddings, gt_overlaps)
         reg_loss = self.regularization_loss(base_embeddings)
         final_loss = self.pred_weight * pred_loss + self.reg_weight * reg_loss
         return final_loss

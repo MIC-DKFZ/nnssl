@@ -139,6 +139,16 @@ class GVSLArchitecture(nn.Module):
         return affine_mat
 
 
+class GVSLArchitecture_recon_only(GVSLArchitecture):
+    def forward(self, A, B):
+        # pass imgs through network, but acquire outputs from forward hook
+        _ = self.backbone(A)
+        fA_g, fA_l = self.outputs["global_f"], self.outputs["local_f"]
+
+        recon_A = self.recon_head(fA_l)
+
+        return recon_A
+
 class DoubleConv(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()

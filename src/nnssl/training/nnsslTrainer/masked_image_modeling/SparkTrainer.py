@@ -783,3 +783,16 @@ class SparkMAETrainer_BS6_1000ep_Mask90(SparkMAETrainer):
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.num_epochs = 1000
         self.mask_percentage: float = 0.90
+
+
+class SparkMAETrainer_BS8(SparkMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)

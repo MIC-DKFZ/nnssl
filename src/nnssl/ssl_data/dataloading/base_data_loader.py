@@ -49,7 +49,7 @@ class nnsslDataLoaderBase(DataLoader, ABC):
 
     def get_bbox(
         self,
-        data_shape: np.ndarray,
+        data_shape: np.ndarray
     ):
         """Originally used to do probabilistic oversampling of foreground patches. We don't have foreground here though, so"""
         # in dataloader 2d we need to select the slice prior to this and also modify the class_locations to only have

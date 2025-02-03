@@ -110,6 +110,7 @@ class VocoTransform(AbstractTransform):
                     base_crops.append(crop)
         return np.stack(base_crops, axis=1)
 
+
     def get_target_crops(self, data: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """
         Defines a random crop that is partially overlapping with some of the base crops.
@@ -118,11 +119,14 @@ class VocoTransform(AbstractTransform):
 
         image_wise_crop = []
         image_wise_overlaps = []
+
+        crop_size = self.voco_crop_size
+        total_volume = crop_size[0] * crop_size[1] * crop_size[2]
+
         # For each image in batch -- data shape: [B, C, X, Y, Z]
         for big_crop in data:
             target_crops, target_overlaps = [], []
             for _ in range(self.voco_target_crop_count):
-                crop_size = self.voco_crop_size
                 x_offset = np.random.randint(0, (big_crop.shape[1] - crop_size[0]) + 1)
                 y_offset = np.random.randint(0, (big_crop.shape[2] - crop_size[1]) + 1)
                 z_offset = np.random.randint(0, (big_crop.shape[3] - crop_size[2]) + 1)
@@ -134,8 +138,6 @@ class VocoTransform(AbstractTransform):
                     z_offset : z_offset + crop_size[2],
                 ]
                 target_crops.append(crop)
-
-                total_volume = crop_size[0] * crop_size[1] * crop_size[2]
 
                 # Calculate overlap with base crops
                 target_base_crop_overlaps = []

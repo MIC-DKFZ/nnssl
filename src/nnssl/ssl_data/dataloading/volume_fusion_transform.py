@@ -1,4 +1,6 @@
 from typing import Sequence, Tuple
+
+import matplotlib.pyplot as plt
 from batchgenerators.transforms.abstract_transforms import AbstractTransform
 
 import numpy as np
@@ -63,7 +65,7 @@ def _overlay_bbox(
         x_start, x_size = x_starts[idx], xs[idx]
         y_start, y_size = y_starts[idx], ys[idx]
         z_start, z_size = z_starts[idx], zs[idx]
-        image[x_start : x_start + x_size, y_start : y_start + y_size, z_start : z_start + z_size] = values[idx]
+        image[:, x_start : x_start + x_size, y_start : y_start + y_size, z_start : z_start + z_size] = values[idx]
     return image
 
 
@@ -143,5 +145,9 @@ class VolumeFusionTransform(AbstractTransform):
             vf_subpatch_size=self.vf_subpatch_size,
             vf_mixing_coefficients=self.vf_mixing_coefficients,
         )
+        # depth_idx = mixed_images.shape[2]//2
+        # for i in range(len(mixed_images)):
+        #     plt.imsave(f"images/mixed_image_center_{i:02}.png", mixed_images[i, 0, depth_idx], cmap="gray")
+        # exit()
 
         return {"input": mixed_images, "target": masks}

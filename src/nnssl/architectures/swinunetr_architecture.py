@@ -10,15 +10,16 @@ def _create_recon_proj_head(num_input_channels: int, features_per_stage: list[in
     """
     recon_proj_head = nn.Sequential()
     features_per_upsample_stage = features_per_stage[::-1] + [num_input_channels]
+    strides = strides[::-1]
 
     for i in range(len(features_per_upsample_stage) - 1):
         num_in_features, num_out_features = features_per_upsample_stage[i], features_per_upsample_stage[i+1]
         recon_proj_head.append(
             nn.Conv3d(num_in_features, num_out_features, kernel_size=3, stride=1, padding=1)
         )
-        recon_proj_head.append(nn.InstanceNorm3d(num_out_features))
-        recon_proj_head.append(nn.LeakyReLU())
         if strides[i][0] > 1:
+            recon_proj_head.append(nn.InstanceNorm3d(num_out_features))
+            recon_proj_head.append(nn.LeakyReLU())
             recon_proj_head.append(nn.Upsample(scale_factor=2, mode="trilinear", align_corners=False))
     return recon_proj_head
 

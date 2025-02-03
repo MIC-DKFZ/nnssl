@@ -7,7 +7,7 @@ import torch
 from torch import autocast, distributed as dist
 
 from nnssl.ssl_data.data_augmentation.transforms_for_dummy_2d import Convert3DTo2DTransform
-from nnssl.ssl_data.dataloading.data_loader_3d import nnsslDataLoader3D
+from nnssl.ssl_data.dataloading.data_loader_3d import nnsslDataLoader3D, nnsslCenterCropDataLoader3D
 from nnssl.ssl_data.dataloading.volume_fusion_transform import VolumeFusionTransform
 from nnssl.training.loss.compound_losses import DC_and_CE_loss
 from nnssl.training.loss.dice import MemoryEfficientSoftDiceLoss
@@ -39,6 +39,7 @@ class VolumeFusionTrainer(AbstractBaseTrainer):
         fold: int,
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
+        foreground_classes: int = 5
     ):
         # We increase the batch size by 2x because we mix the two samples together!
         """
@@ -100,12 +101,11 @@ class VolumeFusionTrainer(AbstractBaseTrainer):
         """
         # MisFM specific parameters:
         self.patch_size = plan.configurations[configuration_name].patch_size
-        foreground_classes = 5
         self.num_output_channels = foreground_classes
         # vf == volume fusion
         self.vf_mixing_coefficients = np.linspace(
             0, 1, foreground_classes, endpoint=True
-        )  # [0, 0.25, 0.5, 0.75, 1.0]
+        )  # [0, 0.25, 0.5, 0.75, 1.0] if foreground_classes=5
         self.vf_subpatch_count = (10, 40)  # U(10, 40) upper bound is excluded in the range
 
         # Max depth, height, width patch scale.
@@ -135,6 +135,27 @@ class VolumeFusionTrainer(AbstractBaseTrainer):
         dl_val = nnsslDataLoader3D(
             dataset_val,
             load_batchsize,  # We double the batch size because we mix two samples together
+            self.config_plan.patch_size,
+            self.config_plan.patch_size,
+            sampling_probabilities=None,
+            pad_sides=None,
+        )
+        return dl_tr, dl_val
+
+    def get_centercrop_dataloaders_with_doubled_batch_size(self):
+        dataset_tr, dataset_val = self.get_tr_and_val_datasets()
+
+        dl_tr = nnsslCenterCropDataLoader3D(
+            dataset_tr,
+            2*self.batch_size,
+            self.config_plan.patch_size,
+            self.config_plan.patch_size,
+            sampling_probabilities=None,
+            pad_sides=None,
+        )
+        dl_val = nnsslCenterCropDataLoader3D(
+            dataset_val,
+            2*self.batch_size,
             self.config_plan.patch_size,
             self.config_plan.patch_size,
             sampling_probabilities=None,
@@ -222,7 +243,8 @@ class VolumeFusionTrainer(AbstractBaseTrainer):
         # ----------------------- Validation data augmentations ---------------------- #
         val_transforms = self.get_validation_transforms()
 
-        dl_tr, dl_val = self.get_plain_dataloaders(patch_size)
+        dl_tr, dl_val = self.get_centercrop_dataloaders_with_doubled_batch_size()
+        # dl_tr, dl_val = self.get_plain_dataloaders(patch_size)
 
         allowed_num_processes = get_allowed_n_proc_DA()
         if allowed_num_processes == 0:
@@ -308,7 +330,11 @@ class VolumeFusionTrainer(AbstractBaseTrainer):
         return val_transforms
 
 
-class VolumeFusionTrainerBS6(VolumeFusionTrainer):
+####################################################################
+############################# VARIANTS #############################
+####################################################################
+
+class VolumeFusionTrainer_test(VolumeFusionTrainer):
 
     def __init__(
         self,
@@ -318,11 +344,13 @@ class VolumeFusionTrainerBS6(VolumeFusionTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 6
+        plan.configurations[configuration_name].batch_size = 4
+        plan.configurations[configuration_name].patch_size = (96, 96, 96)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
 
 
-class VolumeFusionTrainerBS8(VolumeFusionTrainer):
+
+class VolumeFusionTrainer_BS8(VolumeFusionTrainer):
 
     def __init__(
         self,
@@ -333,10 +361,14 @@ class VolumeFusionTrainerBS8(VolumeFusionTrainer):
         device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].batch_size = 8
+        plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
 
 
-class VolumeFusionTrainerBS16(VolumeFusionTrainer):
+
+############################# LEARNING RATE #############################
+
+class VolumeFusionTrainer_center_BS8_lr_1e2(VolumeFusionTrainer):
 
     def __init__(
         self,
@@ -347,4 +379,110 @@ class VolumeFusionTrainerBS16(VolumeFusionTrainer):
         device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].batch_size = 8
+        plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.initial_lr = 1e-2
+
+class VolumeFusionTrainer_center_BS8_lr_1e3(VolumeFusionTrainer):
+
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        plan.configurations[configuration_name].patch_size = (160, 160, 160)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.initial_lr = 1e-3
+
+class VolumeFusionTrainer_center_BS8_lr_1e4(VolumeFusionTrainer):
+
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        plan.configurations[configuration_name].patch_size = (160, 160, 160)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.initial_lr = 1e-4
+
+
+############################# WEIGHT DECAY #############################
+
+
+class VolumeFusionTrainer_center_BS8_lr_1e3_wd_3e4(VolumeFusionTrainer):
+
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        plan.configurations[configuration_name].patch_size = (160, 160, 160)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.initial_lr = 1e-3
+        self.weight_decay = 3e-4
+
+class VolumeFusionTrainer_center_BS8_lr_1e3_wd_3e6(VolumeFusionTrainer):
+
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        plan.configurations[configuration_name].patch_size = (160, 160, 160)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.initial_lr = 1e-3
+        self.weight_decay = 3e-6
+
+
+############################# FOREGROUND CLASSES #############################
+
+
+class VolumeFusionTrainer_center_BS8_lr_1e3_wd_3e5_C3(VolumeFusionTrainer):
+
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        plan.configurations[configuration_name].patch_size = (160, 160, 160)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device, foreground_classes=3)
+        self.initial_lr = 1e-3
+        self.weight_decay = 3e-5
+
+class VolumeFusionTrainer_center_BS8_lr_1e3_wd_3e5_C9(VolumeFusionTrainer):
+
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        plan.configurations[configuration_name].patch_size = (160, 160, 160)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device, foreground_classes=9)
+        self.initial_lr = 1e-3
+        self.weight_decay = 3e-5
+
+

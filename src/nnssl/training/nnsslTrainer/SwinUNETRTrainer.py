@@ -22,27 +22,6 @@ from batchgenerators.transforms.abstract_transforms import AbstractTransform, Co
 from batchgenerators.transforms.utility_transforms import NumpyToTensor
 
 
-import time
-import numpy as np
-
-# class Timer:
-#     def __init__(self, name):
-#         self.name = name
-#         self.start_time = None
-#         self.durations = []
-#
-#     def __enter__(self):
-#         self.start_time = time.time()
-#
-#     def __exit__(self, exc_type, exc_val, exc_tb):
-#         elapsed_time = time.time() - self.start_time
-#         self.durations.append(elapsed_time)
-#
-#     def print_avg_duration_in_ms(self):
-#         x = 1e3*sum(self.durations)/len(self.durations)
-#         print(f"{self.name}: {x}ms")
-#         self.durations = []
-
 
 class SwinUNETRTrainer(AbstractBaseTrainer):
 
@@ -56,18 +35,14 @@ class SwinUNETRTrainer(AbstractBaseTrainer):
     ):
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
 
-        self.initial_lr = 4e-4
-        self.weight_decay = 1e-5
+        # from paper
+        # self.initial_lr = 4e-4
+        # self.weight_decay = 1e-5
 
         self.rec_loss_weight = 1
         self.contrast_loss_weight = 1
         self.rot_loss_weight = 1
 
-        # self.num_iterations_per_epoch = 50
-
-        # self.forward_t = Timer("forward")
-        # self.loss_t = Timer("loss")
-        # self.backward_t = Timer("backward")
 
     @override
     def build_loss(self):
@@ -88,9 +63,6 @@ class SwinUNETRTrainer(AbstractBaseTrainer):
             encoder_only=True
         )
         architecture = SwinUNETRArchitecture(encoder, num_input_channels)
-
-        # summary(architecture, input_size=(96,)*3, batch_size=4)
-
         return architecture
 
     @override
@@ -128,16 +100,16 @@ class SwinUNETRTrainer(AbstractBaseTrainer):
             )
         return mt_gen_train, mt_gen_val
 
-    @override
-    def configure_optimizers(self):
-        optimizer = AdamW(
-            params=self.network.parameters(),
-            lr=self.initial_lr,
-            weight_decay=self.weight_decay
-        )
-        lr_scheduler = PolyLRScheduler(optimizer, self.initial_lr, self.num_epochs)
-
-        return optimizer, lr_scheduler
+    # @override
+    # def configure_optimizers(self):
+    #     optimizer = AdamW(
+    #         params=self.network.parameters(),
+    #         lr=self.initial_lr,
+    #         weight_decay=self.weight_decay
+    #     )
+    #     lr_scheduler = PolyLRScheduler(optimizer, self.initial_lr, self.num_epochs)
+    #
+    #     return optimizer, lr_scheduler
 
     @override
     def train_step(self, batch: dict) -> dict:
@@ -156,14 +128,10 @@ class SwinUNETRTrainer(AbstractBaseTrainer):
 
         self.optimizer.zero_grad(set_to_none=True)
         with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
-            # with self.forward_t:
             rotations_pred, contrast_pred, reconstructions = self.network(imgs_rotated_cutout)
-            # contrast1_pred, contrast2_pred = contrast_pred[:self.batch_size], contrast_pred[self.batch_size:]
-            # with self.loss_t:
             l = self.loss(rotations_pred, rotations, contrast_pred, reconstructions, imgs_rotated)
 
         if self.grad_scaler is not None:
-            # with self.backward_t:
             self.grad_scaler.scale(l).backward()
             self.grad_scaler.unscale_(self.optimizer)
             torch.nn.utils.clip_grad_norm_(self.network.parameters(), 12)
@@ -174,17 +142,6 @@ class SwinUNETRTrainer(AbstractBaseTrainer):
             torch.nn.utils.clip_grad_norm_(self.network.parameters(), 12)
             self.optimizer.step()
         return {"loss": l.detach().cpu().numpy()}
-
-    # def on_train_epoch_end(self, train_outputs: list[dict]):
-    #     self.interrupt_at_nans(train_outputs)
-    #     outputs = collate_outputs(train_outputs)
-    #
-    #     self.forward_t.print_avg_duration_in_ms()
-    #     self.backward_t.print_avg_duration_in_ms()
-    #     self.loss_t.print_avg_duration_in_ms()
-    #
-    #     loss_here = np.mean(outputs["loss"])
-    #     self.logger.log("train_losses", loss_here, self.current_epoch)
 
 
     @override
@@ -204,8 +161,8 @@ class SwinUNETRTrainer(AbstractBaseTrainer):
         with torch.no_grad():
             with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
                 rotations_pred, contrast_pred, reconstructions = self.network(imgs_rotated_cutout)
-                contrast1_pred, contrast2_pred = contrast_pred[:self.batch_size], contrast_pred[self.batch_size:]
-                l = self.loss(rotations_pred, rotations, contrast1_pred, contrast2_pred, reconstructions, imgs_rotated)
+                l = self.loss(rotations_pred, rotations, contrast_pred, reconstructions, imgs_rotated)
+
 
         return {"loss": l.detach().cpu().numpy()}
 
@@ -224,36 +181,6 @@ class SwinUNETRTrainer(AbstractBaseTrainer):
         return SwinUNETRTrainer.get_training_transforms()
 
 
-class SwinUNETRTrainer_orig(SwinUNETRTrainer):
-
-    def __init__(
-        self,
-        plan: Plan,
-        configuration_name: str,
-        fold: int,
-        pretrain_json: dict,
-        device: torch.device = torch.device("cuda"),
-    ):
-        plan.configurations[configuration_name].batch_size = 2
-        plan.configurations[configuration_name].patch_size = (128, 128, 128)
-        super().__init__(plan, configuration_name, fold, pretrain_json, device)
-
-
-class SwinUNETRTrainer_BS6(SwinUNETRTrainer):
-
-    def __init__(
-        self,
-        plan: Plan,
-        configuration_name: str,
-        fold: int,
-        pretrain_json: dict,
-        device: torch.device = torch.device("cuda"),
-    ):
-        plan.configurations[configuration_name].batch_size = 6
-        plan.configurations[configuration_name].patch_size = (160, 160, 160)
-        super().__init__(plan, configuration_name, fold, pretrain_json, device)
-
-
 class SwinUNETRTrainer_BS2(SwinUNETRTrainer):
 
     def __init__(
@@ -265,10 +192,11 @@ class SwinUNETRTrainer_BS2(SwinUNETRTrainer):
         device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].batch_size = 2
-        plan.configurations[configuration_name].patch_size = (160, 160, 160)
+        # plan.configurations[configuration_name].patch_size = (96, 96, 96)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
 
-class SwinUNETRTrainer_BS3(SwinUNETRTrainer):
+
+class SwinUNETRTrainer_BS8(SwinUNETRTrainer):
 
     def __init__(
         self,
@@ -278,22 +206,7 @@ class SwinUNETRTrainer_BS3(SwinUNETRTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 3
-        plan.configurations[configuration_name].patch_size = (160, 160, 160)
-        super().__init__(plan, configuration_name, fold, pretrain_json, device)
-
-class SwinUNETRTrainer_BS4(SwinUNETRTrainer):
-
-    def __init__(
-        self,
-        plan: Plan,
-        configuration_name: str,
-        fold: int,
-        pretrain_json: dict,
-        device: torch.device = torch.device("cuda"),
-    ):
-        plan.configurations[configuration_name].batch_size = 4
-        plan.configurations[configuration_name].patch_size = (160, 160, 160)
+        plan.configurations[configuration_name].batch_size = 8
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
 
 

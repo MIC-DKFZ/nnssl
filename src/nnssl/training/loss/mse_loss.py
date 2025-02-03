@@ -11,12 +11,22 @@ class MAEMSELoss(AbstractLoss):
         self.loss = nn.MSELoss(reduction="none")
 
     def forward(
-        self, model_output: torch.Tensor, target: dict[str, torch.Tensor], mask: torch.Tensor
+        self, model_output: torch.Tensor, target: torch.Tensor, mask: torch.Tensor
     ) -> torch.Tensor:
-        """Can take any outputs,  ."""
+        """Can take any outputs"""
         # Mask = 1 represents not masked points
         reconstruction_loss = (model_output - target) ** 2  # (B, X, Y, Z, C)
         reconstruction_loss = torch.sum(reconstruction_loss * (1 - mask)) / torch.sum((1 - mask))
+
+        return reconstruction_loss
+
+class LossMaskMSELoss(AbstractLoss):
+    def forward(
+        self, model_output: torch.Tensor, target: torch.Tensor, loss_mask: torch.Tensor
+    ) -> torch.Tensor:
+        """loss_mask = 1 in positions where loss calculation should take place"""
+        reconstruction_loss = (model_output - target) ** 2  # (B, X, Y, Z, C)
+        reconstruction_loss = torch.sum(reconstruction_loss * loss_mask) / torch.sum(loss_mask)
 
         return reconstruction_loss
 

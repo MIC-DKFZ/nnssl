@@ -5,11 +5,11 @@ from torch.optim import AdamW
 from typing_extensions import override
 
 from nnssl.architectures.build_architecture import build_network_architecture
-from nnssl.architectures.gvsl_architecture import GVSLArchitecture
+from nnssl.architectures.gvsl_architecture import GVSLArchitecture, GVSLArchitecture_recon_only
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.ssl_data.dataloading.data_loader_3d import nnsslCenterCropDataLoader3D
 from nnssl.ssl_data.dataloading.gvsl_transform import GVSLTransform, SpatialTransforms
-from nnssl.training.loss.gvsl_loss import GVSLLoss
+from nnssl.training.loss.gvsl_loss import GVSLLoss, L_mse
 
 from nnssl.training.lr_scheduler.polylr import PolyLRScheduler
 from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
@@ -20,6 +20,7 @@ from torch import autocast
 from nnssl.utilities.helpers import dummy_context
 
 from batchgenerators.transforms.abstract_transforms import AbstractTransform, Compose
+from typing import List
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -38,8 +39,6 @@ class GVSLTrainer(AbstractBaseTrainer):
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
 
         self.do_spatial_aug = do_spatial_aug
-
-        self.initial_lr = 1e-4
         self.spatial_transforms = SpatialTransforms()
 
 
@@ -117,15 +116,6 @@ class GVSLTrainer(AbstractBaseTrainer):
         )
         return dl_tr, dl_val
 
-    @override
-    def configure_optimizers(self):
-        optimizer = AdamW(
-            params=self.network.parameters(),
-            lr=self.initial_lr
-        )
-        lr_scheduler = PolyLRScheduler(optimizer, self.initial_lr, self.num_epochs)
-
-        return optimizer, lr_scheduler
 
     def visualize_brain_slices(self, batch_tensor, save_path, row_view=False):
         """
@@ -165,6 +155,20 @@ class GVSLTrainer(AbstractBaseTrainer):
         plt.savefig(save_path)
         print(f"Visualization saved to {save_path}")
 
+    def on_train_epoch_start(self):
+        super().on_train_epoch_start()
+        self.ncc_losses = []
+        self.mse_losses = []
+        self.smooth_losses = []
+
+    def on_train_epoch_end(self, train_outputs: List[dict]):
+        super().on_train_epoch_end(train_outputs)
+        self.print_to_log_file(
+            f"NCC_loss: {np.mean(self.ncc_losses)} | "
+            f"MSE_loss: {np.mean(self.mse_losses)} | "
+            f"SMOOTH_loss {np.mean(self.smooth_losses)}"
+        )
+
     @override
     def train_step(self, batch: dict) -> dict:
         imgsA = batch["imgsA"]
@@ -186,8 +190,10 @@ class GVSLTrainer(AbstractBaseTrainer):
                 imgsA_app = self.spatial_transforms.augment_spatial(imgsA_app, affine_mat, flow)
                 imgsB = self.spatial_transforms.augment_spatial(imgsB, affine_mat, flow)
 
-            # self.visualize_brain_slices(imgsA, "imgsA_no_aug.png")
-            # self.visualize_brain_slices(imgsB, "imgsB_no_aug.png")
+            # self.visualize_brain_slices(imgsA, "imgsA.png")
+            # self.visualize_brain_slices(imgsA_app, "imgsA_app.png")
+            # self.visualize_brain_slices(imgsB, "imgsB.png")
+            # exit()
             # return {"loss": np.array(1)}
 
             self.optimizer.zero_grad(set_to_none=True)
@@ -195,7 +201,12 @@ class GVSLTrainer(AbstractBaseTrainer):
                 recon_A, warped_BA, flow_BA = self.network(imgsA_app, imgsB)
 
             # NCC loss tends to get NANs with float16, thus we will not use autocast for loss calculation
-            l = self.loss(imgsA, recon_A, warped_BA, flow_BA)
+            # l = self.loss(imgsA, recon_A, warped_BA, flow_BA)
+            ncc, mse, smooth = self.loss(imgsA, recon_A, warped_BA, flow_BA)
+            self.ncc_losses.append(ncc.detach().item())
+            self.mse_losses.append(mse.detach().item())
+            self.smooth_losses.append(smooth.detach().item())
+            l = ncc + mse + smooth
 
         if self.grad_scaler is not None:
             self.grad_scaler.scale(l).backward()
@@ -230,7 +241,9 @@ class GVSLTrainer(AbstractBaseTrainer):
             with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
                 recon_A, warped_BA, flow_BA = self.network(imgsA_app, imgsB)
 
-            l = self.loss(imgsA, recon_A, warped_BA, flow_BA)
+            # l = self.loss(imgsA, recon_A, warped_BA, flow_BA)
+            ncc, mse, smooth = self.loss(imgsA, recon_A, warped_BA, flow_BA)
+            l = ncc + mse + smooth
 
         return {"loss": l.detach().cpu().numpy()}
 
@@ -248,52 +261,19 @@ class GVSLTrainer(AbstractBaseTrainer):
         return GVSLTrainer.get_training_transforms()
 
 
-class GVSLTrainer_test(GVSLTrainer):
+class GVSLTrainer_do_spatial(GVSLTrainer):
     def __init__(
         self,
         plan: Plan,
         configuration_name: str,
         fold: int,
         pretrain_json: dict,
-        device: torch.device = torch.device("cuda"),
+        device: torch.device = torch.device("cuda")
     ):
-        plan.configurations[configuration_name].batch_size = 3
-        plan.configurations[configuration_name].patch_size = (96, 96, 96)
         super().__init__(plan, configuration_name, fold, pretrain_json, device, do_spatial_aug=True)
 
 
-class GVSLTrainer_BS2(GVSLTrainer):
-    def __init__(
-        self,
-        plan: Plan,
-        configuration_name: str,
-        fold: int,
-        pretrain_json: dict,
-        device: torch.device = torch.device("cuda"),
-        do_spatial_aug: bool = True
-    ):
-        plan.configurations[configuration_name].batch_size = 2
-        plan.configurations[configuration_name].patch_size = (160, 160, 160)
-        super().__init__(plan, configuration_name, fold, pretrain_json, device, do_spatial_aug)
-
-
-class GVSLTrainer_BS3(GVSLTrainer):
-    def __init__(
-        self,
-        plan: Plan,
-        configuration_name: str,
-        fold: int,
-        pretrain_json: dict,
-        device: torch.device = torch.device("cuda"),
-        do_spatial_aug: bool = True
-    ):
-        plan.configurations[configuration_name].batch_size = 3
-        plan.configurations[configuration_name].patch_size = (160, 160, 160)
-        super().__init__(plan, configuration_name, fold, pretrain_json, device, do_spatial_aug)
-
-
-class GVSLTrainer_BS3_no_aug(GVSLTrainer_BS3):
-
+class GVSLTrainer_no_spatial(GVSLTrainer):
     def __init__(
         self,
         plan: Plan,
@@ -305,16 +285,250 @@ class GVSLTrainer_BS3_no_aug(GVSLTrainer_BS3):
         super().__init__(plan, configuration_name, fold, pretrain_json, device, do_spatial_aug=False)
 
 
+class GVSLTrainer_test(GVSLTrainer_do_spatial):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 4
+        plan.configurations[configuration_name].patch_size = (192, 192, 192)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.num_iterations_per_epoch = 20
+        self.num_val_iterations_per_epoch = 2
 
-# class GVSLTrainer_BS2_no_aug(GVSLTrainer_BS2):
-#     @staticmethod
-#     def get_training_transforms() -> AbstractTransform:
-#         tr_transforms = []
-#
-#         tr_transforms.append(GVSLTransform(use_aug=False))
-#         tr_transforms = Compose(tr_transforms)
-#         return tr_transforms
-#
-#     @staticmethod
-#     def get_validation_transforms() -> AbstractTransform:
-#         return GVSLTrainer_BS3_no_aug.get_training_transforms()
+class GVSLTrainer_BS2_lr_1e4(GVSLTrainer_do_spatial):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda")
+    ):
+        plan.configurations[configuration_name].batch_size = 2
+        plan.configurations[configuration_name].patch_size = (160, 160, 160)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.initial_lr = 1e-4
+
+
+class GVSLTrainer_BS2_lr_1e5(GVSLTrainer_do_spatial):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda")
+    ):
+        plan.configurations[configuration_name].batch_size = 2
+        plan.configurations[configuration_name].patch_size = (160, 160, 160)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.initial_lr = 1e-5
+
+
+class GVSLTrainer_recon_only(GVSLTrainer_no_spatial):
+
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda")
+    ):
+        plan.configurations[configuration_name].batch_size = 2
+        plan.configurations[configuration_name].patch_size = (160, 160, 160)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.initial_lr = 1e-4
+        self.num_iterations_per_epoch = 100
+
+    def build_architecture(
+            self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
+    ) -> nn.Module:
+        backbone = build_network_architecture(
+            config_plan,
+            num_input_channels,
+            num_output_channels,
+        )
+        architecture = GVSLArchitecture_recon_only(backbone, num_input_channels)
+
+        return architecture
+
+    @override
+    def train_step(self, batch: dict) -> dict:
+        imgsA = batch["imgsA"]
+        imgsA_app = batch["imgsA_app"]
+        imgsB = batch["imgsB"]
+
+        imgsA = imgsA.to(self.device, non_blocking=True)
+        imgsA_app = imgsA_app.to(self.device, non_blocking=True)
+        imgsB = imgsB.to(self.device, non_blocking=True)
+
+        with torch.device(self.device):
+            # For some reason, the official implementation includes affine transformations and deformations as
+            # data augmentations. Mentioned nowhere in the paper...
+            # These augmentations benefit from GPU acceleration, and since batchgenerators does not provide GPU support
+            # for their transforms, they have to be conducted here
+            if self.do_spatial_aug:
+                affine_mat, flow = self.spatial_transforms.get_rand_spatial(self.batch_size, self.config_plan.patch_size)
+                imgsA = self.spatial_transforms.augment_spatial(imgsA, affine_mat, flow)
+                imgsA_app = self.spatial_transforms.augment_spatial(imgsA_app, affine_mat, flow)
+                imgsB = self.spatial_transforms.augment_spatial(imgsB, affine_mat, flow)
+
+            # self.visualize_brain_slices(imgsA, "imgsA_no_aug.png")
+            # self.visualize_brain_slices(imgsB, "imgsB_no_aug.png")
+            # return {"loss": np.array(1)}
+
+            self.optimizer.zero_grad(set_to_none=True)
+            with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+                recon_A = self.network(imgsA_app, imgsB)
+
+            # NCC loss tends to get NANs with float16, thus we will not use autocast for loss calculation
+            # l = self.loss(imgsA, recon_A, warped_BA, flow_BA)
+            mse = L_mse(imgsA, recon_A)
+            self.ncc_losses.append(0)
+            self.mse_losses.append(mse.detach().item())
+            self.smooth_losses.append(0)
+            l = mse
+
+        if self.grad_scaler is not None:
+            self.grad_scaler.scale(l).backward()
+            self.grad_scaler.unscale_(self.optimizer)
+            torch.nn.utils.clip_grad_norm_(self.network.parameters(), 12)
+            self.grad_scaler.step(self.optimizer)
+            self.grad_scaler.update()
+        else:
+            l.backward()
+            torch.nn.utils.clip_grad_norm_(self.network.parameters(), 12)
+            self.optimizer.step()
+        return {"loss": l.detach().cpu().numpy()}
+
+    def validation_step(self, batch: dict) -> dict:
+        imgsA = batch["imgsA"]
+        imgsA_app = batch["imgsA_app"]
+        imgsB = batch["imgsB"]
+
+        imgsA = imgsA.to(self.device, non_blocking=True)
+        imgsA_app = imgsA_app.to(self.device, non_blocking=True)
+        imgsB = imgsB.to(self.device, non_blocking=True)
+
+        with torch.no_grad(), torch.device(self.device):
+            if self.do_spatial_aug:
+                affine_mat, flow = self.spatial_transforms.get_rand_spatial(self.batch_size, self.config_plan.patch_size)
+                imgsA = self.spatial_transforms.augment_spatial(imgsA, affine_mat, flow)
+                imgsA_app = self.spatial_transforms.augment_spatial(imgsA_app, affine_mat, flow)
+                imgsB = self.spatial_transforms.augment_spatial(imgsB, affine_mat, flow)
+
+            with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+                recon_A = self.network(imgsA_app, imgsB)
+
+            # l = self.loss(imgsA, recon_A, warped_BA, flow_BA)
+            mse = L_mse(imgsA, recon_A)
+            l = mse
+        return {"loss": l.detach().cpu().numpy()}
+
+
+class GVSLTrainer_recon_only_with_spatial(GVSLTrainer_do_spatial):
+
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda")
+    ):
+        plan.configurations[configuration_name].batch_size = 2
+        plan.configurations[configuration_name].patch_size = (160, 160, 160)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.initial_lr = 1e-4
+        self.num_iterations_per_epoch = 100
+
+    def build_architecture(
+            self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
+    ) -> nn.Module:
+        backbone = build_network_architecture(
+            config_plan,
+            num_input_channels,
+            num_output_channels,
+        )
+        architecture = GVSLArchitecture_recon_only(backbone, num_input_channels)
+
+        return architecture
+
+    @override
+    def train_step(self, batch: dict) -> dict:
+        imgsA = batch["imgsA"]
+        imgsA_app = batch["imgsA_app"]
+        imgsB = batch["imgsB"]
+
+        imgsA = imgsA.to(self.device, non_blocking=True)
+        imgsA_app = imgsA_app.to(self.device, non_blocking=True)
+        imgsB = imgsB.to(self.device, non_blocking=True)
+
+        with torch.device(self.device):
+            # For some reason, the official implementation includes affine transformations and deformations as
+            # data augmentations. Mentioned nowhere in the paper...
+            # These augmentations benefit from GPU acceleration, and since batchgenerators does not provide GPU support
+            # for their transforms, they have to be conducted here
+            if self.do_spatial_aug:
+                affine_mat, flow = self.spatial_transforms.get_rand_spatial(self.batch_size, self.config_plan.patch_size)
+                imgsA = self.spatial_transforms.augment_spatial(imgsA, affine_mat, flow)
+                imgsA_app = self.spatial_transforms.augment_spatial(imgsA_app, affine_mat, flow)
+                imgsB = self.spatial_transforms.augment_spatial(imgsB, affine_mat, flow)
+
+            # self.visualize_brain_slices(imgsA, "imgsA_no_aug.png")
+            # self.visualize_brain_slices(imgsB, "imgsB_no_aug.png")
+            # return {"loss": np.array(1)}
+
+            self.optimizer.zero_grad(set_to_none=True)
+            with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+                recon_A = self.network(imgsA_app, imgsB)
+
+            # NCC loss tends to get NANs with float16, thus we will not use autocast for loss calculation
+            # l = self.loss(imgsA, recon_A, warped_BA, flow_BA)
+            mse = L_mse(imgsA, recon_A)
+            self.ncc_losses.append(0)
+            self.mse_losses.append(mse.detach().item())
+            self.smooth_losses.append(0)
+            l = mse
+
+        if self.grad_scaler is not None:
+            self.grad_scaler.scale(l).backward()
+            self.grad_scaler.unscale_(self.optimizer)
+            torch.nn.utils.clip_grad_norm_(self.network.parameters(), 12)
+            self.grad_scaler.step(self.optimizer)
+            self.grad_scaler.update()
+        else:
+            l.backward()
+            torch.nn.utils.clip_grad_norm_(self.network.parameters(), 12)
+            self.optimizer.step()
+        return {"loss": l.detach().cpu().numpy()}
+
+    def validation_step(self, batch: dict) -> dict:
+        imgsA = batch["imgsA"]
+        imgsA_app = batch["imgsA_app"]
+        imgsB = batch["imgsB"]
+
+        imgsA = imgsA.to(self.device, non_blocking=True)
+        imgsA_app = imgsA_app.to(self.device, non_blocking=True)
+        imgsB = imgsB.to(self.device, non_blocking=True)
+
+        with torch.no_grad(), torch.device(self.device):
+            if self.do_spatial_aug:
+                affine_mat, flow = self.spatial_transforms.get_rand_spatial(self.batch_size, self.config_plan.patch_size)
+                imgsA = self.spatial_transforms.augment_spatial(imgsA, affine_mat, flow)
+                imgsA_app = self.spatial_transforms.augment_spatial(imgsA_app, affine_mat, flow)
+                imgsB = self.spatial_transforms.augment_spatial(imgsB, affine_mat, flow)
+
+            with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+                recon_A = self.network(imgsA_app, imgsB)
+
+            # l = self.loss(imgsA, recon_A, warped_BA, flow_BA)
+            mse = L_mse(imgsA, recon_A)
+            l = mse
+        return {"loss": l.detach().cpu().numpy()}

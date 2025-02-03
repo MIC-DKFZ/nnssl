@@ -39,8 +39,12 @@ class VoCoTrainer(AbstractBaseTrainer):
         fold: int,
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
+        patch_size: tuple = (256, 256, 64),
+        base_crop_count: tuple = (4, 4, 1),
+        target_crop_count: int = 4
     ):
-        plan.configurations[configuration_name].patch_size = (192, 192, 64)
+        # plan.configurations[configuration_name].patch_size = (192, 192, 64)
+        plan.configurations[configuration_name].patch_size = patch_size
         # x y z crop counts -- Official code has this [4, 4, 1].
         # Original code has patch size 384x384x96
         #   This does not make sense for our BrainMRIs who have 1x1x1 [mm] spacing.
@@ -51,7 +55,8 @@ class VoCoTrainer(AbstractBaseTrainer):
         # This results in crops that are still the same size of 64x64x64;
 
         # I wish I could make patch_size and crop sizes bigger, but VRAM goes kaboom.
-        self.voco_base_crop_count = (3, 3, 1)
+        # self.voco_base_crop_count = (3, 3, 1)
+        self.voco_base_crop_count = base_crop_count
 
         # BS1 == 6GB VRAM
         # --> 40GB VRAM fits BS8
@@ -59,10 +64,10 @@ class VoCoTrainer(AbstractBaseTrainer):
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
         patch_size = self.config_plan.patch_size
 
-        self.initial_lr = 1e-3
-        self.weight_decay = 1e-2
+        # self.initial_lr = 1e-3
+        # self.weight_decay = 1e-2
 
-        self.voco_target_crop_count = 5  # Number of crops to sample from each image.  Originally 4.
+        self.voco_target_crop_count = target_crop_count  # Number of crops to sample from each image.  Originally 4.
         self.pred_loss_weight = 1
         self.reg_loss_weight = 1
         # Size of crops in voxels.
@@ -82,20 +87,20 @@ class VoCoTrainer(AbstractBaseTrainer):
             patch_size[2] // self.voco_base_crop_count[2],
         )
 
-    def configure_optimizers(self):
-        optimizer = AdamW(
-            params=self.network.parameters(),
-            lr=self.initial_lr,
-            weight_decay=self.weight_decay,
-        )
-        lr_scheduler = LinearWarmupCosineAnnealingLR(
-            optimizer=optimizer,
-            warmup_epochs=10,
-            max_epochs=self.num_epochs,
-            warmup_start_lr=self.initial_lr / 100,
-            eta_min=1e-6,
-        )
-        return optimizer, lr_scheduler
+    # def configure_optimizers(self):
+    #     optimizer = AdamW(
+    #         params=self.network.parameters(),
+    #         lr=self.initial_lr,
+    #         weight_decay=self.weight_decay,
+    #     )
+    #     lr_scheduler = LinearWarmupCosineAnnealingLR(
+    #         optimizer=optimizer,
+    #         warmup_epochs=10,
+    #         max_epochs=self.num_epochs,
+    #         warmup_start_lr=self.initial_lr / 100,
+    #         eta_min=1e-6,
+    #     )
+    #     return optimizer, lr_scheduler
 
     def build_loss(self) -> nn.Module:
         """Implements the VoCo loss, which forces rep similarity to be proportional to the volumetric overlap and for non-overlapping base crops to be orthogonal."""
@@ -264,9 +269,9 @@ class VoCoTrainer(AbstractBaseTrainer):
         # If the device_type is 'mps' then it will complain that mps is not implemented, even if enabled=False is set. Whyyyyyyy. (this is why we don't make use of enabled=False)
         # So autocast will only be active if we have a cuda device.
         with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
-            emeddings = self.network(all_crops)
-            base_embeddings = rearrange(emeddings[:NBASE], "(b NBASE) c -> b NBASE c", b=self.batch_size)
-            target_embeddings = rearrange(emeddings[NBASE:], "(b nTARGET) c -> b nTARGET c", b=self.batch_size)
+            embeddings = self.network(all_crops)
+            base_embeddings = rearrange(embeddings[:NBASE], "(b NBASE) c -> b NBASE c", b=self.batch_size)
+            target_embeddings = rearrange(embeddings[NBASE:], "(b nTARGET) c -> b nTARGET c", b=self.batch_size)
 
             # del data
             l = self.loss(base_embeddings, target_embeddings, gt_overlaps)
@@ -297,11 +302,11 @@ class VoCoTrainer(AbstractBaseTrainer):
         # So autocast will only be active if we have a cuda device.
         with torch.no_grad():
             with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
-                emeddings = self.network(all_crops)
-                base_embeddings = emeddings[:NBASE]
-                target_embeddings = emeddings[NBASE:]
-                base_embeddings = rearrange(emeddings[:NBASE], "(b NBASE) c -> b NBASE c ", b=self.batch_size)
-                target_embeddings = rearrange(emeddings[NBASE:], "(b nTARGET) c -> b nTARGET c", b=self.batch_size)
+                embeddings = self.network(all_crops)
+                # base_embeddings = embeddings[:NBASE]
+                # target_embeddings = embeddings[NBASE:]
+                base_embeddings = rearrange(embeddings[:NBASE], "(b NBASE) c -> b NBASE c ", b=self.batch_size)
+                target_embeddings = rearrange(embeddings[NBASE:], "(b nTARGET) c -> b nTARGET c", b=self.batch_size)
 
                 # del data
                 l = self.loss(base_embeddings, target_embeddings, gt_overlaps)
@@ -309,7 +314,12 @@ class VoCoTrainer(AbstractBaseTrainer):
         return {"loss": l.detach().cpu().numpy()}
 
 
-class VoCoTrainer_BS6(VoCoTrainer):
+####################################################################
+############################# VARIANTS #############################
+####################################################################
+
+
+class VoCoTrainer_test(VoCoTrainer):
     def __init__(
         self,
         plan: Plan,
@@ -319,27 +329,15 @@ class VoCoTrainer_BS6(VoCoTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 6
-        super().__init__(plan, configuration_name, fold,  pretrain_json, device)
+        plan.configurations[configuration_name].batch_size = 2
+        super().__init__(plan, configuration_name, fold,  pretrain_json, device,
+                         patch_size=(192, 192, 64), base_crop_count=(3, 3, 1))
+        self.voco_target_crop_count = 4
 
 
-class VoCoTrainer_BS12(VoCoTrainer):
-    def __init__(
-        self,
-        plan: Plan,
-        configuration_name: str,
-        fold: int,
+############################# LEARNING RATE #############################
 
-        pretrain_json: dict,
-        device: torch.device = torch.device("cuda"),
-    ):
-        plan.configurations[configuration_name].batch_size = 12
-        super().__init__(plan, configuration_name, fold,  pretrain_json, device)
-        # plan.configurations[configuration_name].patch_size = (192, 192, 128)
-        # self.voco_base_crop_count = (3, 3, 2)
-
-
-class VoCoTrainer_BS24(VoCoTrainer):
+class VoCoTrainer_BS8_lr_1e2(VoCoTrainer):
     def __init__(
         self,
         plan: Plan,
@@ -348,7 +346,190 @@ class VoCoTrainer_BS24(VoCoTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 24
+        plan.configurations[configuration_name].batch_size = 8
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
-        # plan.configurations[configuration_name].patch_size = (192, 192, 128)
-        # self.voco_base_crop_count = (3, 3, 2)
+        self.initial_lr = 1e-2
+
+
+class VoCoTrainer_BS8_lr_1e3(VoCoTrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        super().__init__(plan, configuration_name, fold,  pretrain_json, device)
+        self.initial_lr = 1e-3
+
+
+class VoCoTrainer_BS8_lr_1e4(VoCoTrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        super().__init__(plan, configuration_name, fold,  pretrain_json, device)
+        self.initial_lr = 1e-4
+
+
+############################# WEIGHT DECAY #############################
+
+class VoCoTrainer_BS8_lr_1e2_wd_1e5(VoCoTrainer):
+    def __init__(
+            self,
+            plan: Plan,
+            configuration_name: str,
+            fold: int,
+            pretrain_json: dict,
+            device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.initial_lr = 1e-2
+        self.weight_decay = 3e-4
+
+
+class VoCoTrainer_BS8_lr_1e2_wd_3e6(VoCoTrainer):
+    def __init__(
+            self,
+            plan: Plan,
+            configuration_name: str,
+            fold: int,
+            pretrain_json: dict,
+            device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.initial_lr = 1e-2
+        self.weight_decay = 3e-6
+
+
+class VoCoTrainer_BS8_lr_1e2_wd_3e2(VoCoTrainer):
+    def __init__(
+            self,
+            plan: Plan,
+            configuration_name: str,
+            fold: int,
+            pretrain_json: dict,
+            device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.initial_lr = 1e-2
+        self.weight_decay = 3e-2
+
+
+############################# BASES & PATCH SIZE #############################
+
+class VoCoTrainer_BS8_lr_1e2_wd_3e5_2x2x1_PS96(VoCoTrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        super().__init__(plan, configuration_name, fold,  pretrain_json, device,
+                         patch_size=(192, 192, 96), base_crop_count=(2, 2, 1))
+
+class VoCoTrainer_BS8_lr_1e2_wd_3e5_2x2x2_PS96(VoCoTrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        super().__init__(plan, configuration_name, fold,  pretrain_json, device,
+                         patch_size=(192, 192, 192), base_crop_count=(2, 2, 2))
+
+class VoCoTrainer_BS8_lr_1e2_wd_3e5_3x3x1_PS64(VoCoTrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        super().__init__(plan, configuration_name, fold,  pretrain_json, device,
+                         patch_size=(192, 192, 64), base_crop_count=(3, 3, 1))
+
+class VoCoTrainer_BS8_lr_1e2_wd_3e5_3x3x2_PS64(VoCoTrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        super().__init__(plan, configuration_name, fold,  pretrain_json, device,
+                         patch_size=(192, 192, 128), base_crop_count=(3, 3, 2))
+
+class VoCoTrainer_BS8_lr_1e2_wd_3e5_4x4x2_PS64(VoCoTrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        super().__init__(plan, configuration_name, fold,  pretrain_json, device,
+                         patch_size=(256, 256, 128), base_crop_count=(4, 4, 2))
+
+
+############################# NUMBER OF TARGET CROPS #############################
+
+class VoCoTrainer_BS8_lr_1e2_wd_3e5_4x4x2_PS64_N2(VoCoTrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        super().__init__(plan, configuration_name, fold,  pretrain_json, device,
+                         patch_size=(256, 256, 64), base_crop_count=(4, 4, 1),
+                         target_crop_count=2)
+
+
+class VoCoTrainer_BS8_lr_1e2_wd_3e5_4x4x2_PS64_N8(VoCoTrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        super().__init__(plan, configuration_name, fold,  pretrain_json, device,
+                         patch_size=(256, 256, 64), base_crop_count=(4, 4, 1),
+                         target_crop_count=8)
+
+

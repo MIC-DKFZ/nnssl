@@ -16,7 +16,8 @@ class GVSLLoss(nn.Module):
         ncc_loss = self.L_ncc(warped_BA, imgsA)
         mse_loss = self.L_mse(imgsA, recon_A)
         smooth_loss = self.L_smooth(flow_BA)
-        return ncc_loss + mse_loss + smooth_loss
+        # return ncc_loss + mse_loss + smooth_loss
+        return ncc_loss, mse_loss, smooth_loss
 
 
 def L_smooth(s):

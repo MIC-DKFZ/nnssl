@@ -101,7 +101,7 @@ def test_bounding_boxes_varying_sizes_and_aspects():
 
 
 def test_overlapping_bboxes():
-    image = np.zeros((8, 8, 8))
+    image = np.zeros((1, 8, 8, 8))
     xs, ys, zs, x_starts, y_starts, z_starts = ([4, 5], [4, 5], [4, 5], [0, 3], [0, 3], [0, 3])
     values = [1, 2]
     image = _overlay_bbox(image, values, xs, ys, zs, x_starts, y_starts, z_starts)

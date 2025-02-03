@@ -99,16 +99,17 @@ def bezier_curve(points, nTimes=1000):
     return xvals, yvals
 
 
-def data_augmentation(x, y, prob=0.5):
+def data_augmentation(x, y, seg, prob=0.5):
     # augmentation by flipping
     cnt = 3
     while random.random() < prob and cnt > 0:
         degree = random.choice([0, 1, 2])
         x = np.flip(x, axis=degree)
         y = np.flip(y, axis=degree)
+        seg = np.flip(seg, axis=degree)
         cnt = cnt - 1
 
-    return x, y
+    return x, y, seg
 
 
 def nonlinear_transformation(x, prob=0.5):
@@ -240,7 +241,7 @@ def image_out_painting(x):
     return x
 
 
-def generate_pair(batch, config: ModelGenesisConfig):
+def generate_pair(batch, seg, config: ModelGenesisConfig):
     batch_size = batch.shape[0]
 
     y = batch
@@ -249,7 +250,7 @@ def generate_pair(batch, config: ModelGenesisConfig):
     # Create noised input image
     for n in range(batch_size):
         # Flip -- Need to do it for both if we do it for one
-        x[n], y[n] = data_augmentation(x[n], y[n], config.flip_rate)
+        x[n], y[n], seg[n] = data_augmentation(x[n], y[n], seg[n], config.flip_rate)
         # Local Shuffle Pixel
         x[n] = local_pixel_shuffling(x[n], prob=config.local_rate)
         # Apply non-Linear transformation with an assigned probability
@@ -263,7 +264,7 @@ def generate_pair(batch, config: ModelGenesisConfig):
                 # Outpainting
                 x[n] = image_out_painting(x[n])
 
-    return {"input": x, "target": y}
+    return {"input": x, "target": y, "seg": seg}
 
 
 class ModelGenesisTransform(AbstractTransform):
@@ -271,4 +272,4 @@ class ModelGenesisTransform(AbstractTransform):
         self.config = config
 
     def __call__(self, **data_dict):
-        return generate_pair(data_dict["data"], self.config)
+        return generate_pair(data_dict["data"], data_dict["seg"], self.config)
