@@ -141,7 +141,7 @@ class Subject:
 class Dataset:
     dataset_index: str | int
     name: str | None = None
-    dataset_info: dict = None
+    dataset_info: dict | None = None
     subjects: dict[str, Subject] = field(default_factory=dict)
 
     def get_all_images(self) -> list[Image]:
@@ -214,7 +214,9 @@ class Dataset:
 
     @staticmethod
     def from_dict(data: dict) -> "Dataset":
-        ds = Dataset(dataset_index=data["dataset_index"], name=data.get("name", None))
+        ds = Dataset(dataset_index=data["dataset_index"],
+                     name=data.get("name", None),
+                     dataset_info=data.get("dataset_info", None))
         for subject_id, subject in data["subjects"].items():
             s = Subject(subject_id)
             s.subject_info = subject.get("subject_info", None)
@@ -242,7 +244,7 @@ class Dataset:
 class Collection:
     collection_index: int | str
     collection_name: str
-    datasets: dict[int, Dataset] = field(default_factory=dict)
+    datasets: dict[str | int, Dataset] = field(default_factory=dict)
 
     def to_dict(self, relative_paths: bool = False):
         coll_dict = {
