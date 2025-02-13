@@ -71,23 +71,23 @@ class SimCLRTrainer(AbstractBaseTrainer):
         self.crop_size = (64, 64, 64)
         self.min_crop_overlap = 0.5
 
-        self.initial_lr = 1e-3
-        self.weight_decay = 1e-2
+        # self.initial_lr = 1e-3
+        # self.weight_decay = 1e-2
 
-    def configure_optimizers(self):
-        optimizer = AdamW(
-            params=self.network.parameters(),
-            lr=self.initial_lr,
-            weight_decay=self.weight_decay,
-        )
-        lr_scheduler = LinearWarmupCosineAnnealingLR(
-            optimizer=optimizer,
-            warmup_epochs=10,
-            max_epochs=self.num_epochs,
-            warmup_start_lr=self.initial_lr / 100,
-            eta_min=1e-6,
-        )
-        return optimizer, lr_scheduler
+    # def configure_optimizers(self):
+    #     optimizer = AdamW(
+    #         params=self.network.parameters(),
+    #         lr=self.initial_lr,
+    #         weight_decay=self.weight_decay,
+    #     )
+    #     lr_scheduler = LinearWarmupCosineAnnealingLR(
+    #         optimizer=optimizer,
+    #         warmup_epochs=10,
+    #         max_epochs=self.num_epochs,
+    #         warmup_start_lr=self.initial_lr / 100,
+    #         eta_min=1e-6,
+    #     )
+    #     return optimizer, lr_scheduler
 
     def build_loss(self) -> nn.Module:
         """Implements the standard contrastive loss."""

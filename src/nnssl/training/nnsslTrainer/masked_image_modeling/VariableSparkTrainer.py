@@ -80,12 +80,13 @@ class BaseVariableSparkMAETrainer(SparkMAETrainer):
 
         spark_architecture = convert_to_spark_cnn(network.encoder)
         network.encoder = spark_architecture
+
         actual_network = SparK3D(network, (160, 160, 160))
 
         return actual_network
 
 
-class BaseVariableSparkMAETrainer_ANAT(SparkMAETrainer):
+class BaseVariableSparkMAETrainer_ANAT(BaseVariableSparkMAETrainer):
     def get_dataloaders(self):
         patch_size = self.config_plan.patch_size
         (
@@ -141,7 +142,7 @@ class BaseVariableSparkMAETrainer_ANAT(SparkMAETrainer):
         return mt_gen_train, mt_gen_val
 
 
-class BaseVariableSparkMAETrainer_ANON(SparkMAETrainer):
+class BaseVariableSparkMAETrainer_ANON(BaseVariableSparkMAETrainer):
     def build_loss(self):
         return LossMaskMSELoss()
 

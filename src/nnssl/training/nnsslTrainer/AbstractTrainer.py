@@ -109,6 +109,7 @@ class AbstractBaseTrainer(ABC):
         self.configuration_name = configuration_name
         self.pretrain_json = pretrain_json
         self.fold = fold
+        self.iimg_filters = []
         if is_running_in_valohai():
             self.current_epoch_log = {}
 
@@ -416,8 +417,8 @@ class AbstractBaseTrainer(ABC):
         # load the datasets for training and validation. Note that we always draw random samples so we really don't
         # care about distributing training cases across GPUs.
         collection = Collection.from_dict(self.pretrain_json)
-        dataset_tr = nnSSLDatasetBlosc2(self.preprocessed_dataset_folder, collection, tr_subjects)
-        dataset_val = nnSSLDatasetBlosc2(self.preprocessed_dataset_folder, collection, val_subjects)
+        dataset_tr = nnSSLDatasetBlosc2(self.preprocessed_dataset_folder, collection, tr_subjects, self.iimg_filters)
+        dataset_val = nnSSLDatasetBlosc2(self.preprocessed_dataset_folder, collection, val_subjects, self.iimg_filters)
 
         logger.info(f"Train dataset contains {len(dataset_tr.image_dataset)} images.")
         logger.info(f"Validation dataset contains {len(dataset_val.image_dataset)} images.")
@@ -615,7 +616,7 @@ class AbstractBaseTrainer(ABC):
         # copy plans and dataset.json so that they can be used for restoring everything we need for inference
         save_json(asdict(self.plan), join(self.output_folder_base, "plans.json"), sort_keys=False)
 
-        self._save_debug_information()
+        # self._save_debug_information()
 
     def on_train_end(self):
         # dirty hack because on_epoch_end increments the epoch counter and this is executed afterwards.

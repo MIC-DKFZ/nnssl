@@ -11,6 +11,7 @@ from batchgenerators.utilities.file_and_folder_operations import join, load_pick
 import math
 
 from nnssl.data.raw_dataset import Collection, Dataset, IndependentImage, Subject
+from nnssl.training.dataloading.nnsslFilter.abstract_filter import AbstractFilter
 
 
 class nnSSLBaseDataset(ABC):
@@ -18,7 +19,8 @@ class nnSSLBaseDataset(ABC):
     Defines the interface
     """
 
-    def __init__(self, dataset_dir: str, collection: Collection, subject_identifiers: List[str] = None):
+    def __init__(self, dataset_dir: str, collection: Collection, subject_identifiers: List[str] = None,
+                 iimg_filters: list[AbstractFilter] = None):
         """
         Receives a dataset object that is created by loading the `pretrain_data.json`.
         This dataset object holds all the necessary info to load the data from disk.
@@ -30,12 +32,15 @@ class nnSSLBaseDataset(ABC):
 
         self.dataset_dir: str = dataset_dir
         self.subject_identifiers = set(subject_identifiers)  # Make it a set for faster lookup
+        self.iimg_filters = iimg_filters
         self.collection = deepcopy(collection)
 
         all_images: list[IndependentImage] = self.collection.to_independent_images()
 
         self.image_dataset: dict[str, IndependentImage] = {
-            im.get_unique_id(): im for im in all_images if im.get_unique_subject_id() in self.subject_identifiers
+            im.get_unique_id(): im for im in all_images
+            if im.get_unique_subject_id() in self.subject_identifiers
+            if all(iimg_filter(im) for iimg_filter in self.iimg_filters)
         }
         self.image_identifiers: list[str] = list(self.image_dataset.keys())
 
@@ -59,12 +64,13 @@ class nnSSLBaseDataset(ABC):
 
 class nnSSLDatasetBlosc2(nnSSLBaseDataset):
 
-    def __init__(self, dataset_dir: str, collection: Collection, subject_identifiers: List[str] = None):
+    def __init__(self, dataset_dir: str, collection: Collection, subject_identifiers: List[str] = None,
+                 iimg_filters: list[AbstractFilter] = None):
         """
         This is a dataset that allows loading data saved in blosc2 format.
         It will hold a
         """
-        super().__init__(dataset_dir, collection, subject_identifiers)
+        super().__init__(dataset_dir, collection, subject_identifiers, iimg_filters)
         blosc2.set_nthreads(1)
 
     def __getitem__(self, image_identifier):

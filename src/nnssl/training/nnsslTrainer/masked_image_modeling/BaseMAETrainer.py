@@ -7,12 +7,15 @@ from deprecated import deprecated
 
 import torch
 from nnssl.architectures.build_architecture import build_network_architecture
+from nnssl.data.raw_dataset import Collection
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.ssl_data.configure_basic_dummyDA import configure_rotation_dummyDA_mirroring_and_inital_patch_size
 from nnssl.ssl_data.data_augmentation.transforms_for_dummy_2d import Convert2DTo3DTransform, Convert3DTo2DTransform
 from nnssl.ssl_data.dataloading.data_loader_3d import nnsslIndexableCenterCropDataLoader3D
 from nnssl.ssl_data.dataloading.indexable_dataloader import IndexableSingleThreadedAugmenter
 from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
+from nnssl.training.dataloading.nnsslFilter.iqs_filter import OpenMindIQSFilter
+from nnssl.training.dataloading.nnsslFilter.modality_filter import ModalityFilter
 from nnssl.training.loss.mse_loss import MAEMSELoss, LossMaskMSELoss
 from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
 from torch import nn
@@ -484,11 +487,13 @@ class BaseMAETrainer(AbstractBaseTrainer):
         val_transforms = Compose(val_transforms)
         return val_transforms
 
+####################################################################
+############################# VARIANTS #############################
+####################################################################
+
+############################# ANON & ANAT BASE CLASSES #############################
 
 class BaseMAETrainer_ANAT(BaseMAETrainer):
-
-    def build_loss(self):
-        return LossMaskMSELoss()
 
     def get_dataloaders(self):
         patch_size = self.config_plan.patch_size
@@ -544,8 +549,10 @@ class BaseMAETrainer_ANAT(BaseMAETrainer):
             )
         return mt_gen_train, mt_gen_val
 
-
 class BaseMAETrainer_ANON(BaseMAETrainer):
+
+    def build_loss(self):
+        return LossMaskMSELoss()
 
     def train_step(self, batch: dict) -> dict:
         data = batch["data"]
@@ -617,6 +624,8 @@ class BaseMAETrainer_ANAT_ANON(BaseMAETrainer_ANAT, BaseMAETrainer_ANON):
     pass
 
 
+############################# TESTING #############################
+
 class BaseMAETrainer_test(BaseMAETrainer):
     def __init__(
         self,
@@ -643,6 +652,22 @@ class BaseMAETrainer_ANAT_ANON_test(BaseMAETrainer_ANAT_ANON):
         plan.configurations[configuration_name].patch_size = (128, 128, 128)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
 
+class BaseMAETrainer_BS8_IQS_test(BaseMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 1
+        plan.configurations[configuration_name].patch_size = (160, 160, 160)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.iimg_filter = OpenMindIQSFilter(Collection.from_dict(self.pretrain_json), 2.5)
+
+############################# BASELINE #############################
+
 class BaseMAETrainer_BS8(BaseMAETrainer):
     def __init__(
         self,
@@ -656,6 +681,7 @@ class BaseMAETrainer_BS8(BaseMAETrainer):
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
 
+############################# MASKS & IQS #############################
 
 class BaseMAETrainer_ANAT_ANON_BS8(BaseMAETrainer_ANAT_ANON):
     def __init__(
@@ -669,6 +695,82 @@ class BaseMAETrainer_ANAT_ANON_BS8(BaseMAETrainer_ANAT_ANON):
         plan.configurations[configuration_name].batch_size = 8
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+
+class BaseMAETrainer_BS8_IQS1_5(BaseMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        plan.configurations[configuration_name].patch_size = (160, 160, 160)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.iimg_filters.append(OpenMindIQSFilter(Collection.from_dict(self.pretrain_json), 1.5))
+
+class BaseMAETrainer_BS8_IQS2_5(BaseMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        plan.configurations[configuration_name].patch_size = (160, 160, 160)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.iimg_filters.append(OpenMindIQSFilter(Collection.from_dict(self.pretrain_json), 2.5))
+
+class BaseMAETrainer_BS8_IQS3_0(BaseMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        plan.configurations[configuration_name].patch_size = (160, 160, 160)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.iimg_filters.append(OpenMindIQSFilter(Collection.from_dict(self.pretrain_json), 3.0))
+
+class BaseMAETrainer_BS8_T1w_T2w_FLAIR(BaseMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        plan.configurations[configuration_name].patch_size = (160, 160, 160)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.iimg_filters.append(ModalityFilter(valid_modalities=["T1w", "T2w", "FLAIR"]))
+
+class BaseMAETrainer_BS8_IQS3_5_FA(BaseMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        plan.configurations[configuration_name].patch_size = (160, 160, 160)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.iimg_filters.extend([
+                ModalityFilter(valid_modalities=["FA"]),
+                OpenMindIQSFilter(Collection.from_dict(self.pretrain_json), 3.5)
+            ])
+        self.num_val_iterations_per_epoch = 5
+
+############################# OTHERS #############################
 
 class BaseMAETrainer_BS8_100ep(BaseMAETrainer):
     def __init__(

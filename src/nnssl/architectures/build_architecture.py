@@ -10,6 +10,7 @@ def build_network_architecture(
     num_input_channels: int,
     num_output_channels: int,
     encoder_only: bool = False,
+    deep_supervision: bool = False
 ) -> nn.Module:
     """
     This is where you build the architecture according to the plans. There is no obligation to use
@@ -34,7 +35,7 @@ def build_network_architecture(
         configuration_plan=config_plan,
         num_input_channels=num_input_channels,
         num_output_channels=num_output_channels,
-        deep_supervision=False,
+        deep_supervision=deep_supervision,
     )
     if encoder_only:
         net: PlainConvUNet | ResidualEncoderUNet
