@@ -5,10 +5,10 @@ from torch._dynamo import OptimizedModule
 
 from nnssl.experiment_planning.experiment_planners.plan import  Plan
 import torch
-from torch import nn
+from torch import nn, autocast
 
 from torch.nn.parallel import DistributedDataParallel as DDP
-from nnssl.utilities.helpers import empty_cache
+from nnssl.utilities.helpers import empty_cache, dummy_context
 from nnssl.training.lr_scheduler.warmup import Lin_incr_LRScheduler, PolyLRScheduler_offset
 from nnssl.training.nnsslTrainer.evaMAE.evaMAE_module import EvaMAE
 from nnssl.training.nnsslTrainer.volume_fusion.VolumeFusionTrainer import VolumeFusionTrainer
@@ -155,6 +155,33 @@ class VolumeFusionEvaTrainer(VolumeFusionTrainer):
             if checkpoint['grad_scaler_state'] is not None:
                 self.grad_scaler.load_state_dict(checkpoint['grad_scaler_state'])
 
+    def train_step(self, batch: dict) -> dict:
+        data = batch["input"]
+        label = batch["target"]
+        data = data.to(self.device, non_blocking=True)
+        label = label.to(self.device, non_blocking=True)
+
+        self.optimizer.zero_grad(set_to_none=True)
+        # Autocast is a little bitch.
+        # If the device_type is 'cpu' then it's slow as heck and needs to be disabled.
+        # If the device_type is 'mps' then it will complain that mps is not implemented, even if enabled=False is set. Whyyyyyyy. (this is why we don't make use of enabled=False)
+        # So autocast will only be active if we have a cuda device.
+        with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+            output = self.network(data)
+            # del data
+            l = self.loss(output, label)
+
+        if self.grad_scaler is not None:
+            self.grad_scaler.scale(l).backward()
+            self.grad_scaler.unscale_(self.optimizer)
+            torch.nn.utils.clip_grad_norm_(self.network.parameters(), self.grad_clip)
+            self.grad_scaler.step(self.optimizer)
+            self.grad_scaler.update()
+        else:
+            l.backward()
+            torch.nn.utils.clip_grad_norm_(self.network.parameters(), self.grad_clip)
+            self.optimizer.step()
+        return {"loss": l.detach().cpu().numpy()}
 
 class VolumeFusionEvaTrainer_BS8(VolumeFusionEvaTrainer):
 

@@ -160,6 +160,33 @@ class ModelGenesisEvaTrainer(ModelGenesisTrainer):
             if checkpoint['grad_scaler_state'] is not None:
                 self.grad_scaler.load_state_dict(checkpoint['grad_scaler_state'])
 
+    def train_step(self, batch: dict) -> dict:
+        in_data = batch["input"]
+        target = batch["target"]
+        in_data = in_data.to(self.device, non_blocking=True)
+        target = target.to(self.device, non_blocking=True)
+
+        self.optimizer.zero_grad(set_to_none=True)
+        # Autocast is a little bitch.
+        # If the device_type is 'cpu' then it's slow as heck and needs to be disabled.
+        # If the device_type is 'mps' then it will complain that mps is not implemented, even if enabled=False is set. Whyyyyyyy. (this is why we don't make use of enabled=False)
+        # So autocast will only be active if we have a cuda device.
+        with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+            output = self.network(in_data)
+            # del data
+            l = self.loss(target, output)
+
+        if self.grad_scaler is not None:
+            self.grad_scaler.scale(l).backward()
+            self.grad_scaler.unscale_(self.optimizer)
+            torch.nn.utils.clip_grad_norm_(self.network.parameters(), self.grad_clip)
+            self.grad_scaler.step(self.optimizer)
+            self.grad_scaler.update()
+        else:
+            l.backward()
+            torch.nn.utils.clip_grad_norm_(self.network.parameters(), self.grad_clip)
+            self.optimizer.step()
+        return {"loss": l.detach().cpu().numpy()}
 
 
 class ModelGenesisEvaTrainer_BS8(ModelGenesisEvaTrainer):
