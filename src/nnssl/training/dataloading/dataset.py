@@ -32,7 +32,7 @@ class nnSSLBaseDataset(ABC):
 
         self.dataset_dir: str = dataset_dir
         self.subject_identifiers = set(subject_identifiers)  # Make it a set for faster lookup
-        self.iimg_filters = iimg_filters
+        self.iimg_filters = iimg_filters if iimg_filters is not None else []
         self.collection = deepcopy(collection)
 
         all_images: list[IndependentImage] = self.collection.to_independent_images()

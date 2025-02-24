@@ -80,7 +80,7 @@ class nnsslAnatDataLoader3D(nnsslDataLoaderBase):
         self.oversample_foreground_percent = oversample_foreground_percent
 
     def _probabilistic_oversampling(self) -> bool:
-        return np.random.uniform() < self.oversample_foreground_percent
+        return np.random.uniform() <= self.oversample_foreground_percent
 
     def generate_train_batch(self):
         selected_keys = self.get_indices()

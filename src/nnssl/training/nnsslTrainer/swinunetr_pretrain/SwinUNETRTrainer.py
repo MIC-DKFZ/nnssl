@@ -62,7 +62,7 @@ class SwinUNETRTrainer(AbstractBaseTrainer):
             num_output_channels,
             encoder_only=True
         )
-        architecture = SwinUNETRArchitecture(encoder, num_input_channels)
+        architecture = SwinUNETRArchitecture(encoder, self.num_output_channels)
         return architecture
 
     @override
@@ -117,6 +117,7 @@ class SwinUNETRTrainer(AbstractBaseTrainer):
         imgs1_rotated, imgs2_rotated = batch["imgs_rotated"]
         rotations1, rotations2 = batch["rotations"]
         imgs1_rotated_cutout, imgs2_rotated_cutout = batch["imgs_rotated_cutout"]
+        # print(f"rank: {self.local_rank}", imgs1_rotated_cutout.shape)
 
         imgs_rotated = torch.cat([imgs1_rotated, imgs2_rotated], dim=0)
         rotations = torch.cat([rotations1, rotations2], dim=0)

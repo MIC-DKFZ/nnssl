@@ -1,10 +1,12 @@
+from itertools import combinations
+
 import torch
 from math import prod
 from torch import nn
 from typing_extensions import override
 
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
-from nnssl.ssl_data.dataloading.pcrlv2_transform import PCRLv2Transform
+from nnssl.ssl_data.dataloading.pcrlv2_transform import PCRLv2Transform, Shape3D
 from nnssl.ssl_data.dataloading.swin_unetr_transform import SwinUNETRTransform
 
 from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
@@ -28,10 +30,10 @@ class PCLRv2Trainer(AbstractBaseTrainer):
         fold: int,
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
-        global_patch_sizes: tuple[tuple[int, int, int]] = ((64, 64, 32), (96, 96, 64), (96, 96, 96), (112, 112, 64)),
-        global_input_size: tuple[int, int, int] = (64, 64, 32),
-        local_patch_sizes: tuple[tuple[int, int, int]] = ((8, 8, 8), (16, 16, 16), (32, 32, 16), (32, 32, 32)),
-        local_input_size: tuple[int, int, int] = (16, 16, 16),
+        global_patch_sizes: tuple[Shape3D] = ((64, 64, 32), (96, 96, 64), (96, 96, 96), (112, 112, 64)),
+        global_input_size: Shape3D = (64, 64, 32),
+        local_patch_sizes: tuple[Shape3D] = ((8, 8, 8), (16, 16, 16), (32, 32, 16), (32, 32, 32)),
+        local_input_size: Shape3D = (16, 16, 16),
         num_locals: int = 6,
         min_IoU: float = 0.3
     ):

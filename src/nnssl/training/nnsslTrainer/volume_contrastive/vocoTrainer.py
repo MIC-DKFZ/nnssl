@@ -121,37 +121,6 @@ class VoCoTrainer(AbstractBaseTrainer):
         if do_dummy_2d_data_aug:
             raise NotImplementedError("We don't do dummy 2d aug here anymore. Data should be isotropic!")
 
-        patch_size_spatial = patch_size
-        ignore_axes = None
-
-        # tr_transforms.append(
-        #     SpatialTransform(
-        #         patch_size_spatial,
-        #         patch_center_dist_from_border=None,
-        #         do_elastic_deform=False,
-        #         alpha=(0, 0),
-        #         sigma=(0, 0),
-        #         do_rotation=True,
-        #         angle_x=rotation_for_DA["x"],
-        #         angle_y=rotation_for_DA["y"],
-        #         angle_z=rotation_for_DA["z"],
-        #         p_rot_per_axis=1,  # todo experiment with this
-        #         do_scale=True,
-        #         scale=(0.7, 1.4),
-        #         border_mode_data="constant",
-        #         border_cval_data=0,
-        #         order_data=order_resampling_data,
-        #         border_mode_seg="constant",
-        #         border_cval_seg=border_val_seg,
-        #         order_seg=order_resampling_seg,
-        #         random_crop=False,  # random cropping is part of our dataloaders
-        #         p_el_per_sample=0,
-        #         p_scale_per_sample=0.2,
-        #         p_rot_per_sample=0.2,
-        #         independent_scale_for_each_axis=False,  # todo experiment with this
-        #     )
-        # )
-
         # --------------------------- VoCo Transformation --------------------------- #
         # All train augmentations are moved to the VoCoTransform class.
         #   This should help the crops to be more variable and hopefully makes the network better.
@@ -329,10 +298,9 @@ class VoCoTrainer_test(VoCoTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 2
+        plan.configurations[configuration_name].batch_size = 1
         super().__init__(plan, configuration_name, fold,  pretrain_json, device,
-                         patch_size=(192, 192, 64), base_crop_count=(3, 3, 1))
-        self.voco_target_crop_count = 4
+                         patch_size=(128, 128, 64), base_crop_count=(2, 2, 1))
 
 
 ############################# LEARNING RATE #############################

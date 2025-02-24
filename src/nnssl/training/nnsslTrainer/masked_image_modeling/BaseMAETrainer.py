@@ -81,19 +81,20 @@ class BaseMAETrainer(AbstractBaseTrainer):
 
     @staticmethod
     def mask_creation(
-        batch_size: int, patch_size: tuple[int, int, int], mask_percentage: float, rng_seed: int | None = None
+            batch_size: int, patch_size: tuple[int, int, int], mask_percentage: float, rng_seed: int | None = None,
+            block_size: int = 16
     ) -> torch.Tensor:
         """
         Creates a masking tensor with 1s (indicating no masking) and 0s (indicating masking).
         The mask has to be of same size like the input data (batch_size, 1, x, y, z).
 
-        :param patch_shape: The 3D shape information for the masking patch.
+        :param batch_size: batch size during training
+        :param patch_size: The 3D shape information for the input patch.
         :param mask_percentage: percentage of the patch that should be masked
-        :param min_mask_block_size: minimum size of the blocks that should be masked
+        :param block_size: size of the blocks that should be masked
         :return:
         """
 
-        block_size = 16
         sparsity_factor = mask_percentage
         mask = [create_blocky_mask(patch_size, block_size, sparsity_factor) for _ in range(batch_size)]
         mask = torch.stack(mask)[:, None, ...]  # Add channel dimension
