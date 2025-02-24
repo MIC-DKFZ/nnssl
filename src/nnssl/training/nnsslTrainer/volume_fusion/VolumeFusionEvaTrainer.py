@@ -1,0 +1,185 @@
+from typing import Union
+
+import numpy as np
+from torch._dynamo import OptimizedModule
+
+from nnssl.experiment_planning.experiment_planners.plan import  Plan
+import torch
+from torch import nn
+
+from torch.nn.parallel import DistributedDataParallel as DDP
+from nnssl.utilities.helpers import empty_cache
+from nnssl.training.lr_scheduler.warmup import Lin_incr_LRScheduler, PolyLRScheduler_offset
+from nnssl.training.nnsslTrainer.evaMAE.evaMAE_module import EvaMAE
+from nnssl.training.nnsslTrainer.volume_fusion.VolumeFusionTrainer import VolumeFusionTrainer
+
+class VolumeFusionEvaTrainer(VolumeFusionTrainer):
+
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+        foreground_classes: int = 5
+    ):
+        super().__init__(plan, configuration_name, fold, pretrain_json, device, foreground_classes)
+
+        ###settings taken from fabi
+        self.drop_path_rate = 0.2
+        self.attention_drop_rate = 0
+        self.grad_clip = 1
+        self.initial_lr = 3e-4
+        self.weight_decay = 5e-2
+        self.enable_deep_supervision = False
+        self.warmup_duration_whole_net = 50  # lin increase whole network
+        self.training_stage = None
+
+        self.mask_ratio = 0.0
+        self.vit_patch_size = (8, 8, 8)
+        self.embed_dim = 864
+        self.encoder_eva_depth = 16
+        self.encoder_eva_numheads = 12
+        self.init_value = 0.1
+        self.scale_attn_inner = True
+
+
+    def on_train_epoch_start(self):
+        if self.current_epoch == 0:
+            self.optimizer, self.lr_scheduler = self.configure_optimizers('warmup_all')
+        elif self.current_epoch == self.warmup_duration_whole_net:
+            self.optimizer, self.lr_scheduler = self.configure_optimizers('train')
+
+        super().on_train_epoch_start()
+
+    def configure_optimizers(self, stage: str = 'warmup_all'):
+        assert stage in ['warmup_all', 'train']
+
+        if self.training_stage == stage:
+            return self.optimizer, self.lr_scheduler
+
+        if isinstance(self.network, DDP):
+            params = self.network.module.parameters()
+        else:
+            params = self.network.parameters()
+
+        if stage == 'warmup_all':
+            self.print_to_log_file("train whole net, warmup")
+            optimizer = torch.optim.AdamW(params, self.initial_lr, weight_decay=self.weight_decay,
+                                          amsgrad=False, betas=(0.9, 0.98), fused=True)
+            lr_scheduler = Lin_incr_LRScheduler(optimizer, self.initial_lr, self.warmup_duration_whole_net)
+            self.print_to_log_file(f"Initialized warmup_all optimizer and lr_scheduler at epoch {self.current_epoch}")
+        else:
+            self.print_to_log_file("train whole net, default schedule")
+            if self.training_stage == 'warmup_all':
+                # we can keep the existing optimizer and don't need to create a new one. This will allow us to keep
+                # the accumulated momentum terms which already point in a useful driection
+                optimizer = self.optimizer
+            else:
+                optimizer = torch.optim.AdamW(params, self.initial_lr,
+                                              weight_decay=self.weight_decay,
+                                              amsgrad=False, betas=(0.9, 0.98), fused=True)
+            lr_scheduler = PolyLRScheduler_offset(optimizer, self.initial_lr, self.num_epochs,
+                                                  self.warmup_duration_whole_net)
+            self.print_to_log_file(f"Initialized train optimizer and lr_scheduler at epoch {self.current_epoch}")
+        self.training_stage = stage
+        empty_cache(self.device)
+        return optimizer, lr_scheduler
+
+
+    def build_architecture(self, config_plan, num_input_channels, num_output_channels) -> nn.Module:
+        network = EvaMAE(
+            input_channels=1,
+            embed_dim=self.embed_dim,
+            patch_embed_size=self.vit_patch_size,
+            output_channels=num_output_channels,
+            input_shape=tuple(self.config_plan.patch_size),
+            encoder_eva_depth=self.encoder_eva_depth,
+            encoder_eva_numheads=self.encoder_eva_numheads,
+            decoder_eva_depth=0,
+            decoder_eva_numheads=0,
+            patch_drop_rate=self.mask_ratio,
+            drop_path_rate=self.drop_path_rate,
+            attn_drop_rate=self.attention_drop_rate,
+            init_values=self.init_value,
+            scale_attn_inner=self.scale_attn_inner
+        )
+        return network
+
+
+    def load_checkpoint(self, filename_or_checkpoint: Union[dict, str]) -> None:
+        if not self.was_initialized:
+            self.initialize()
+
+        if isinstance(filename_or_checkpoint, str):
+            checkpoint = torch.load(filename_or_checkpoint, map_location=self.device)
+        # if state dict comes from nn.DataParallel but we use non-parallel model here then the state dict keys do not
+        # match. Use heuristic to make it match
+        new_state_dict = {}
+        for k, value in checkpoint["network_weights"].items():
+            key = k
+            if key not in self.network.state_dict().keys() and key.startswith("module."):
+                key = key[7:]
+            new_state_dict[key] = value
+
+        self.my_init_kwargs = checkpoint["init_args"]
+
+        self.current_epoch = checkpoint["current_epoch"]
+        min_epoch = self.logger.load_checkpoint(checkpoint["logging"])
+        # Apparently the val log is not written correctly when we currently save the checkpoint.
+        self.current_epoch = min_epoch
+        self._best_ema = checkpoint["_best_ema"]
+
+        # messing with state dict naming schemes. Facepalm.
+        if self.is_ddp:
+            if isinstance(self.network.module, OptimizedModule):
+                self.network.module._orig_mod.load_state_dict(new_state_dict)
+            else:
+                self.network.module.load_state_dict(new_state_dict)
+        else:
+            if isinstance(self.network, OptimizedModule):
+                self.network._orig_mod.load_state_dict(new_state_dict)
+            else:
+                self.network.load_state_dict(new_state_dict)
+
+        # it's fine to do this every time we load because configure_optimizers will be a no-op if the correct optimizer
+        # and lr scheduler are already set up
+        if self.current_epoch < self.warmup_duration_whole_net:
+            self.optimizer, self.lr_scheduler = self.configure_optimizers('warmup_all')
+        else:
+            self.optimizer, self.lr_scheduler = self.configure_optimizers('train')
+
+        self.optimizer.load_state_dict(checkpoint['optimizer_state'])
+        if self.grad_scaler is not None:
+            if checkpoint['grad_scaler_state'] is not None:
+                self.grad_scaler.load_state_dict(checkpoint['grad_scaler_state'])
+
+
+class VolumeFusionEvaTrainer_BS8(VolumeFusionEvaTrainer):
+
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        plan.configurations[configuration_name].patch_size = (160, 160, 160)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+
+
+class VolumeFusionEvaTrainer_test(VolumeFusionEvaTrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 1
+        plan.configurations[configuration_name].patch_size = (128, 128, 128)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)

@@ -45,3 +45,22 @@ class VoCoArchitecture(nn.Module):
         flat_out = torch.reshape(flat_out, (flat_out.shape[0], -1))
         x = self.projector(flat_out)
         return x
+
+class VoCoEvaArchitecture(nn.Module):
+    """
+    We don't have the CNN stages that we can take the features from and concatenate them, so for the transformer
+    we only use the features from the (last) output layer.
+    """
+    def __init__(self, encoder: nn.Module, embed_dim: int):
+        super(VoCoEvaArchitecture, self).__init__()
+        self.encoder = encoder
+        self.adaptive_pool = nn.AdaptiveAvgPool3d((1, 1, 1))
+
+        self.projector = VocoProjectionHead(embed_dim, 2048, 2048, norm_op=nn.InstanceNorm1d)
+
+    def forward(self, x):
+        out = self.encoder(x)
+        flat_out = self.adaptive_pool(out)
+        flat_out = torch.reshape(flat_out, (flat_out.shape[0], -1))
+        x = self.projector(flat_out)
+        return x

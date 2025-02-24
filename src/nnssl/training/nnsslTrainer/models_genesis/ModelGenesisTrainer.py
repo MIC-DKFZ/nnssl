@@ -7,6 +7,7 @@ from nnssl.architectures.build_architecture import build_network_architecture
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.ssl_data.dataloading.model_genesis_transform import ModelGenesisTransform
 from nnssl.training.loss.mse_loss import LossMaskMSELoss
+from nnssl.training.dataloading.nnsslFilter.modality_filter import ModalityFilter
 
 from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
 from nnssl.utilities.default_n_proc_DA import get_allowed_n_proc_DA
@@ -271,3 +272,19 @@ class ModelGenesisTrainer_ANAT_ANON_BS8(ModelGenesisTrainer_ANAT_ANON):
         plan.configurations[configuration_name].batch_size = 8
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+
+
+class ModelGenesisTrainer_ANAT_ANON_BS8_T1w_T2w_FLAIR(ModelGenesisTrainer_ANAT_ANON):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 8
+        plan.configurations[configuration_name].patch_size = (160, 160, 160)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.iimg_filters.append(ModalityFilter(valid_modalities=["T1w", "T2w", "FLAIR"]))
+

@@ -14,7 +14,7 @@ sep = os.path.sep
 def _add_pretrain_json():
     scans_lists_dir = Path("/home/j385i/cluster_data/j385i/data/openneuro/scans_lists")
     scans_list_name = "scans_all.json"
-    iqs_csv_path = Path("/home/j385i/cluster_data/j385i/data/files/image_quality_score.csv")
+    iqs_csv_path = Path("/home/j385i/cluster_data/j385i/data/openneuro/iqs/image_quality_score.csv")
 
     scans_json = load_json(str(scans_lists_dir / scans_list_name))
     iqs_csv = pd.read_csv(iqs_csv_path)
