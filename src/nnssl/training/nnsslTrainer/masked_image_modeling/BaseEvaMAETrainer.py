@@ -199,43 +199,6 @@ class BaseEvaMAETrainer(BaseMAETrainer):
 
         return {"loss": l.detach().cpu().numpy()}
 
-    def run_training(self):
-        try:
-            self.on_train_start()
-
-            for epoch in range(self.current_epoch, self.num_epochs):
-                self.on_epoch_start()
-
-                self.on_train_epoch_start()
-                train_outputs = []
-                for batch_id in tqdm(
-                    range(self.num_iterations_per_epoch),
-                    desc=f"Epoch {epoch}",
-                    disable=True if (("LSF_JOBID" in os.environ) or is_running_in_valohai()) else False,
-                ):
-                    train_outputs.append(self.train_step(next(self.dataloader_train)))
-                self.on_train_epoch_end(train_outputs)
-
-                with torch.no_grad():
-                    self.on_validation_epoch_start()
-                    val_outputs = []
-                    for batch_id in tqdm(range(self.num_val_iterations_per_epoch)):
-                        val_outputs.append(self.validation_step(next(self.dataloader_val)))
-                    self.on_validation_epoch_end(val_outputs)
-
-                if self.exit_training_flag:
-                    # This is a signal that we need to resubmit, so we break the loop and exit gracefully
-                    print("Finished last epoch before restart.")
-                    self.print_to_log_file("Finished last epoch before restart.")
-                    raise KeyboardInterrupt
-                self.on_epoch_end()
-
-            self.on_train_end()
-        except KeyboardInterrupt:
-            self.print_to_log_file("Keyboard interrupt. Exiting gracefully.")
-            self.save_checkpoint(join(self.output_folder, "checkpoint_latest.pth"))
-            raise KeyboardInterrupt
-
     def load_checkpoint(self, filename_or_checkpoint: Union[dict, str]) -> None:
         if not self.was_initialized:
             self.initialize()

@@ -1,7 +1,7 @@
 from typing import Union
 
 import torch
-from torch import nn
+from torch import nn, autocast
 from torch._dynamo import OptimizedModule
 
 from nnssl.architectures.swinunetr_architecture import SwinUNETREvaArchitecture
@@ -160,6 +160,38 @@ class SwinUNETREvaTrainer(SwinUNETRTrainer):
         if self.grad_scaler is not None:
             if checkpoint['grad_scaler_state'] is not None:
                 self.grad_scaler.load_state_dict(checkpoint['grad_scaler_state'])
+
+    def train_step(self, batch: dict) -> dict:
+
+        imgs1_rotated, imgs2_rotated = batch["imgs_rotated"]
+        rotations1, rotations2 = batch["rotations"]
+        imgs1_rotated_cutout, imgs2_rotated_cutout = batch["imgs_rotated_cutout"]
+        # print(f"rank: {self.local_rank}", imgs1_rotated_cutout.shape)
+
+        imgs_rotated = torch.cat([imgs1_rotated, imgs2_rotated], dim=0)
+        rotations = torch.cat([rotations1, rotations2], dim=0)
+        imgs_rotated_cutout = torch.cat([imgs1_rotated_cutout, imgs2_rotated_cutout], dim=0)
+
+        imgs_rotated = imgs_rotated.to(self.device, non_blocking=True)
+        rotations = rotations.to(self.device, non_blocking=True)
+        imgs_rotated_cutout = imgs_rotated_cutout.to(self.device, non_blocking=True)
+
+        self.optimizer.zero_grad(set_to_none=True)
+        with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+            rotations_pred, contrast_pred, reconstructions = self.network(imgs_rotated_cutout)
+            l = self.loss(rotations_pred, rotations, contrast_pred, reconstructions, imgs_rotated)
+
+        if self.grad_scaler is not None:
+            self.grad_scaler.scale(l).backward()
+            self.grad_scaler.unscale_(self.optimizer)
+            torch.nn.utils.clip_grad_norm_(self.network.parameters(), self.grad_clip)
+            self.grad_scaler.step(self.optimizer)
+            self.grad_scaler.update()
+        else:
+            l.backward()
+            torch.nn.utils.clip_grad_norm_(self.network.parameters(), self.grad_clip)
+            self.optimizer.step()
+        return {"loss": l.detach().cpu().numpy()}
 
 
 class SwinUNETREvaTrainer_BS8(SwinUNETREvaTrainer):

@@ -316,12 +316,14 @@ class AbstractBaseTrainer(ABC):
                         val_outputs.append(self.validation_step(next(self.dataloader_val)))
                     self.on_validation_epoch_end(val_outputs)
 
-                self.on_epoch_end()
                 if self.exit_training_flag:
                     # This is a signal that we need to resubmit, so we break the loop and exit gracefully
                     print("Finished last epoch before restart.")
                     self.print_to_log_file("Finished last epoch before restart.")
                     raise KeyboardInterrupt
+
+                self.on_epoch_end()
+
             self.on_train_end()
         except KeyboardInterrupt:
             print("Keyboard interrupt.")

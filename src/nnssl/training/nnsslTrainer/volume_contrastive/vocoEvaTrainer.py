@@ -1,7 +1,8 @@
 from typing import Union
 
 import torch
-from torch import nn
+from einops import rearrange
+from torch import nn, autocast
 from torch._dynamo import OptimizedModule
 
 from nnssl.architectures.voco_architecture import VoCoArchitecture, VoCoEvaArchitecture
@@ -11,7 +12,7 @@ from nnssl.training.nnsslTrainer.volume_contrastive.vocoTrainer import VoCoTrain
 from nnssl.experiment_planning.experiment_planners.plan import  Plan
 
 from torch.nn.parallel import DistributedDataParallel as DDP
-from nnssl.utilities.helpers import empty_cache
+from nnssl.utilities.helpers import empty_cache, dummy_context
 from nnssl.training.lr_scheduler.warmup import Lin_incr_LRScheduler, PolyLRScheduler_offset
 from nnssl.training.nnsslTrainer.evaMAE.evaMAE_module import EvaMAE
 
@@ -160,6 +161,34 @@ class VoCoEvaTrainer(VoCoTrainer):
             if checkpoint['grad_scaler_state'] is not None:
                 self.grad_scaler.load_state_dict(checkpoint['grad_scaler_state'])
 
+    def train_step(self, batch: dict) -> dict:
+        all_crops = batch["all_crops"]
+        NBASE = batch["base_crop_index"]
+        gt_overlaps = batch["base_target_crop_overlaps"]
+
+        all_crops = all_crops.to(self.device, non_blocking=True)
+        gt_overlaps = gt_overlaps.to(self.device, non_blocking=True)
+
+        self.optimizer.zero_grad(set_to_none=True)
+
+        with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+            embeddings = self.network(all_crops)
+            base_embeddings = rearrange(embeddings[:NBASE], "(b NBASE) c -> b NBASE c", b=self.batch_size)
+            target_embeddings = rearrange(embeddings[NBASE:], "(b nTARGET) c -> b nTARGET c", b=self.batch_size)
+
+            l = self.loss(base_embeddings, target_embeddings, gt_overlaps)
+
+        if self.grad_scaler is not None:
+            self.grad_scaler.scale(l).backward()
+            self.grad_scaler.unscale_(self.optimizer)
+            torch.nn.utils.clip_grad_norm_(self.network.parameters(), self.grad_clip)
+            self.grad_scaler.step(self.optimizer)
+            self.grad_scaler.update()
+        else:
+            l.backward()
+            torch.nn.utils.clip_grad_norm_(self.network.parameters(), self.grad_clip)
+            self.optimizer.step()
+        return {"loss": l.detach().cpu().numpy()}
 
 class VoCoEvaTrainer_BS8(VoCoEvaTrainer):
     def __init__(
