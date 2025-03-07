@@ -1,15 +1,23 @@
-![nnSSL](assets/images/nnSSL.png)
+![OpenMind](assets/images/OpenMindDataset.png)
 
+## An OpenMind for 3D medical vision self-supervised learning
+This is the main repository associated for the paper `An OpenMind for 3D medical vision self-supervised learning`, intended for the Review.
+It holds the code for the self-supervised pre-trainings conducted in the Benchmark study.
 
-This is the repository associated for the paper `Revisiting MAE pre-training for 3D medical image segmentation
-` currently under review for ICLR 2025.
-It contains the code for the experiments conducted in the paper and will be made public after the review process.
-Currently it includes the following methods:
-1. VoCo
-2. VolumeFusion
-3. Models Genesis
-4. BaseMAE
-5. Spark 3D
+Currently it includes the following methods for ResEnc-L and Primus-M:
+1. Volume Contrastive (VoCo)
+2. VolumeFusion (VF)
+3. Models Genesis (MG)
+4. BaseMAE (MAE)
+5. Spark 3D (S3D)
+6. SimMIM (SimMIM)
+7. SwinUNETR pre-training (SwinUNETR)
+8. SimCLR (SimCLR)
+
+Additional resources are linked below:
+**Dataset**: TBD
+**Segmentation Fine-tuning Framework**: TBD
+**[Classification Fine-tuning Framework](https://anonymous.4open.science/r/image_classification-22D6/README.md)**
 
 ## Installation
 
