@@ -1,22 +1,22 @@
-from typing import Union
+from typing import Union, Tuple, List
 
+import numpy as np
 import torch
-from einops import rearrange
-from torch import nn, autocast
-from torch._dynamo import OptimizedModule
 
-from nnssl.architectures.voco_architecture import VoCoArchitecture, VoCoEvaArchitecture
-from nnssl.training.nnsslTrainer.volume_contrastive.vocoTrainer import VoCoTrainer
-
-
-from nnssl.experiment_planning.experiment_planners.plan import  Plan
-
-from torch.nn.parallel import DistributedDataParallel as DDP
-from nnssl.utilities.helpers import empty_cache, dummy_context
 from nnssl.training.lr_scheduler.warmup import Lin_incr_LRScheduler, PolyLRScheduler_offset
 from nnssl.training.nnsslTrainer.evaMAE.evaMAE_module import EvaMAE
+from nnssl.training.nnsslTrainer.simCLR.simCLRTrainer import SimCLRTrainer
+from torch import nn
+from torch.nn.parallel import DistributedDataParallel as DDP
 
-class VoCoEvaTrainer(VoCoTrainer):
+from torch import autocast
+from nnssl.architectures.voco_architecture import VoCoEvaArchitecture
+from nnssl.utilities.helpers import dummy_context, empty_cache
+
+from nnssl.experiment_planning.experiment_planners.plan import Plan
+
+
+class SimCLREvaTrainer(SimCLRTrainer):
 
     def __init__(
         self,
@@ -25,11 +25,13 @@ class VoCoEvaTrainer(VoCoTrainer):
         fold: int,
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
-        patch_size: tuple = (256, 256, 64),
-        base_crop_count: tuple = (4, 4, 1),
-        target_crop_count: int = 4
+        patch_size: tuple = (192, 192, 64),
+        crop_size: tuple = (64, 64, 64),
+        num_crops_per_image: int = 2,
+        min_crop_overlap: float = 0.5
     ):
-        super().__init__(plan, configuration_name, fold, pretrain_json, device, patch_size, base_crop_count, target_crop_count)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device, patch_size, crop_size,
+                         num_crops_per_image, min_crop_overlap)
 
         self.drop_path_rate = 0.2
         self.attention_drop_rate = 0
@@ -90,14 +92,13 @@ class VoCoEvaTrainer(VoCoTrainer):
         empty_cache(self.device)
         return optimizer, lr_scheduler
 
-
     def build_architecture(self, config_plan, num_input_channels, num_output_channels) -> nn.Module:
         encoder = EvaMAE(
             input_channels=1,
             embed_dim=self.embed_dim,
             patch_embed_size=self.vit_patch_size,
             output_channels=num_output_channels,
-            input_shape=tuple(self.voco_crop_size),
+            input_shape=tuple(self.crop_size),
             encoder_eva_depth=self.encoder_eva_depth,
             encoder_eva_numheads=self.encoder_eva_numheads,
             decoder_eva_depth=0,
@@ -160,26 +161,51 @@ class VoCoEvaTrainer(VoCoTrainer):
             if checkpoint['grad_scaler_state'] is not None:
                 self.grad_scaler.load_state_dict(checkpoint['grad_scaler_state'])
 
-    def train_step(self, batch: dict) -> dict:
+
+    def train_step(self, batch: Tuple[dict, dict]) -> dict:
+
         all_crops = batch["all_crops"]
-        NBASE = batch["base_crop_index"]
-        gt_overlaps = batch["base_target_crop_overlaps"]
+        NREF = batch["reference_crop_index"]
 
         all_crops = all_crops.to(self.device, non_blocking=True)
-        gt_overlaps = gt_overlaps.to(self.device, non_blocking=True)
+
+        if torch.isnan(all_crops).any():
+            print("NaN values found in input data!")
+        if torch.isinf(all_crops).any():
+            print("Infinity values found in input data!")
 
         self.optimizer.zero_grad(set_to_none=True)
-
+        # Autocast is a little bitch.
+        # If the device_type is 'cpu' then it's slow as heck and needs to be disabled.
+        # If the device_type is 'mps' then it will complain that mps is not implemented, even if enabled=False is set. Whyyyyyyy. (this is why we don't make use of enabled=False)
+        # So autocast will only be active if we have a cuda device.
         with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
-            embeddings = self.network(all_crops)
-            base_embeddings = rearrange(embeddings[:NBASE], "(b NBASE) c -> b NBASE c", b=self.batch_size)
-            target_embeddings = rearrange(embeddings[NBASE:], "(b nTARGET) c -> b nTARGET c", b=self.batch_size)
+            all_crop_embeddings = self.network(all_crops)
+            if torch.isnan(all_crop_embeddings).any():
+                print("NaN values found in embeddings!")
 
-            l = self.loss(base_embeddings, target_embeddings, gt_overlaps)
+            # This rearrange below isn't necessary, but would come in handy when doing more involved contrastive tasks.
+            # z_i_embeddings = rearrange(
+            #     all_crop_embeddings[:NREF], "(b NREF) c -> b NREF c", b=self.batch_size
+            # )
+            # z_j_embeddings = rearrange(
+            #     all_crop_embeddings[NREF:], "(b NREF) c -> b NREF c", b=self.batch_size
+            # )
+
+            # Normalize prior to contrastive loss
+            z_i_embeddings = nn.functional.normalize(all_crop_embeddings[:NREF], dim=1)
+            z_j_embeddings = nn.functional.normalize(all_crop_embeddings[NREF:], dim=1)
+
+            # del data
+            l, acc = self.loss(z_i_embeddings, z_j_embeddings)
 
         if self.grad_scaler is not None:
             self.grad_scaler.scale(l).backward()
             self.grad_scaler.unscale_(self.optimizer)
+            # for name, param in self.network.named_parameters():
+            #     if param.grad is not None:
+            #         if param.grad.norm() > 1:
+            #             print(f"{name}: gradient norm: {param.grad.norm()}")
             torch.nn.utils.clip_grad_norm_(self.network.parameters(), self.grad_clip)
             self.grad_scaler.step(self.optimizer)
             self.grad_scaler.update()
@@ -187,9 +213,19 @@ class VoCoEvaTrainer(VoCoTrainer):
             l.backward()
             torch.nn.utils.clip_grad_norm_(self.network.parameters(), self.grad_clip)
             self.optimizer.step()
+
+        # print(f"Train loss: {l.detach().cpu().numpy()} - accuracy: {acc}")
+
         return {"loss": l.detach().cpu().numpy()}
 
-class VoCoEvaTrainer_BS8(VoCoEvaTrainer):
+
+####################################################################
+############################# VARIANTS #############################
+####################################################################
+
+
+class SimCLREvaTrainer_BS2(SimCLREvaTrainer):
+
     def __init__(
         self,
         plan: Plan,
@@ -198,11 +234,12 @@ class VoCoEvaTrainer_BS8(VoCoEvaTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
+        plan.configurations[configuration_name].batch_size = 2
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
 
 
-class VoCoEvaTrainer_test(VoCoEvaTrainer):
+class SimCLREvaTrainer_BS32(SimCLREvaTrainer):
+
     def __init__(
         self,
         plan: Plan,
@@ -211,9 +248,5 @@ class VoCoEvaTrainer_test(VoCoEvaTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 1
-        super().__init__(plan, configuration_name, fold, pretrain_json, device,
-                         patch_size=(128, 128, 64), base_crop_count=(2, 2, 1))
-        self.num_iterations_per_epoch = 1
-        self.num_val_iterations_per_epoch = 1
-
+        plan.configurations[configuration_name].batch_size = 32
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)

@@ -48,7 +48,7 @@ class VoCoArchitecture(nn.Module):
 
 class VoCoEvaArchitecture(nn.Module):
     """
-    We don't have the CNN stages that we can take the features from and concatenate them, so for the transformer
+    We don't have multiple CNN stages that we can take the features from and concatenate them, so for the transformer
     we only use the features from the (last) output layer.
     """
     def __init__(self, encoder: nn.Module, embed_dim: int):

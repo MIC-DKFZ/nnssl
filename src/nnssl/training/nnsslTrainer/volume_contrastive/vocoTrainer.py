@@ -349,7 +349,7 @@ class VoCoTrainer_BS8_lr_1e4(VoCoTrainer):
 
 ############################# WEIGHT DECAY #############################
 
-class VoCoTrainer_BS8_lr_1e2_wd_1e5(VoCoTrainer):
+class VoCoTrainer_BS8_lr_1e2_wd_3e4(VoCoTrainer):
     def __init__(
             self,
             plan: Plan,
@@ -469,7 +469,7 @@ class VoCoTrainer_BS8_lr_1e2_wd_3e5_4x4x2_PS64(VoCoTrainer):
 
 ############################# NUMBER OF TARGET CROPS #############################
 
-class VoCoTrainer_BS8_lr_1e2_wd_3e5_4x4x2_PS64_N2(VoCoTrainer):
+class VoCoTrainer_BS8_lr_1e2_wd_3e5_4x4x1_PS64_N2(VoCoTrainer):
     def __init__(
         self,
         plan: Plan,
@@ -485,7 +485,7 @@ class VoCoTrainer_BS8_lr_1e2_wd_3e5_4x4x2_PS64_N2(VoCoTrainer):
                          target_crop_count=2)
 
 
-class VoCoTrainer_BS8_lr_1e2_wd_3e5_4x4x2_PS64_N8(VoCoTrainer):
+class VoCoTrainer_BS8_lr_1e2_wd_3e5_4x4x1_PS64_N8(VoCoTrainer):
     def __init__(
         self,
         plan: Plan,
