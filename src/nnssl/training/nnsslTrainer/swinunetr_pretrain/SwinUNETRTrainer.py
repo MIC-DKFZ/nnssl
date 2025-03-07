@@ -182,6 +182,11 @@ class SwinUNETRTrainer(AbstractBaseTrainer):
         return SwinUNETRTrainer.get_training_transforms()
 
 
+####################################################################
+############################# VARIANTS #############################
+####################################################################
+
+
 class SwinUNETRTrainer_BS2(SwinUNETRTrainer):
 
     def __init__(

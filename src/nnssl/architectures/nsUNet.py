@@ -58,8 +58,8 @@ class ResidualEncoderUNet_noskip(nn.Module):
         self.n_stages = n_stages
 
     def forward(self, x):
-        skips = self.encoder(x)
-        return self.decoder(skips)
+        bottleneck_output = self.encoder(x)
+        return self.decoder(bottleneck_output)
 
     def compute_conv_feature_map_size(self, input_size):
         assert len(input_size) == convert_conv_op_to_dim(self.encoder.conv_op), "just give the image size without color/feature channels or " \
@@ -121,7 +121,7 @@ class UNetDecoder_noskip(nn.Module):
         nonlin_kwargs = encoder.nonlin_kwargs if nonlin_kwargs is None else nonlin_kwargs
 
 
-        # we start with the bottleneck and work out way up
+        # we start with the bottleneck and work our way up
         stages = []
         transpconvs = []
         for s in range(1, n_stages_encoder):
@@ -132,6 +132,8 @@ class UNetDecoder_noskip(nn.Module):
                 input_features_below, input_features_skip, stride_for_transpconv, stride_for_transpconv,
                 bias=conv_bias
             ))
+            # input features to conv is 1x input_features_skip (NO concat input_features_skip with transpconv output)
+            # this is no-skip-UNet
             stages.append(StackedConvBlocks(
                 n_conv_per_stage[s-1], encoder.conv_op, input_features_skip, input_features_skip,
                 encoder.kernel_sizes[-(s + 1)], 1,
@@ -144,17 +146,14 @@ class UNetDecoder_noskip(nn.Module):
                 nonlin_kwargs,
                 nonlin_first
             ))
+        # this seg layer is the head for the normal UNet reconstruction, all the heads for the mid stages of the UNet
+        # are found in PCLRv2Architecture
         self.seg_layer = encoder.conv_op(input_features_skip, num_classes, 1, 1, 0, bias=True)
 
         self.stages = nn.ModuleList(stages)
         self.transpconvs = nn.ModuleList(transpconvs)
 
     def forward(self, bottleneck_output):
-        """
-        we expect to get the skips in the order they were computed, so the bottleneck should be the last entry
-        :param bottleneck_output:
-        :return:
-        """
         mid_outputs = []
         lres_input = bottleneck_output
         for s in range(len(self.stages)):
@@ -163,8 +162,7 @@ class UNetDecoder_noskip(nn.Module):
             mid_outputs.append(x)
             lres_input = x
         seg_output = self.seg_layer(mid_outputs.pop())
-        # invert seg outputs so that the largest segmentation prediction is returned first
-        # mid_outputs = mid_outputs[::-1]
+
         return seg_output, mid_outputs
 
     def compute_conv_feature_map_size(self, input_size):

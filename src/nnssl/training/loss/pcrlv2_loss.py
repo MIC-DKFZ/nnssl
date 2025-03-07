@@ -1,12 +1,11 @@
 import random
 
 import torch
-from einops.array_api import rearrange
 from torch.nn import functional as F
 from torch import nn
 
 
-class PCLRv2Loss(nn.Module):
+class PCRLv2Loss(nn.Module):
     def __init__(self, num_mid_stages: int, num_locals: int):
         super().__init__()
 
@@ -33,15 +32,14 @@ class PCLRv2Loss(nn.Module):
         mid_recon_loss = self.mse(mid_stage_recon_A[rand_idx], gt_recon_A)
         global_sim_loss = self.pcrl_cosine_sim(embeddings_A, embeddings_B)
 
-        local_embeddings = [torch.stack(tup) for tup in local_embeddings] #  [(pre_emb, post_emb), (pre_emb, post_emb), (pre_emb, post_emb), (pre_emb, post_emb),(pre_emb, post_emb)]
-
         local_sim_loss = 0
         for i in range(self.num_locals):
             _local_embeddings = [t[:, ::self.num_locals] for t in local_embeddings]
             local_sim_loss += (self.pcrl_cosine_sim(embeddings_A, _local_embeddings)
                                + self.pcrl_cosine_sim(embeddings_B, _local_embeddings))
 
-        return recon_loss + mid_recon_loss + global_sim_loss + local_sim_loss
+        # return recon_loss + mid_recon_loss + global_sim_loss + local_sim_loss
+        return recon_loss , mid_recon_loss , global_sim_loss , local_sim_loss
 
 if __name__ == "__main__":
     pass
