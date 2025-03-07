@@ -14,11 +14,18 @@ Currently it includes the following methods for ResEnc-L and Primus-M:
 7. SwinUNETR pre-training (SwinUNETR)
 8. SimCLR (SimCLR)
 
+-----
 Additional resources are linked below:
-**Dataset**: TBD
-**Segmentation Fine-tuning Framework**: TBD
+
+**Dataset**: To be shared
+
+**Segmentation Fine-tuning Framework**: To be shared
+
 **[Classification Fine-tuning Framework](https://anonymous.4open.science/r/image_classification-22D6/README.md)**
 
+**Checkpoints**: To be shared
+
+----
 ## Installation
 
 1. Download the repository
