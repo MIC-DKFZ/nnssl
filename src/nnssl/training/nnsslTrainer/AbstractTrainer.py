@@ -238,7 +238,7 @@ class AbstractBaseTrainer(ABC):
 
                 batch_sizes.append(batch_size)
 
-            print("worker", my_rank, "batch_size", batch_sizes[my_rank])
+            logger.info("worker", my_rank, "batch_size", batch_sizes[my_rank])
             # self.print_to_log_file("worker", my_rank, "oversample", oversample_percents[my_rank])
             # self.print_to_log_file("worker", my_rank, "batch_size", batch_sizes[my_rank])
 

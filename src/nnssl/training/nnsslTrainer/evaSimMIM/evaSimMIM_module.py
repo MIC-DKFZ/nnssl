@@ -85,13 +85,11 @@ class EvaSimMIM(nn.Module):
         """
         Replace tokens in the input with the learnable mask token vector, locations are provided by the mask
 
-        Args:
-            x (torch.Tensor): Input tensor of shape (B, num_tokens, embed_dim) representing token embeddings.
-            mask (torch.Tensor): Boolean mask of shape (B, num_tokens, 1) where 0 indicates a masked token.
-
-        Returns:
-            torch.Tensor: Masked input tensor of the same shape as `x`.
+        :param x: Input tensor of shape (B, num_tokens, embed_dim) representing token embeddings.
+        :param mask: Boolean mask of shape (B, num_tokens, 1) where 0 indicates a masked token.
+        :return: Masked input tensor of the same shape as `x`.
         """
+
         return x * mask + self.mask_token * (1 - mask)
 
     def forward(self, x: torch.Tensor, mask: torch.Tensor):

@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from nnssl.architectures.nsUNet import ResidualEncoderUNet_noskip
 
 
-class PCLRv2Architecture(nn.Module):
+class PCRLv2Architecture(nn.Module):
     def __init__(self, network: ResidualEncoderUNet_noskip):
         super().__init__()
         self.network = network
@@ -24,12 +24,11 @@ class PCLRv2Architecture(nn.Module):
         predictor_heads = []
 
         for features in self.features_per_mid_stage:
+            # in the paper they propose a [Conv, BatchNorm, ReLU, Conv] pixel restoration head
+            # in their codebase they use  [Conv, BatchNorm, Sigmoid] (see deep_supervision_head in UpTransition)
+            # BatchNorm and Sigmoid don't make sense, as the Sigmoid function constraints the output values to [0; 1]
             pixel_restore_heads.append(
-                Sequential(
-                    Conv3d(features, 1, kernel_size=3, padding=1),
-                    BatchNorm3d(num_features=1, momentum=0.1, affine=True),
-                    ReLU(inplace=True)
-                )
+                Conv3d(features, 1, kernel_size=3, padding=1)
             )
             batch_norms.append(
                 BatchNorm1d(features)
@@ -61,7 +60,7 @@ class PCLRv2Architecture(nn.Module):
                 post_embedding = self.predictor_heads[i](pre_embedding)
 
                 mid_reconstructions.append(mid_reconstruction)
-                embeddings.append((pre_embedding, post_embedding))
+                embeddings.append(torch.stack([pre_embedding, post_embedding]))
             return reconstructions, embeddings, mid_reconstructions
 
         embeddings = []
@@ -69,7 +68,7 @@ class PCLRv2Architecture(nn.Module):
             mid_output = mid_outputs[i]
             pre_embedding = self.batch_norms[i](self.gap(mid_output).flatten(start_dim=1))
             post_embedding = self.predictor_heads[i](pre_embedding)
-            embeddings.append((pre_embedding, post_embedding))
+            embeddings.append(torch.stack([pre_embedding, post_embedding]))
         return embeddings
 
 

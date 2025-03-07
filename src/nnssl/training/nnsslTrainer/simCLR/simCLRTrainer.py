@@ -60,34 +60,18 @@ class SimCLRTrainer(AbstractBaseTrainer):
         fold: int,
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
+        patch_size: tuple = (192, 192, 64),
+        crop_size: tuple = (64, 64, 64),
+        num_crops_per_image: int = 2,
+        min_crop_overlap: float = 0.5
     ):
-        # Let's use the same initial patch size and crop size as for VoCo
-        plan.configurations[configuration_name].patch_size = (192, 192, 64)
-        plan.configurations[configuration_name].batch_size = 32  # TODO: test larger bs
+        plan.configurations[configuration_name].patch_size = patch_size
+        self.crop_size = crop_size
 
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
-        self.batch_size = plan.configurations[configuration_name].batch_size
-        self.num_crops_per_image = 2
-        self.crop_size = (64, 64, 64)
-        self.min_crop_overlap = 0.5
+        self.num_crops_per_image = num_crops_per_image
+        self.min_crop_overlap = min_crop_overlap
 
-        # self.initial_lr = 1e-3
-        # self.weight_decay = 1e-2
-
-    # def configure_optimizers(self):
-    #     optimizer = AdamW(
-    #         params=self.network.parameters(),
-    #         lr=self.initial_lr,
-    #         weight_decay=self.weight_decay,
-    #     )
-    #     lr_scheduler = LinearWarmupCosineAnnealingLR(
-    #         optimizer=optimizer,
-    #         warmup_epochs=10,
-    #         max_epochs=self.num_epochs,
-    #         warmup_start_lr=self.initial_lr / 100,
-    #         eta_min=1e-6,
-    #     )
-    #     return optimizer, lr_scheduler
 
     def build_loss(self) -> nn.Module:
         """Implements the standard contrastive loss."""
@@ -311,3 +295,36 @@ class SimCLRTrainer(AbstractBaseTrainer):
                 # print(f"Val loss: {l.detach().cpu().numpy()} - accuracy: {acc}")
 
         return {"loss": l.detach().cpu().numpy()}
+
+
+####################################################################
+############################# VARIANTS #############################
+####################################################################
+
+
+class SimCLRTrainer_BS6(SimCLRTrainer):
+
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 6
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+
+
+class SimCLRTrainer_BS32(SimCLRTrainer):
+
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].batch_size = 32
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
