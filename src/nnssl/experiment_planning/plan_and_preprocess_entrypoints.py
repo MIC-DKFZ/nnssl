@@ -1,5 +1,3 @@
-import os
-from valohai.config import is_running_in_valohai
 from nnssl.configuration import default_num_processes
 from nnssl.experiment_planning.plan_and_preprocess_api import extract_fingerprints, plan_experiments, preprocess
 from nnssl.experiment_planning.dataset_fingerprint.abstract_fingerprint_extraction import (
@@ -220,14 +218,13 @@ def plan_and_preprocess_entry():
     import argparse
 
     parser = argparse.ArgumentParser()
-    if not is_running_in_valohai():
-        parser.add_argument(
-            "-d",
-            nargs="+",
-            type=int,
-            help="[REQUIRED] List of dataset IDs. Example: 2 4 5. This will run fingerprint extraction, experiment "
-            "planning and preprocessing for these datasets. Can of course also be just one dataset",
-        )
+    parser.add_argument(
+        "-d",
+        nargs="+",
+        type=int,
+        help="[REQUIRED] List of dataset IDs. Example: 2 4 5. This will run fingerprint extraction, experiment "
+        "planning and preprocessing for these datasets. Can of course also be just one dataset",
+    )
     parser.add_argument(
         "-fpe",
         type=fingerprint_type,
@@ -383,16 +380,6 @@ def plan_and_preprocess_entry():
         default=True,
         action="store_true",
         help="Set to true to zip files.",
-    )
-    parser.add_argument(
-        "--valohai_version_name",
-        required=True if is_running_in_valohai() else False,
-        help="Name of the dataset version.",
-    )
-    parser.add_argument(
-        "--valohai_dataset_name",
-        required=True if is_running_in_valohai() else False,
-        help="Name of the valohai dataset. Default: v0",
     )
     args = parser.parse_args()
 

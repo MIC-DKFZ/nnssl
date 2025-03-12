@@ -1,6 +1,4 @@
 import torch
-import os
-import sys
 from torch import nn
 from torch._dynamo import OptimizedModule
 from typing import Tuple, Union
@@ -8,14 +6,12 @@ from typing import Tuple, Union
 from nnssl.training.nnsslTrainer.evaMAE.evaMAE_module import EvaMAE
 from torch import autocast
 from nnssl.utilities.helpers import dummy_context
-from tqdm import tqdm
-from valohai.config import is_running_in_valohai
 from nnssl.experiment_planning.experiment_planners.plan import Plan
 from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import BaseMAETrainer
 from nnssl.training.lr_scheduler.warmup import Lin_incr_LRScheduler, PolyLRScheduler_offset
-from batchgenerators.utilities.file_and_folder_operations import join
 from torch.nn.parallel import DistributedDataParallel as DDP
 from nnssl.utilities.helpers import empty_cache
+
 
 class BaseEvaMAETrainer(BaseMAETrainer):
 
@@ -28,12 +24,13 @@ class BaseEvaMAETrainer(BaseMAETrainer):
         device: torch.device,
     ):
 
-        super(BaseEvaMAETrainer, self).__init__(plan,
-                                                configuration_name,
-                                                fold,
-                                                pretrain_json,
-                                                device,
-                                                )
+        super(BaseEvaMAETrainer, self).__init__(
+            plan,
+            configuration_name,
+            fold,
+            pretrain_json,
+            device,
+        )
 
         ###settings taken from fabi
         self.drop_path_rate = 0.2
@@ -54,8 +51,8 @@ class BaseEvaMAETrainer(BaseMAETrainer):
         self.init_value = 0.1
         self.scale_attn_inner = True
 
-    def configure_optimizers(self, stage: str = 'warmup_all'):
-        assert stage in ['warmup_all', 'train']
+    def configure_optimizers(self, stage: str = "warmup_all"):
+        assert stage in ["warmup_all", "train"]
 
         if self.training_stage == stage:
             return self.optimizer, self.lr_scheduler
@@ -65,24 +62,31 @@ class BaseEvaMAETrainer(BaseMAETrainer):
         else:
             params = self.network.parameters()
 
-        if stage == 'warmup_all':
+        if stage == "warmup_all":
             self.print_to_log_file("train whole net, warmup")
-            optimizer = torch.optim.AdamW(params, self.initial_lr, weight_decay=self.weight_decay,
-                                          amsgrad=False, betas=(0.9, 0.98), fused=True)
+            optimizer = torch.optim.AdamW(
+                params, self.initial_lr, weight_decay=self.weight_decay, amsgrad=False, betas=(0.9, 0.98), fused=True
+            )
             lr_scheduler = Lin_incr_LRScheduler(optimizer, self.initial_lr, self.warmup_duration_whole_net)
             self.print_to_log_file(f"Initialized warmup_all optimizer and lr_scheduler at epoch {self.current_epoch}")
         else:
             self.print_to_log_file("train whole net, default schedule")
-            if self.training_stage == 'warmup_all':
+            if self.training_stage == "warmup_all":
                 # we can keep the existing optimizer and don't need to create a new one. This will allow us to keep
                 # the accumulated momentum terms which already point in a useful driection
                 optimizer = self.optimizer
             else:
-                optimizer = torch.optim.AdamW(params, self.initial_lr,
-                                              weight_decay=self.weight_decay,
-                                              amsgrad=False, betas=(0.9, 0.98), fused=True)
-            lr_scheduler = PolyLRScheduler_offset(optimizer, self.initial_lr, self.num_epochs,
-                                                  self.warmup_duration_whole_net)
+                optimizer = torch.optim.AdamW(
+                    params,
+                    self.initial_lr,
+                    weight_decay=self.weight_decay,
+                    amsgrad=False,
+                    betas=(0.9, 0.98),
+                    fused=True,
+                )
+            lr_scheduler = PolyLRScheduler_offset(
+                optimizer, self.initial_lr, self.num_epochs, self.warmup_duration_whole_net
+            )
             self.print_to_log_file(f"Initialized train optimizer and lr_scheduler at epoch {self.current_epoch}")
         self.training_stage = stage
         empty_cache(self.device)
@@ -90,14 +94,16 @@ class BaseEvaMAETrainer(BaseMAETrainer):
 
     def on_train_epoch_start(self):
         if self.current_epoch == 0:
-            self.optimizer, self.lr_scheduler = self.configure_optimizers('warmup_all')
+            self.optimizer, self.lr_scheduler = self.configure_optimizers("warmup_all")
         elif self.current_epoch == self.warmup_duration_whole_net:
-            self.optimizer, self.lr_scheduler = self.configure_optimizers('train')
+            self.optimizer, self.lr_scheduler = self.configure_optimizers("train")
 
         super().on_train_epoch_start()
 
     @staticmethod
-    def create_mask(keep_indices: torch.Tensor, image_size: Tuple[int, int, int], patch_size: Tuple[int, int, int]) -> torch.Tensor:
+    def create_mask(
+        keep_indices: torch.Tensor, image_size: Tuple[int, int, int], patch_size: Tuple[int, int, int]
+    ) -> torch.Tensor:
         """
         Create a mask tensor (1 for unmasked, 0 for masked) based on keep_indices.
 
@@ -127,7 +133,9 @@ class BaseEvaMAETrainer(BaseMAETrainer):
 
         # Reshape to patch grid and expand to full image size
         mask = flat_mask.view(B, num_patches_d, num_patches_h, num_patches_w)
-        mask = mask.repeat_interleave(D_patch, dim=1).repeat_interleave(H_patch, dim=2).repeat_interleave(W_patch, dim=3)
+        mask = (
+            mask.repeat_interleave(D_patch, dim=1).repeat_interleave(H_patch, dim=2).repeat_interleave(W_patch, dim=3)
+        )
         mask = mask.unsqueeze(1)  # Add channel dimension (B, 1, D, H, W)
         return mask
 
@@ -146,7 +154,7 @@ class BaseEvaMAETrainer(BaseMAETrainer):
             drop_path_rate=self.drop_path_rate,
             attn_drop_rate=self.attention_drop_rate,
             init_values=self.init_value,
-            scale_attn_inner=self.scale_attn_inner
+            scale_attn_inner=self.scale_attn_inner,
         )
         return network
 
@@ -183,7 +191,6 @@ class BaseEvaMAETrainer(BaseMAETrainer):
             self.optimizer.step()
 
         return {"loss": l.detach().cpu().numpy()}
-
 
     def validation_step(self, batch: dict) -> dict:
         data = batch["data"]
@@ -237,14 +244,14 @@ class BaseEvaMAETrainer(BaseMAETrainer):
         # it's fine to do this every time we load because configure_optimizers will be a no-op if the correct optimizer
         # and lr scheduler are already set up
         if self.current_epoch < self.warmup_duration_whole_net:
-            self.optimizer, self.lr_scheduler = self.configure_optimizers('warmup_all')
+            self.optimizer, self.lr_scheduler = self.configure_optimizers("warmup_all")
         else:
-            self.optimizer, self.lr_scheduler = self.configure_optimizers('train')
+            self.optimizer, self.lr_scheduler = self.configure_optimizers("train")
 
-        self.optimizer.load_state_dict(checkpoint['optimizer_state'])
+        self.optimizer.load_state_dict(checkpoint["optimizer_state"])
         if self.grad_scaler is not None:
-            if checkpoint['grad_scaler_state'] is not None:
-                self.grad_scaler.load_state_dict(checkpoint['grad_scaler_state'])
+            if checkpoint["grad_scaler_state"] is not None:
+                self.grad_scaler.load_state_dict(checkpoint["grad_scaler_state"])
 
 
 class BaseEvaMAETrainer_BS8(BaseEvaMAETrainer):
@@ -273,16 +280,3 @@ class BaseEvaMAETrainer_test(BaseEvaMAETrainer):
         plan.configurations[configuration_name].batch_size = 2
         plan.configurations[configuration_name].patch_size = (128, 128, 128)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
-
-
-
-
-
-
-
-
-
-
-
-
-

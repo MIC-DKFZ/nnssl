@@ -1,23 +1,20 @@
 import torch
-import os
-import sys
+
 from torch import nn
 from torch._dynamo import OptimizedModule
-from typing import Tuple, Union
+from typing import Union
 
-from nnssl.training.nnsslTrainer.evaMAE.evaMAE_module import EvaMAE
 from torch import autocast
 
 from nnssl.training.nnsslTrainer.evaSimMIM.evaSimMIM_module import EvaSimMIM
 from nnssl.utilities.helpers import dummy_context
-from tqdm import tqdm
-from valohai.config import is_running_in_valohai
+
 from nnssl.experiment_planning.experiment_planners.plan import Plan
 from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import BaseMAETrainer
 from nnssl.training.lr_scheduler.warmup import Lin_incr_LRScheduler, PolyLRScheduler_offset
-from batchgenerators.utilities.file_and_folder_operations import join
 from torch.nn.parallel import DistributedDataParallel as DDP
 from nnssl.utilities.helpers import empty_cache
+
 
 class SimMIMEvaTrainer(BaseMAETrainer):
 
@@ -30,12 +27,13 @@ class SimMIMEvaTrainer(BaseMAETrainer):
         device: torch.device,
     ):
 
-        super(SimMIMEvaTrainer, self).__init__(plan,
-                                               configuration_name,
-                                               fold,
-                                               pretrain_json,
-                                               device,
-                                               )
+        super(SimMIMEvaTrainer, self).__init__(
+            plan,
+            configuration_name,
+            fold,
+            pretrain_json,
+            device,
+        )
 
         ###settings taken from fabi
         self.drop_path_rate = 0.2
@@ -54,8 +52,8 @@ class SimMIMEvaTrainer(BaseMAETrainer):
         self.init_value = 0.1
         self.scale_attn_inner = True
 
-    def configure_optimizers(self, stage: str = 'warmup_all'):
-        assert stage in ['warmup_all', 'train']
+    def configure_optimizers(self, stage: str = "warmup_all"):
+        assert stage in ["warmup_all", "train"]
 
         if self.training_stage == stage:
             return self.optimizer, self.lr_scheduler
@@ -65,24 +63,31 @@ class SimMIMEvaTrainer(BaseMAETrainer):
         else:
             params = self.network.parameters()
 
-        if stage == 'warmup_all':
+        if stage == "warmup_all":
             self.print_to_log_file("train whole net, warmup")
-            optimizer = torch.optim.AdamW(params, self.initial_lr, weight_decay=self.weight_decay,
-                                          amsgrad=False, betas=(0.9, 0.98), fused=True)
+            optimizer = torch.optim.AdamW(
+                params, self.initial_lr, weight_decay=self.weight_decay, amsgrad=False, betas=(0.9, 0.98), fused=True
+            )
             lr_scheduler = Lin_incr_LRScheduler(optimizer, self.initial_lr, self.warmup_duration_whole_net)
             self.print_to_log_file(f"Initialized warmup_all optimizer and lr_scheduler at epoch {self.current_epoch}")
         else:
             self.print_to_log_file("train whole net, default schedule")
-            if self.training_stage == 'warmup_all':
+            if self.training_stage == "warmup_all":
                 # we can keep the existing optimizer and don't need to create a new one. This will allow us to keep
                 # the accumulated momentum terms which already point in a useful driection
                 optimizer = self.optimizer
             else:
-                optimizer = torch.optim.AdamW(params, self.initial_lr,
-                                              weight_decay=self.weight_decay,
-                                              amsgrad=False, betas=(0.9, 0.98), fused=True)
-            lr_scheduler = PolyLRScheduler_offset(optimizer, self.initial_lr, self.num_epochs,
-                                                  self.warmup_duration_whole_net)
+                optimizer = torch.optim.AdamW(
+                    params,
+                    self.initial_lr,
+                    weight_decay=self.weight_decay,
+                    amsgrad=False,
+                    betas=(0.9, 0.98),
+                    fused=True,
+                )
+            lr_scheduler = PolyLRScheduler_offset(
+                optimizer, self.initial_lr, self.num_epochs, self.warmup_duration_whole_net
+            )
             self.print_to_log_file(f"Initialized train optimizer and lr_scheduler at epoch {self.current_epoch}")
         self.training_stage = stage
         empty_cache(self.device)
@@ -90,9 +95,9 @@ class SimMIMEvaTrainer(BaseMAETrainer):
 
     def on_train_epoch_start(self):
         if self.current_epoch == 0:
-            self.optimizer, self.lr_scheduler = self.configure_optimizers('warmup_all')
+            self.optimizer, self.lr_scheduler = self.configure_optimizers("warmup_all")
         elif self.current_epoch == self.warmup_duration_whole_net:
-            self.optimizer, self.lr_scheduler = self.configure_optimizers('train')
+            self.optimizer, self.lr_scheduler = self.configure_optimizers("train")
 
         super().on_train_epoch_start()
 
@@ -108,7 +113,7 @@ class SimMIMEvaTrainer(BaseMAETrainer):
             drop_path_rate=self.drop_path_rate,
             attn_drop_rate=self.attention_drop_rate,
             init_values=self.init_value,
-            scale_attn_inner=self.scale_attn_inner
+            scale_attn_inner=self.scale_attn_inner,
         )
         return network
 
@@ -116,15 +121,20 @@ class SimMIMEvaTrainer(BaseMAETrainer):
         data = batch["data"]
         data = data.to(self.device, non_blocking=True)
 
-        sparse_mask = self.mask_creation(self.batch_size, self.config_plan.patch_size, self.mask_percentage,
-                                  block_size=self.vit_patch_size[0]).to(self.device, non_blocking=True)
+        sparse_mask = self.mask_creation(
+            self.batch_size, self.config_plan.patch_size, self.mask_percentage, block_size=self.vit_patch_size[0]
+        ).to(self.device, non_blocking=True)
         # Make the mask the same size as the data
         rep_D, rep_H, rep_W = (
             data.shape[2] // sparse_mask.shape[2],
             data.shape[3] // sparse_mask.shape[3],
             data.shape[4] // sparse_mask.shape[4],
         )
-        dense_mask = sparse_mask.repeat_interleave(rep_D, dim=2).repeat_interleave(rep_H, dim=3).repeat_interleave(rep_W, dim=4)
+        dense_mask = (
+            sparse_mask.repeat_interleave(rep_D, dim=2)
+            .repeat_interleave(rep_H, dim=3)
+            .repeat_interleave(rep_W, dim=4)
+        )
 
         self.optimizer.zero_grad(set_to_none=True)
 
@@ -150,16 +160,20 @@ class SimMIMEvaTrainer(BaseMAETrainer):
         data = batch["data"]
         data = data.to(self.device, non_blocking=True)
 
-        sparse_mask = self.mask_creation(self.batch_size, self.config_plan.patch_size, self.mask_percentage,
-                                         block_size=self.vit_patch_size[0]).to(self.device, non_blocking=True)
+        sparse_mask = self.mask_creation(
+            self.batch_size, self.config_plan.patch_size, self.mask_percentage, block_size=self.vit_patch_size[0]
+        ).to(self.device, non_blocking=True)
         # Make the mask the same size as the data
         rep_D, rep_H, rep_W = (
             data.shape[2] // sparse_mask.shape[2],
             data.shape[3] // sparse_mask.shape[3],
             data.shape[4] // sparse_mask.shape[4],
         )
-        dense_mask = sparse_mask.repeat_interleave(rep_D, dim=2).repeat_interleave(rep_H, dim=3).repeat_interleave(
-            rep_W, dim=4)
+        dense_mask = (
+            sparse_mask.repeat_interleave(rep_D, dim=2)
+            .repeat_interleave(rep_H, dim=3)
+            .repeat_interleave(rep_W, dim=4)
+        )
 
         # Autocast for CUDA device
         with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
@@ -167,7 +181,6 @@ class SimMIMEvaTrainer(BaseMAETrainer):
             l = self.loss(output, data, dense_mask)
 
         return {"loss": l.detach().cpu().numpy()}
-
 
     def load_checkpoint(self, filename_or_checkpoint: Union[dict, str]) -> None:
         if not self.was_initialized:
@@ -207,14 +220,14 @@ class SimMIMEvaTrainer(BaseMAETrainer):
         # it's fine to do this every time we load because configure_optimizers will be a no-op if the correct optimizer
         # and lr scheduler are already set up
         if self.current_epoch < self.warmup_duration_whole_net:
-            self.optimizer, self.lr_scheduler = self.configure_optimizers('warmup_all')
+            self.optimizer, self.lr_scheduler = self.configure_optimizers("warmup_all")
         else:
-            self.optimizer, self.lr_scheduler = self.configure_optimizers('train')
+            self.optimizer, self.lr_scheduler = self.configure_optimizers("train")
 
-        self.optimizer.load_state_dict(checkpoint['optimizer_state'])
+        self.optimizer.load_state_dict(checkpoint["optimizer_state"])
         if self.grad_scaler is not None:
-            if checkpoint['grad_scaler_state'] is not None:
-                self.grad_scaler.load_state_dict(checkpoint['grad_scaler_state'])
+            if checkpoint["grad_scaler_state"] is not None:
+                self.grad_scaler.load_state_dict(checkpoint["grad_scaler_state"])
 
 
 class SimMIMEvaTrainer_BS8(SimMIMEvaTrainer):
@@ -247,7 +260,6 @@ class SimMIMEvaTrainer_test(SimMIMEvaTrainer):
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
 
 
-
 if __name__ == "__main__":
     # B, num_tokens, embed_dim = 2, 5, 3
     # x = torch.arange(B * num_tokens * embed_dim).reshape(B, num_tokens, embed_dim).float()
@@ -262,12 +274,3 @@ if __name__ == "__main__":
     # print("Mask:\n", mask)
     # print("Masked x:\n", masked_x)
     pass
-
-
-
-
-
-
-
-
-

@@ -8,7 +8,6 @@ from nnssl.training.nnsslTrainer.evaMAE.evaMAE_module import EvaMAE
 from torch import autocast
 from nnssl.utilities.helpers import dummy_context
 from tqdm import tqdm
-from valohai.config import is_running_in_valohai
 from nnssl.experiment_planning.experiment_planners.plan import Plan
 from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
 from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import BaseMAETrainer
@@ -20,6 +19,8 @@ from nnssl.training.logging.nnssl_logger_wandb import nnSSLLogger_wandb
 from batchgenerators.utilities.file_and_folder_operations import join, isfile, save_json, maybe_mkdir_p, load_json
 from torch.nn.parallel import DistributedDataParallel as DDP
 from nnssl.utilities.helpers import empty_cache
+
+
 class EvaMAETrainer(BaseMAETrainer):
 
     def __init__(
@@ -30,37 +31,36 @@ class EvaMAETrainer(BaseMAETrainer):
         pretrain_json: dict,
         device: torch.device,
     ):
-        super(EvaMAETrainer, self).__init__(plan,
-                         configuration_name,
-                         fold,
-                         pretrain_json,
-                         device,
-                         )
+        super(EvaMAETrainer, self).__init__(
+            plan,
+            configuration_name,
+            fold,
+            pretrain_json,
+            device,
+        )
 
         self.output_folder_base = (
             join(
                 nnssl_results,
                 self.plan.dataset_name,
                 self.__class__.__name__ + "__" + self.plan.plans_name + "__" + configuration_name,
-                )
+            )
             if nnssl_results is not None
             else None
         )
         self.output_folder = join(self.output_folder_base, f"fold_{fold}")
         maybe_mkdir_p(self.output_folder)
 
-
-
         # use wandb nnssl logger
         self.use_wandb = True if self.local_rank == 0 else False
         group_name = (
-                self.plan.dataset_name
-                + "_"
-                + self.__class__.__name__
-                + "_"
-                + self.plan.plans_name
-                + "_"
-                + self.configuration_name
+            self.plan.dataset_name
+            + "_"
+            + self.__class__.__name__
+            + "_"
+            + self.plan.plans_name
+            + "_"
+            + self.configuration_name
         )
         if len(group_name) > 128:
             group_name = group_name[:128]
@@ -85,24 +85,22 @@ class EvaMAETrainer(BaseMAETrainer):
         self.warmup_duration_whole_net = 50  # lin increase whole network
         self.training_stage = None
 
-
-        self.mask_ratio = self.config_plan['mask_ratio']
-        self.vit_patch_size = self.config_plan['vit_patch_size']
-        self.embed_dim = self.config_plan['embed_dim']
-        self.encoder_eva_depth = self.config_plan['encoder_eva_depth']
-        self.encoder_eva_numheads = self.config_plan['encoder_eva_numheads']
-        self.decoder_eva_depth = self.config_plan['decoder_eva_depth']
-        self.decoder_eva_numheads = self.config_plan['decoder_eva_numheads']
-        self.batch_size_from_args = self.config_plan['batch_size']
-        if self.config_plan['initial_lr'] is not None:
-            self.initial_lr = self.config_plan['initial_lr']
-        if self.config_plan['attention_drop_rate'] is not None:
-            self.attention_drop_rate = self.config_plan['attention_drop_rate']
+        self.mask_ratio = self.config_plan["mask_ratio"]
+        self.vit_patch_size = self.config_plan["vit_patch_size"]
+        self.embed_dim = self.config_plan["embed_dim"]
+        self.encoder_eva_depth = self.config_plan["encoder_eva_depth"]
+        self.encoder_eva_numheads = self.config_plan["encoder_eva_numheads"]
+        self.decoder_eva_depth = self.config_plan["decoder_eva_depth"]
+        self.decoder_eva_numheads = self.config_plan["decoder_eva_numheads"]
+        self.batch_size_from_args = self.config_plan["batch_size"]
+        if self.config_plan["initial_lr"] is not None:
+            self.initial_lr = self.config_plan["initial_lr"]
+        if self.config_plan["attention_drop_rate"] is not None:
+            self.attention_drop_rate = self.config_plan["attention_drop_rate"]
         self._overwrite_batch_size()
 
-
-    def configure_optimizers(self, stage: str = 'warmup_all'):
-        assert stage in ['warmup_all', 'train']
+    def configure_optimizers(self, stage: str = "warmup_all"):
+        assert stage in ["warmup_all", "train"]
 
         if self.training_stage == stage:
             return self.optimizer, self.lr_scheduler
@@ -112,24 +110,31 @@ class EvaMAETrainer(BaseMAETrainer):
         else:
             params = self.network.parameters()
 
-        if stage == 'warmup_all':
+        if stage == "warmup_all":
             self.print_to_log_file("train whole net, warmup")
-            optimizer = torch.optim.AdamW(params, self.initial_lr, weight_decay=self.weight_decay,
-                                          amsgrad=False, betas=(0.9, 0.98), fused=True)
+            optimizer = torch.optim.AdamW(
+                params, self.initial_lr, weight_decay=self.weight_decay, amsgrad=False, betas=(0.9, 0.98), fused=True
+            )
             lr_scheduler = Lin_incr_LRScheduler(optimizer, self.initial_lr, self.warmup_duration_whole_net)
             self.print_to_log_file(f"Initialized warmup_all optimizer and lr_scheduler at epoch {self.current_epoch}")
         else:
             self.print_to_log_file("train whole net, default schedule")
-            if self.training_stage == 'warmup_all':
+            if self.training_stage == "warmup_all":
                 # we can keep the existing optimizer and don't need to create a new one. This will allow us to keep
                 # the accumulated momentum terms which already point in a useful driection
                 optimizer = self.optimizer
             else:
-                optimizer = torch.optim.AdamW(params, self.initial_lr,
-                                              weight_decay=self.weight_decay,
-                                              amsgrad=False, betas=(0.9, 0.98), fused=True)
-            lr_scheduler = PolyLRScheduler_offset(optimizer, self.initial_lr, self.num_epochs,
-                                                  self.warmup_duration_whole_net)
+                optimizer = torch.optim.AdamW(
+                    params,
+                    self.initial_lr,
+                    weight_decay=self.weight_decay,
+                    amsgrad=False,
+                    betas=(0.9, 0.98),
+                    fused=True,
+                )
+            lr_scheduler = PolyLRScheduler_offset(
+                optimizer, self.initial_lr, self.num_epochs, self.warmup_duration_whole_net
+            )
             self.print_to_log_file(f"Initialized train optimizer and lr_scheduler at epoch {self.current_epoch}")
         self.training_stage = stage
         empty_cache(self.device)
@@ -137,9 +142,9 @@ class EvaMAETrainer(BaseMAETrainer):
 
     def on_train_epoch_start(self):
         if self.current_epoch == 0:
-            self.optimizer, self.lr_scheduler = self.configure_optimizers('warmup_all')
+            self.optimizer, self.lr_scheduler = self.configure_optimizers("warmup_all")
         elif self.current_epoch == self.warmup_duration_whole_net:
-            self.optimizer, self.lr_scheduler = self.configure_optimizers('train')
+            self.optimizer, self.lr_scheduler = self.configure_optimizers("train")
 
         super().on_train_epoch_start()
 
@@ -183,6 +188,7 @@ class EvaMAETrainer(BaseMAETrainer):
             # self.print_to_log_file("worker", my_rank, "batch_size", batch_sizes[my_rank])
 
             self.batch_size = batch_sizes[my_rank]
+
     def _save_debug_information(self):
         # saving some debug information
         if self.local_rank == 0:
@@ -225,8 +231,11 @@ class EvaMAETrainer(BaseMAETrainer):
 
             if self.use_wandb and self.local_rank == 0:
                 self.logger.log_hypparams_to_wandb(self, dct)
+
     @staticmethod
-    def create_mask(keep_indices: torch.Tensor, image_size: Tuple[int, int, int], patch_size: Tuple[int, int, int]) -> torch.Tensor:
+    def create_mask(
+        keep_indices: torch.Tensor, image_size: Tuple[int, int, int], patch_size: Tuple[int, int, int]
+    ) -> torch.Tensor:
         """
         Create a mask tensor (1 for unmasked, 0 for masked) based on keep_indices.
 
@@ -256,7 +265,9 @@ class EvaMAETrainer(BaseMAETrainer):
 
         # Reshape to patch grid and expand to full image size
         mask = flat_mask.view(B, num_patches_d, num_patches_h, num_patches_w)
-        mask = mask.repeat_interleave(D_patch, dim=1).repeat_interleave(H_patch, dim=2).repeat_interleave(W_patch, dim=3)
+        mask = (
+            mask.repeat_interleave(D_patch, dim=1).repeat_interleave(H_patch, dim=2).repeat_interleave(W_patch, dim=3)
+        )
         mask = mask.unsqueeze(1)  # Add channel dimension (B, 1, D, H, W)
         return mask
 
@@ -273,12 +284,12 @@ class EvaMAETrainer(BaseMAETrainer):
             decoder_eva_numheads=self.decoder_eva_numheads,
             patch_drop_rate=self.mask_ratio,
             drop_path_rate=self.drop_path_rate,
-            attn_drop_rate=self.attention_drop_rate
+            attn_drop_rate=self.attention_drop_rate,
         )
         return network
 
     def on_validation_epoch_start(self):
-        #self.network.eval()
+        # self.network.eval()
         pass
 
     def train_step(self, batch: dict) -> dict:
@@ -309,7 +320,6 @@ class EvaMAETrainer(BaseMAETrainer):
 
         return {"loss": l.detach().cpu().numpy()}
 
-
     def validation_step(self, batch: dict) -> dict:
         data = batch["data"]
         data = data.to(self.device, non_blocking=True)
@@ -337,7 +347,7 @@ class EvaMAETrainer(BaseMAETrainer):
                 for batch_id in tqdm(
                     range(self.num_iterations_per_epoch),
                     desc=f"Epoch {epoch}",
-                    disable=True if (("LSF_JOBID" in os.environ) or is_running_in_valohai()) else False,
+                    disable=True if ("LSF_JOBID" in os.environ) else False,
                 ):
                     train_outputs.append(self.train_step(next(self.dataloader_train)))
                 self.on_train_epoch_end(train_outputs)
@@ -432,14 +442,14 @@ class EvaMAETrainer(BaseMAETrainer):
         # it's fine to do this every time we load because configure_optimizers will be a no-op if the correct optimizer
         # and lr scheduler are already set up
         if self.current_epoch < self.warmup_duration_whole_net:
-            self.optimizer, self.lr_scheduler = self.configure_optimizers('warmup_all')
+            self.optimizer, self.lr_scheduler = self.configure_optimizers("warmup_all")
         else:
-            self.optimizer, self.lr_scheduler = self.configure_optimizers('train')
+            self.optimizer, self.lr_scheduler = self.configure_optimizers("train")
 
-        self.optimizer.load_state_dict(checkpoint['optimizer_state'])
+        self.optimizer.load_state_dict(checkpoint["optimizer_state"])
         if self.grad_scaler is not None:
-            if checkpoint['grad_scaler_state'] is not None:
-                self.grad_scaler.load_state_dict(checkpoint['grad_scaler_state'])
+            if checkpoint["grad_scaler_state"] is not None:
+                self.grad_scaler.load_state_dict(checkpoint["grad_scaler_state"])
 
 
 class EvaMAETrainerDEBUG(EvaMAETrainer):
@@ -451,15 +461,17 @@ class EvaMAETrainerDEBUG(EvaMAETrainer):
         pretrain_json: dict,
         device: torch.device,
     ):
-        super(EvaMAETrainerDEBUG, self).__init__(plan,
-                         configuration_name,
-                         fold,
-                         pretrain_json,
-                         device,
-                         )
+        super(EvaMAETrainerDEBUG, self).__init__(
+            plan,
+            configuration_name,
+            fold,
+            pretrain_json,
+            device,
+        )
 
         self.num_iterations_per_epoch = 1
         self.num_val_iterations_per_epoch = 1
+
 
 class EvaMAETrainer2kEpochs(EvaMAETrainer):
     def __init__(
@@ -470,14 +482,16 @@ class EvaMAETrainer2kEpochs(EvaMAETrainer):
         pretrain_json: dict,
         device: torch.device,
     ):
-        super(EvaMAETrainerDEBUG, self).__init__(plan,
-                         configuration_name,
-                         fold,
-                         pretrain_json,
-                         device,
-                         )
+        super(EvaMAETrainerDEBUG, self).__init__(
+            plan,
+            configuration_name,
+            fold,
+            pretrain_json,
+            device,
+        )
 
         self.num_epochs = 2000
+
 
 class EvaMAETrainer4kEpochs(EvaMAETrainer):
     def __init__(
@@ -488,11 +502,12 @@ class EvaMAETrainer4kEpochs(EvaMAETrainer):
         pretrain_json: dict,
         device: torch.device,
     ):
-        super(EvaMAETrainerDEBUG, self).__init__(plan,
-                         configuration_name,
-                         fold,
-                         pretrain_json,
-                         device,
-                         )
+        super(EvaMAETrainerDEBUG, self).__init__(
+            plan,
+            configuration_name,
+            fold,
+            pretrain_json,
+            device,
+        )
 
         self.num_epochs = 4000

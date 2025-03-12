@@ -1,7 +1,5 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 import os
-from pathlib import Path
-import shutil
 import socket
 from typing import Type, Union, Optional
 
@@ -19,12 +17,6 @@ from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
 from nnssl.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
 from nnssl.utilities.find_class_by_name import recursive_find_python_class
 from torch.backends import cudnn
-from valohai.config import is_running_in_valohai
-
-from nnssl.valohai_compatibility.prepare_valohai_paths import (
-    prepare_training_paths_on_valohai,
-    save_files_on_valohai,
-)
 
 
 def find_free_network_port() -> int:
@@ -47,8 +39,9 @@ def get_trainer_from_args(
     trainer_name: str = "nnsslTrainer",
     plans_identifier: str = "nnsslPlans",
     device: torch.device = torch.device("cuda"),
-    #*args,
-    **kwargs):
+    # *args,
+    **kwargs,
+):
 
     # load nnunet class and do sanity checks
     nnssl_trainer_cls: Type[AbstractBaseTrainer] = recursive_find_python_class(
@@ -85,10 +78,20 @@ def get_trainer_from_args(
     plans_file = join(preprocessed_dataset_folder_base, plans_identifier + ".json")
     plans: Plan = Plan_wandb.load_from_file(plans_file)
     for param in kwargs:
-        if param in ['mask_ratio', 'initial_lr','vit_patch_size','attention_drop_rate']:
-            plans.plans_name =  plans.plans_name + "__" + param + str(kwargs[param]).replace('.','').replace('[', '').replace(']','').replace(',','').replace(' ','')
+        if param in ["mask_ratio", "initial_lr", "vit_patch_size", "attention_drop_rate"]:
+            plans.plans_name = (
+                plans.plans_name
+                + "__"
+                + param
+                + str(kwargs[param])
+                .replace(".", "")
+                .replace("[", "")
+                .replace("]", "")
+                .replace(",", "")
+                .replace(" ", "")
+            )
         else:
-            plans.plans_name =  plans.plans_name + "__" + param + str(kwargs[param])
+            plans.plans_name = plans.plans_name + "__" + param + str(kwargs[param])
         for config in plans.configurations:
             plans.configurations[config][param] = kwargs[param]
 
@@ -100,29 +103,10 @@ def get_trainer_from_args(
         fold,
         pretrain_json,
         device,
-        #*args,
-        #**kwargs
+        # *args,
+        # **kwargs
     )
     return nnssl_trainer
-
-
-def maybe_copy_ckpt_if_on_valohai(nnunet_output_folder: str):
-    if is_running_in_valohai():
-        from valohai.paths import get_inputs_path
-
-        INPUT_ROOT = get_inputs_path()
-        input_paths = os.path.join(INPUT_ROOT, "pp-data")
-        potential_ckpts = [c for c in os.listdir(input_paths) if c.endswith(".pth")]
-        assert (
-            len(potential_ckpts) == 1
-        ), f"Expected exactly one checkpoint file in {input_paths}, got {potential_ckpts}"
-        ckpt = potential_ckpts[0]
-        ckpt_path = os.path.join(input_paths, ckpt)
-        ckpt_target_path = join(nnunet_output_folder, "checkpoint_latest.pth")
-        Path(ckpt_target_path).parent.mkdir(exist_ok=True, parents=True)
-        logger.info("Copying checkpoint from Valohai input to nnUNet output folder...")
-        shutil.copy(ckpt_path, ckpt_target_path)
-        logger.info("Checkpoint copied.")
 
 
 def maybe_load_checkpoint(
@@ -139,7 +123,6 @@ def maybe_load_checkpoint(
 
     if continue_training:
         logger.info("Attempting to continue training...")
-        maybe_copy_ckpt_if_on_valohai(nnunet_trainer.output_folder)
         expected_checkpoint_file = join(nnunet_trainer.output_folder, "checkpoint_final.pth")
         if not isfile(expected_checkpoint_file):
             expected_checkpoint_file = join(nnunet_trainer.output_folder, "checkpoint_latest.pth")
@@ -177,6 +160,7 @@ def setup_ddp(rank, world_size):
     dist.init_process_group("nccl", rank=rank, world_size=world_size, timeout=timedelta(minutes=25))
     torch.cuda.set_device(rank)
 
+
 def cleanup_ddp():
     dist.destroy_process_group()
 
@@ -195,11 +179,11 @@ def run_ddp(
     npz,
     val_with_best,
     world_size,
-    add_params
+    add_params,
 ):
     setup_ddp(rank, world_size)
 
-    #torch.cuda.set_device(torch.device("cuda", dist.get_rank()))
+    # torch.cuda.set_device(torch.device("cuda", dist.get_rank()))
 
     device = torch.device(f"cuda:{rank}")
     nnunet_trainer = get_trainer_from_args(dataset_name_or_id, configuration, fold, tr, p, device, **add_params)
@@ -322,9 +306,9 @@ def run_training_entry():
     import argparse
 
     parser = argparse.ArgumentParser()
-    if not is_running_in_valohai():
-        parser.add_argument("dataset_name_or_id", type=str, help="Dataset name or ID to train with")
-        parser.add_argument("configuration", type=str, help="Configuration that should be trained")
+
+    parser.add_argument("dataset_name_or_id", type=str, help="Dataset name or ID to train with")
+    parser.add_argument("configuration", type=str, help="Configuration that should be trained")
     parser.add_argument(
         "-tr",
         type=str,
@@ -410,13 +394,8 @@ def run_training_entry():
     ], f"-device must be either cpu, mps or cuda. Other devices are not tested/supported. Got: {args.device}."
 
     # ------------------------------- Post Parsers ------------------------------- #
-    if is_running_in_valohai():
-        dataset_name = "737"  # This is always the ID for all datasets. No differentiattion at all.
-        config = "3d_fullres"
-        prepare_training_paths_on_valohai(args.c)
-    else:
-        dataset_name = args.dataset_name_or_id
-        config = args.configuration
+    dataset_name = args.dataset_name_or_id
+    config = args.configuration
 
     assert (
         os.environ.get("nnssl_results") is not None
@@ -435,37 +414,31 @@ def run_training_entry():
         device = torch.device("cuda")
     else:
         device = torch.device("mps")
-    try:
-        run_training(
-            dataset_name,
-            config,
-            "all",
-            args.tr,
-            args.p,
-            args.pretrained_weights,
-            args.num_gpus,
-            args.npz,
-            args.c,
-            args.val,
-            args.disable_checkpointing,
-            args.val_best,
-            device,
-            mask_ratio = args.mask_ratio,
-            vit_patch_size = args.vit_patch_size,
-            embed_dim=args.embed_dim,
-            encoder_eva_depth=args.encoder_eva_depth,
-            encoder_eva_numheads=args.encoder_eva_numheads,
-            decoder_eva_depth=args.decoder_eva_depth,
-            decoder_eva_numheads=args.decoder_eva_numheads,
-            batch_size=args.batch_size,
-            initial_lr=args.initial_lr,
-            attention_drop_rate=args.attention_drop_rate,
-        )
-    except KeyboardInterrupt:
-        if is_running_in_valohai():
-            save_files_on_valohai(os.environ.get("nnssl_results"))
-    if is_running_in_valohai():
-        save_files_on_valohai(os.environ.get("nnssl_results"))
+    run_training(
+        dataset_name,
+        config,
+        "all",
+        args.tr,
+        args.p,
+        args.pretrained_weights,
+        args.num_gpus,
+        args.npz,
+        args.c,
+        args.val,
+        args.disable_checkpointing,
+        args.val_best,
+        device,
+        mask_ratio=args.mask_ratio,
+        vit_patch_size=args.vit_patch_size,
+        embed_dim=args.embed_dim,
+        encoder_eva_depth=args.encoder_eva_depth,
+        encoder_eva_numheads=args.encoder_eva_numheads,
+        decoder_eva_depth=args.decoder_eva_depth,
+        decoder_eva_numheads=args.decoder_eva_numheads,
+        batch_size=args.batch_size,
+        initial_lr=args.initial_lr,
+        attention_drop_rate=args.attention_drop_rate,
+    )
 
 
 if __name__ == "__main__":

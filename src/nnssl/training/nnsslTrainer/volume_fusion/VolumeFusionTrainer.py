@@ -12,7 +12,6 @@ from nnssl.ssl_data.dataloading.volume_fusion_transform import VolumeFusionTrans
 from nnssl.training.loss.compound_losses import DC_and_CE_loss
 from nnssl.training.loss.dice import MemoryEfficientSoftDiceLoss
 from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
-from valohai.config import is_running_in_valohai
 
 from batchgenerators.transforms.abstract_transforms import AbstractTransform, Compose
 from batchgenerators.transforms.color_transforms import (

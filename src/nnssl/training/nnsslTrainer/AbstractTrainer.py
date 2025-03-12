@@ -14,11 +14,8 @@ from time import time, sleep
 from typing import Union, Tuple, List
 from loguru import logger
 from tqdm import tqdm
-from valohai.config import is_running_in_valohai
 from nnssl.configuration import default_num_processes
 import signal
-
-import valohai
 
 import numpy as np
 import torch
@@ -37,7 +34,6 @@ from nnssl.ssl_data.configure_basic_dummyDA import configure_rotation_dummyDA_mi
 from nnssl.ssl_data.dataloading.data_loader_3d import nnsslDataLoader3D, nnsslAnatDataLoader3D
 from nnssl.ssl_data.dataloading.utils import get_subject_identifiers
 from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
-from valohai.config import is_running_in_valohai
 
 from nnssl.training.dataloading.dataset import nnSSLDatasetBlosc2
 from nnssl.training.logging.nnssl_logger import nnSSLLogger
@@ -110,8 +106,6 @@ class AbstractBaseTrainer(ABC):
         self.pretrain_json = pretrain_json
         self.fold = fold
         self.iimg_filters = []
-        if is_running_in_valohai():
-            self.current_epoch_log = {}
 
         # ----------------------- Setting all the folder names. ---------------------- #
         ###  We need to make sure things don't crash in case we are just running
@@ -710,21 +704,6 @@ class AbstractBaseTrainer(ABC):
             #     )
             self.logger.plot_progress_png(self.output_folder)
 
-        if is_running_in_valohai():
-            self.current_epoch_log["epoch"] = int(self.current_epoch)
-            self.current_epoch_log["train_loss"] = float(self.logger.my_fantastic_logging["train_losses"][-1])
-            self.current_epoch_log["val_loss"] = float(self.logger.my_fantastic_logging["val_losses"][-1])
-            self.current_epoch_log["learning_rate"] = float(self.logger.my_fantastic_logging["lrs"][-1])
-            self.current_epoch_log["epoch_time"] = float(
-                np.round(
-                    self.logger.my_fantastic_logging["epoch_end_timestamps"][-1]
-                    - self.logger.my_fantastic_logging["epoch_start_timestamps"][-1],
-                    decimals=2,
-                )
-            )
-            print(json.dumps(self.current_epoch_log))
-            self.current_epoch_log = {}
-
         self.current_epoch += 1
 
     def save_checkpoint(self, filename: str, live_upload: bool = False) -> None:
@@ -748,11 +727,6 @@ class AbstractBaseTrainer(ABC):
                     "trainer_name": self.__class__.__name__,
                 }
                 torch.save(checkpoint, filename)
-                if is_running_in_valohai() and live_upload:
-                    filename = f"ckpt_{self.current_epoch}.pth"
-                    out_path = valohai.outputs().path(filename)
-                    torch.save(checkpoint, out_path)
-                    valohai.outputs().live_upload(filename)
             else:
                 self.print_to_log_file("No checkpoint written, checkpointing is disabled")
 

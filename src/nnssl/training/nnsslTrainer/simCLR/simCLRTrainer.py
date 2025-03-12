@@ -23,11 +23,9 @@ from nnssl.ssl_data.configure_basic_dummyDA import (
 )
 from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
 
-from batchgeneratorsv2.transforms.base.basic_transform import BasicTransform
 from batchgenerators.transforms.abstract_transforms import AbstractTransform, Compose
 from batchgenerators.transforms.utility_transforms import NumpyToTensor
 
-from nnunetv2.training.nnUNetTrainer.nnUNetTrainer import nnUNetTrainer
 from nnssl.ssl_data.dataloading.simclr_transform import SimCLRTransform
 from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
 
