@@ -19,15 +19,6 @@ def extract_fingerprint_entry():
         "planning and preprocessing for these datasets. Can of course also be just one dataset",
     )
     parser.add_argument(
-        "-fpe",
-        type=fingerprint_type,
-        required=False,
-        default=DatasetFingerprintExtractor.DEFAULT.value,
-        # choices=[fpe.value for fpe in DatasetFingerprintExtractor],
-        help="[OPTIONAL] Name of the Dataset Fingerprint Extractor class that should be used. Default is "
-        "'DatasetFingerprintExtractor'.",
-    )
-    parser.add_argument(
         "-np",
         type=int,
         default=default_num_processes,
@@ -58,7 +49,7 @@ def extract_fingerprint_entry():
         "Recommended for cluster environments",
     )
     args, unrecognized_args = parser.parse_known_args()
-    extract_fingerprints(args.d, args.fpe, args.np, args.verify_dataset_integrity, args.clean, args.verbose)
+    extract_fingerprints(args.d, args.np, args.verify_dataset_integrity, args.clean, args.verbose)
 
 
 if __name__ == "__main__":

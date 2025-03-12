@@ -3,10 +3,9 @@ from typing import List, Sequence, Type, Optional, Tuple, Union, TYPE_CHECKING
 
 import nnssl
 from batchgenerators.utilities.file_and_folder_operations import join
-from nnssl.experiment_planning.dataset_fingerprint.abstract_fingerprint_extraction import (
-    DatasetFingerprintExtractor,
-    get_dataset_fingerprint_extractor,
-    FingerprintExtractionProtocol,
+
+from nnssl.experiment_planning.dataset_fingerprint.default_fingerprint_extractor import (
+    default_dataset_fingerprint_extraction,
 )
 from nnssl.experiment_planning.experiment_planners.default_experiment_planner import ExperimentPlanner
 from nnssl.experiment_planning.experiment_planners.plan import Plan
@@ -23,7 +22,6 @@ from nnssl.configuration import default_num_processes
 
 def extract_fingerprint_dataset(
     dataset_id: int,
-    fingerprint_extractor: FingerprintExtractionProtocol,
     num_processes: int = default_num_processes,
     check_dataset_integrity: bool = False,
     clean: bool = True,
@@ -38,13 +36,14 @@ def extract_fingerprint_dataset(
     if check_dataset_integrity:
         verify_dataset_integrity(join(nnssl_raw, dataset_name), num_processes)
 
-    fingerprint = fingerprint_extractor(dataset_id, num_processes, verbose=verbose, overwrite_existing=clean)
+    fingerprint = default_dataset_fingerprint_extraction(
+        dataset_id, num_processes, verbose=verbose, overwrite_existing=clean
+    )
     return fingerprint
 
 
 def extract_fingerprints(
     dataset_ids: List[int],
-    fingerprint_extractor_class_name: DatasetFingerprintExtractor,
     num_processes: int = default_num_processes,
     check_dataset_integrity: bool = False,
     clean: bool = True,
@@ -61,12 +60,8 @@ def extract_fingerprints(
         clean (bool, optional): Whether to clean the extracted fingerprints. Defaults to True.
         verbose (bool, optional): Whether to print verbose output during extraction. Defaults to True.
     """
-
-    fingerprint_extractor: FingerprintExtractionProtocol = get_dataset_fingerprint_extractor(
-        fingerprint_extractor_class_name
-    )
     for d in dataset_ids:
-        extract_fingerprint_dataset(d, fingerprint_extractor, num_processes, check_dataset_integrity, clean, verbose)
+        extract_fingerprint_dataset(d, num_processes, check_dataset_integrity, clean, verbose)
 
 
 def plan_experiment_dataset(

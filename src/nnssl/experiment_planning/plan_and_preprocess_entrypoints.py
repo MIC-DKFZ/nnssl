@@ -1,9 +1,6 @@
 from nnssl.configuration import default_num_processes
 from nnssl.experiment_planning.plan_and_preprocess_api import extract_fingerprints, plan_experiments, preprocess
-from nnssl.experiment_planning.dataset_fingerprint.abstract_fingerprint_extraction import (
-    DatasetFingerprintExtractor,
-    fingerprint_type,
-)
+
 
 def extract_fingerprint_entry():
     import argparse
@@ -14,15 +11,6 @@ def extract_fingerprint_entry():
         type=int,
         help="[REQUIRED] List of dataset IDs. Example: 2 4 5. This will run fingerprint extraction, experiment "
         "planning and preprocessing for these datasets. Can of course also be just one dataset",
-    )
-    parser.add_argument(
-        "-fpe",
-        type=fingerprint_type,
-        required=False,
-        default=DatasetFingerprintExtractor.DEFAULT.value,
-        choices=[fpe.value for fpe in DatasetFingerprintExtractor],
-        help="[OPTIONAL] Name of the Dataset Fingerprint Extractor class that should be used. Default is "
-        "'DatasetFingerprintExtractor'.",
     )
     parser.add_argument(
         "-np",
@@ -55,7 +43,7 @@ def extract_fingerprint_entry():
         "Recommended for cluster environments",
     )
     args, unrecognized_args = parser.parse_known_args()
-    extract_fingerprints([args.d], args.fpe, args.np, args.verify_dataset_integrity, args.clean, args.verbose)
+    extract_fingerprints([args.d], args.np, args.verify_dataset_integrity, args.clean, args.verbose)
 
 
 def plan_experiment_entry():
@@ -226,15 +214,6 @@ def plan_and_preprocess_entry():
         "planning and preprocessing for these datasets. Can of course also be just one dataset",
     )
     parser.add_argument(
-        "-fpe",
-        type=fingerprint_type,
-        required=False,
-        default=str(DatasetFingerprintExtractor.DEFAULT.value),
-        choices=[fpe for fpe in DatasetFingerprintExtractor],
-        help="[OPTIONAL] Name of the Dataset Fingerprint Extractor class that should be used. Default is "
-        "'DatasetFingerprintExtractor'.",
-    )
-    parser.add_argument(
         "-npfp",
         type=int,
         default=8,
@@ -386,7 +365,7 @@ def plan_and_preprocess_entry():
     dataset_id = args.d
     # fingerprint extraction
     print("Fingerprint extraction...")
-    extract_fingerprints(dataset_id, args.fpe, args.npfp, args.verify_dataset_integrity, args.clean, args.verbose)
+    extract_fingerprints(dataset_id, args.npfp, args.verify_dataset_integrity, args.clean, args.verbose)
 
     # experiment planning
     print("Experiment planning...")
@@ -417,6 +396,7 @@ def plan_and_preprocess_entry():
             num_processes=np,
             verbose=args.verbose,
         )
+
 
 if __name__ == "__main__":
     plan_and_preprocess_entry()

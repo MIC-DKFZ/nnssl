@@ -1,22 +1,34 @@
 from functools import partial
 import os
-from pathlib import Path
 from typing import Union
 import multiprocessing
 
 import numpy as np
 from tqdm import tqdm
 
-from nnssl.data.raw_dataset import Dataset, Collection
+from nnssl.data.raw_dataset import Collection
 from nnssl.imageio.reader_writer_registry import (
-    determine_reader_writer_from_dataset_json,
     determine_reader_writer_from_file_ending,
 )
 from nnssl.paths import nnssl_raw, nnssl_preprocessed
 from batchgenerators.utilities.file_and_folder_operations import load_json, join, save_json, isfile, maybe_mkdir_p
 from nnssl.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
-from nnssl.data.utils import get_train_collection, get_train_dataset
-from nnssl.experiment_planning.dataset_fingerprint.utils import analyze_case
+from nnssl.data.utils import get_train_collection
+
+import numpy as np
+
+from nnssl.imageio.base_reader_writer import BaseReaderWriter
+
+
+def analyze_case(
+    image_files: list[str],
+    reader_writer_class: type[BaseReaderWriter],
+):
+    rw = reader_writer_class()
+    images, properties_images = rw.read_images(image_files)
+    # ---------------------------- General Fingerprint --------------------------- #
+    spacing = properties_images["spacing"]
+    return (spacing,)
 
 
 def setup_collection_fingerprint_extractor(
@@ -101,17 +113,8 @@ def default_dataset_fingerprint_extraction(
                 results = list(tqdm(p.imap(analyze_case_partial, [[k] for k in collection.get_all_image_paths()])))
         else:
             results = [analyze_case([k], reader_writer_class) for k in tqdm(collection.get_all_image_paths())]
-
-        shapes_after_crop = [r[0] for r in results]
-        spacings = [r[1] for r in results]
-        median_relative_size_after_cropping = np.median([r[2] for r in results], 0)
-
-        fingerprint = {
-            "spacings": spacings,
-            "shapes_after_crop": shapes_after_crop,
-            "median_relative_size_after_cropping": median_relative_size_after_cropping,
-        }
-
+        spacings = [r[0] for r in results]
+        fingerprint = {"spacings": spacings}
         save_fingerprint(fingerprint, properties_file)
     else:
         fingerprint = load_json(properties_file)
