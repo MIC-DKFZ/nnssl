@@ -8,10 +8,7 @@ import numpy as np
 from batchgenerators.utilities.file_and_folder_operations import subfiles, join, save_json, load_json, isfile
 from nnssl.configuration import default_num_processes
 from nnssl.imageio.base_reader_writer import BaseReaderWriter
-from nnssl.imageio.reader_writer_registry import (
-    determine_reader_writer_from_dataset_json,
-    determine_reader_writer_from_file_ending,
-)
+from nnssl.imageio.reader_writer_registry import determine_reader_writer_from_file_ending
 from nnssl.imageio.simpleitk_reader_writer import SimpleITKIO
 
 # the Evaluator class of the previous nnU-Net was great and all but man was it overengineered. Keep it simple
@@ -211,7 +208,11 @@ def compute_metrics_on_folder2(
 
     # get reader writer class
     example_file = subfiles(folder_ref, suffix=file_ending, join=True)[0]
-    rw = determine_reader_writer_from_dataset_json(dataset_json, example_file)()
+    if example_file.endswith(".gz"):
+        extension = "." + ".".join(example_file.split(".")[-2:])
+    else:
+        extension = "." + example_file.split(".")[-1]
+    rw = determine_reader_writer_from_file_ending(extension, example_file)()
 
     # maybe auto set output file
     if output_file is None:

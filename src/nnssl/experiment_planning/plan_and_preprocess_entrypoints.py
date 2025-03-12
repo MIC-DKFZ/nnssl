@@ -67,16 +67,6 @@ def plan_experiment_entry():
         "It's an all in one solution now. Wuch. Such amazing.",
     )
     parser.add_argument(
-        "-gpu_memory_target",
-        default=11,
-        type=float,
-        required=False,
-        help="[OPTIONAL] DANGER ZONE! Sets a custom GPU memory target. Default: 8 [GB]. Changing this will "
-        "affect patch and batch size and will "
-        "definitely affect your models performance! Only use this if you really know what you "
-        "are doing and NEVER use this without running the default nnU-Net first (as a baseline).",
-    )
-    parser.add_argument(
         "-preprocessor_name",
         default="DefaultPreprocessor",
         type=str,
@@ -86,37 +76,11 @@ def plan_experiment_entry():
         "models performance! Only use this if you really know what you "
         "are doing and NEVER use this without running the default nnU-Net first (as a baseline).",
     )
-    parser.add_argument(
-        "-overwrite_target_spacing",
-        default=None,
-        nargs="+",
-        required=False,
-        help="[OPTIONAL] DANGER ZONE! Sets a custom target spacing for the 3d_fullres and 3d_cascade_fullres "
-        "configurations. Default: None [no changes]. Changing this will affect image size and "
-        "potentially patch and batch "
-        "size. This will definitely affect your models performance! Only use this if you really "
-        "know what you are doing and NEVER use this without running the default nnU-Net first "
-        "(as a baseline). Changing the target spacing for the other configurations is currently "
-        "not implemented. New target spacing must be a list of three numbers!",
-    )
-    parser.add_argument(
-        "-overwrite_plans_name",
-        default=None,
-        required=False,
-        help="[OPTIONAL] DANGER ZONE! If you used -gpu_memory_target, -preprocessor_name or "
-        "-overwrite_target_spacing it is best practice to use -overwrite_plans_name to generate a "
-        "differently named plans file such that the nnunet default plans are not "
-        "overwritten. You will then need to specify your custom plans file with -p whenever "
-        "running other nnunet commands (training, inference etc)",
-    )
     args, unrecognized_args = parser.parse_known_args()
     plan_experiments(
         args.d,
         args.pl,
-        args.gpu_memory_target,
         args.preprocessor_name,
-        args.overwrite_target_spacing,
-        args.overwrite_plans_name,
     )
 
 
@@ -136,15 +100,6 @@ def preprocess_entry():
         default="nnsslPlans",
         required=False,
         help="[OPTIONAL] You can use this to specify a custom plans file that you may have generated",
-    )
-    parser.add_argument(
-        "-c",
-        required=False,
-        default=["2d", "3d_fullres", "3d_lowres"],
-        nargs="+",
-        help="[OPTIONAL] Configurations for which the preprocessing should be run. Default: 2d 3d_fullres "
-        "3d_lowres. 3d_cascade_fullres does not need to be specified because it uses the data "
-        "from 3d_fullres. Configurations that do not exist for some dataset will be skipped.",
     )
     parser.add_argument(
         "-part",
@@ -196,7 +151,7 @@ def preprocess_entry():
         args.plans_name,
         part=args.part,
         total_parts=args.total_parts,
-        configurations=args.c,
+        configurations="3d_fullres",
         num_processes=np,
         verbose=args.verbose,
     )
@@ -219,14 +174,6 @@ def plan_and_preprocess_entry():
         default=8,
         required=False,
         help="[OPTIONAL] Number of processes used for fingerprint extraction. Default: 8",
-    )
-    parser.add_argument(
-        "--verify_dataset_integrity",
-        required=False,
-        default=False,
-        action="store_true",
-        help="[RECOMMENDED] set this flag to check the dataset integrity. This is useful and should be done once for "
-        "each dataset!",
     )
     parser.add_argument(
         "--no_pp",
@@ -365,7 +312,7 @@ def plan_and_preprocess_entry():
     dataset_id = args.d
     # fingerprint extraction
     print("Fingerprint extraction...")
-    extract_fingerprints(dataset_id, args.npfp, args.verify_dataset_integrity, args.clean, args.verbose)
+    extract_fingerprints(dataset_id, args.npfp, args.clean, args.verbose)
 
     # experiment planning
     print("Experiment planning...")

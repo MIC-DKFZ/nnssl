@@ -69,15 +69,6 @@ def get_pretrain_json_or_create_new(raw_dataset_folder: str) -> dict:
         raise FileNotFoundError("dataset.json or imagesTr folder does not exist in the given folder")
 
 
-def get_train_dataset(raw_dataset_folder: str) -> Dataset:
-    """
-    Returns a list of all dataset paths, containing paths to the actual files.
-    """
-    pretrain_dataset = get_pretrain_json_or_create_new(raw_dataset_folder)
-    dataset = Dataset.from_dict(pretrain_dataset)
-    return dataset
-
-
 def get_train_collection(raw_dataset_folder: str) -> Collection:
     """
     Returns a list of all dataset paths, containing paths to the actual files.
@@ -88,4 +79,4 @@ def get_train_collection(raw_dataset_folder: str) -> Collection:
 
 
 if __name__ == "__main__":
-    print(get_train_dataset(join(nnssl_raw, "Dataset741_Small_OASIS3_T1_only")))
+    print(get_train_collection(join(nnssl_raw, "Dataset741_Small_OASIS3_T1_only")))

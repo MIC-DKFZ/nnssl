@@ -21,7 +21,6 @@ import pandas as pd
 from batchgenerators.utilities.file_and_folder_operations import *
 from nnssl.configuration import default_num_processes
 from nnssl.imageio.base_reader_writer import BaseReaderWriter
-from nnssl.imageio.reader_writer_registry import determine_reader_writer_from_dataset_json
 from nnssl.paths import nnssl_raw, nnssl_preprocessed
 from nnssl.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
 from nnssl.data.utils import get_train_dataset

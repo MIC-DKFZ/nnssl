@@ -22,25 +22,14 @@ def dataclass_to_dict(data):
 class ConfigurationPlan:
     data_identifier: str
     preprocessor_name: str
-    batch_size: int
-    batch_dice: bool
-    patch_size: np.ndarray
-    median_image_size_in_voxels: np.ndarray
-    spacing: np.ndarray
     normalization_schemes: list[str]
     use_mask_for_norm: list[str]
-    UNet_class_name: str
-    UNet_base_num_features: int
-    n_conv_per_stage_encoder: tuple[int]
-    n_conv_per_stage_decoder: tuple[int]
-    num_pool_per_axis: list[int]
-    pool_op_kernel_sizes: list[list[int]]
-    conv_kernel_sizes: list[list[int]]
-    unet_max_num_features: int
     resampling_fn_data: str
     resampling_fn_data_kwargs: dict[str, Any]
     resampling_fn_mask: str
     resampling_fn_mask_kwargs: dict[str, Any]
+    spacing: np.ndarray | None = None
+    patch_size: np.ndarray = None
 
     def __getitem__(self, key):
         return getattr(self, key)
@@ -72,7 +61,6 @@ class Plan:
     dataset_name: str
     plans_name: str
     original_median_spacing_after_transp: list[float]
-    original_median_shape_after_transp: list[int]
     image_reader_writer: str
     transpose_forward: list[int]
     transpose_backward: list[int]

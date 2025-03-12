@@ -9,7 +9,6 @@ from nnssl.experiment_planning.dataset_fingerprint.default_fingerprint_extractor
 )
 from nnssl.experiment_planning.experiment_planners.default_experiment_planner import ExperimentPlanner
 from nnssl.experiment_planning.experiment_planners.plan import Plan
-from nnssl.experiment_planning.verify_dataset_integrity import verify_dataset_integrity
 from nnssl.paths import nnssl_raw, nnssl_preprocessed
 from nnssl.preprocessing.preprocessors.abstract_preprocessor import get_preprocessor
 
@@ -23,7 +22,6 @@ from nnssl.configuration import default_num_processes
 def extract_fingerprint_dataset(
     dataset_id: int,
     num_processes: int = default_num_processes,
-    check_dataset_integrity: bool = False,
     clean: bool = True,
     verbose: bool = True,
 ) -> dict:
@@ -32,9 +30,6 @@ def extract_fingerprint_dataset(
     """
     dataset_name = convert_id_to_dataset_name(dataset_id)
     print(dataset_name)
-
-    if check_dataset_integrity:
-        verify_dataset_integrity(join(nnssl_raw, dataset_name), num_processes)
 
     fingerprint = default_dataset_fingerprint_extraction(
         dataset_id, num_processes, verbose=verbose, overwrite_existing=clean
@@ -45,7 +40,6 @@ def extract_fingerprint_dataset(
 def extract_fingerprints(
     dataset_ids: List[int],
     num_processes: int = default_num_processes,
-    check_dataset_integrity: bool = False,
     clean: bool = True,
     verbose: bool = True,
 ):
@@ -61,32 +55,21 @@ def extract_fingerprints(
         verbose (bool, optional): Whether to print verbose output during extraction. Defaults to True.
     """
     for d in dataset_ids:
-        extract_fingerprint_dataset(d, num_processes, check_dataset_integrity, clean, verbose)
+        extract_fingerprint_dataset(d, num_processes, clean, verbose)
 
 
 def plan_experiment_dataset(
     dataset_id: int,
     experiment_planner_class: Type[ExperimentPlanner] = ExperimentPlanner,
-    gpu_memory_target_in_gb: float = 11,
     preprocess_class_name: str = "DefaultPreprocessor",
-    overwrite_target_spacing: Optional[Tuple[float, ...]] = None,
-    overwrite_plans_name: Optional[str] = None,
 ) -> Plan:
     """
     overwrite_target_spacing ONLY applies to 3d_fullres and 3d_cascade fullres!
     """
     kwargs = {}
-    if overwrite_plans_name is not None:
-        kwargs["plans_name"] = overwrite_plans_name
     return experiment_planner_class(
         dataset_id,
-        gpu_memory_target_in_gb=gpu_memory_target_in_gb,
         preprocessor_name=preprocess_class_name,
-        overwrite_target_spacing=(
-            [float(i) for i in overwrite_target_spacing]
-            if overwrite_target_spacing is not None
-            else overwrite_target_spacing
-        ),
         suppress_transpose=False,  # might expose this later,
         **kwargs,
     ).plan_experiment()
@@ -95,10 +78,7 @@ def plan_experiment_dataset(
 def plan_experiments(
     dataset_ids: List[int],
     experiment_planner_class_name: str = "ExperimentPlanner",
-    gpu_memory_target_in_gb: float = 11,
     preprocess_class_name: str = "DefaultPreprocessor",
-    overwrite_target_spacing: Optional[Tuple[float, ...]] = None,
-    overwrite_plans_name: Optional[str] = None,
 ):
     """
     overwrite_target_spacing ONLY applies to 3d_fullres and 3d_cascade fullres!
@@ -112,17 +92,14 @@ def plan_experiments(
         plan_experiment_dataset(
             d,
             experiment_planner,
-            gpu_memory_target_in_gb,
             preprocess_class_name,
-            overwrite_target_spacing,
-            overwrite_plans_name,
         )
 
 
 def preprocess_dataset(
     dataset_id: int,
     plans_identifier: str = "nnsslPlans",
-    configurations: Union[Tuple[str], List[str]] = ("3d_fullres"),
+    configurations: Union[Tuple[str], List[str]] = ("3d_fullres",),
     part: int = 0,
     total_parts: int = 1,
     num_processes: Sequence[int] = (4,),
@@ -162,7 +139,7 @@ def preprocess(
     plans_identifier: str = "nnsslPlans",
     part: int = 0,
     total_parts: int = 1,
-    configurations: Union[Tuple[str], List[str]] = ("3d_fullres"),
+    configurations: Union[Tuple[str], List[str]] = ("3d_fullres",),
     num_processes: Union[int, Tuple[int, ...], List[int]] = (4),
     verbose: bool = False,
 ):
