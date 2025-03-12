@@ -56,7 +56,7 @@ def convert_id_to_dataset_name(dataset_id: int):
             f"nnssl_raw={os.environ.get('nnssl_raw') if os.environ.get('nnssl_raw') is not None else 'None'}\n"
             f"If something is not right, adapt your environment variables."
         )
-    return unique_candidates[0]
+    return str(unique_candidates[0])
 
 
 def convert_dataset_name_to_id(dataset_name: str):

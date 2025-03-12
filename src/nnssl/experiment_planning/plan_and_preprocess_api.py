@@ -1,5 +1,4 @@
-import shutil
-from typing import List, Sequence, Type, Optional, Tuple, Union, TYPE_CHECKING
+from typing import List, Sequence, Type, Tuple, Union, TYPE_CHECKING
 
 import nnssl
 from batchgenerators.utilities.file_and_folder_operations import join
@@ -9,7 +8,7 @@ from nnssl.experiment_planning.dataset_fingerprint.default_fingerprint_extractor
 )
 from nnssl.experiment_planning.experiment_planners.default_experiment_planner import ExperimentPlanner
 from nnssl.experiment_planning.experiment_planners.plan import Plan
-from nnssl.paths import nnssl_raw, nnssl_preprocessed
+from nnssl.paths import nnssl_preprocessed
 from nnssl.preprocessing.preprocessors.abstract_preprocessor import get_preprocessor
 
 if TYPE_CHECKING:
@@ -61,7 +60,6 @@ def extract_fingerprints(
 def plan_experiment_dataset(
     dataset_id: int,
     experiment_planner_class: Type[ExperimentPlanner] = ExperimentPlanner,
-    preprocess_class_name: str = "DefaultPreprocessor",
 ) -> Plan:
     """
     overwrite_target_spacing ONLY applies to 3d_fullres and 3d_cascade fullres!
@@ -69,7 +67,6 @@ def plan_experiment_dataset(
     kwargs = {}
     return experiment_planner_class(
         dataset_id,
-        preprocessor_name=preprocess_class_name,
         suppress_transpose=False,  # might expose this later,
         **kwargs,
     ).plan_experiment()
@@ -78,7 +75,6 @@ def plan_experiment_dataset(
 def plan_experiments(
     dataset_ids: List[int],
     experiment_planner_class_name: str = "ExperimentPlanner",
-    preprocess_class_name: str = "DefaultPreprocessor",
 ):
     """
     overwrite_target_spacing ONLY applies to 3d_fullres and 3d_cascade fullres!
@@ -88,18 +84,21 @@ def plan_experiments(
         experiment_planner_class_name,
         current_module="nnssl.experiment_planning",
     )
+    plans = []
     for d in dataset_ids:
-        plan_experiment_dataset(
-            d,
-            experiment_planner,
-            preprocess_class_name,
+        plans.append(
+            plan_experiment_dataset(
+                d,
+                experiment_planner,
+            )
         )
+    return plans
 
 
 def preprocess_dataset(
     dataset_id: int,
     plans_identifier: str = "nnsslPlans",
-    configurations: Union[Tuple[str], List[str]] = ("3d_fullres",),
+    configurations: Union[Tuple[str], List[str]] = ("onemmiso",),
     part: int = 0,
     total_parts: int = 1,
     num_processes: Sequence[int] = (4,),
@@ -139,7 +138,7 @@ def preprocess(
     plans_identifier: str = "nnsslPlans",
     part: int = 0,
     total_parts: int = 1,
-    configurations: Union[Tuple[str], List[str]] = ("3d_fullres",),
+    configurations: Union[Tuple[str], List[str]] = ("onemmiso",),
     num_processes: Union[int, Tuple[int, ...], List[int]] = (4),
     verbose: bool = False,
 ):

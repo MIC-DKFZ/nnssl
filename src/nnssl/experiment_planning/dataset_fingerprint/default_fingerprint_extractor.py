@@ -110,7 +110,7 @@ def default_dataset_fingerprint_extraction(
         analyze_case_partial = partial(analyze_case, reader_writer_class=reader_writer_class)
         if num_processes > 1:
             with multiprocessing.get_context("spawn").Pool(num_processes) as p:
-                results = list(tqdm(p.imap(analyze_case_partial, [[k] for k in collection.get_all_image_paths()])))
+                results = list(p.map(analyze_case_partial, [[k] for k in collection.get_all_image_paths()]))
         else:
             results = [analyze_case([k], reader_writer_class) for k in tqdm(collection.get_all_image_paths())]
         spacings = [r[0] for r in results]

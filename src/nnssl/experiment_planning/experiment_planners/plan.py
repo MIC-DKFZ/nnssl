@@ -7,7 +7,6 @@ import numpy as np
 
 
 from nnssl.imageio.reader_writer_registry import recursive_find_reader_writer_by_name
-
 from nnssl.utilities.json_export import recursive_fix_for_json_export
 
 
@@ -22,6 +21,7 @@ def dataclass_to_dict(data):
 class ConfigurationPlan:
     data_identifier: str
     preprocessor_name: str
+    spacing_style: str
     normalization_schemes: list[str]
     use_mask_for_norm: list[str]
     resampling_fn_data: str
