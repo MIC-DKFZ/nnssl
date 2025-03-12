@@ -1,29 +1,29 @@
-import shutil
-from typing import List, Union, Tuple
+from typing import List, Literal, Union, Tuple
 
 import numpy as np
 from batchgenerators.utilities.file_and_folder_operations import load_json, join, save_json, isfile, maybe_mkdir_p
 
-from nnssl.configuration import ANISO_THRESHOLD
 from nnssl.data.raw_dataset import Collection
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.imageio.reader_writer_registry import (
     determine_reader_writer_from_file_ending,
 )
 from nnssl.paths import nnssl_raw, nnssl_preprocessed
-from nnssl.preprocessing.normalization.default_normalization_schemes import ZScoreNormalization
+from nnssl.preprocessing.preprocessors.abstract_preprocessor import Preprocessors
+from nnssl.preprocessing.preprocessors.default_preprocessor import PREPROCESS_SPACING_STYLES
 from nnssl.preprocessing.resampling.default_resampling import resample_data_or_seg_to_shape
 from nnssl.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
 from nnssl.utilities.json_export import recursive_fix_for_json_export
 from nnssl.data.utils import get_train_collection
+
+configs = Literal["median", "onemmiso", "noresample"]
 
 
 class ExperimentPlanner(object):
     def __init__(
         self,
         dataset_name_or_id: Union[str, int],
-        preprocessor_name: str = "DefaultPreprocessor",
-        plans_name: str = "medianPlans",
+        plans_name: str = "nnsslPlans",
         suppress_transpose: bool = False,
     ):
         """
@@ -43,7 +43,6 @@ class ExperimentPlanner(object):
             raise RuntimeError("Fingerprint missing for this dataset. Please run nnUNet_extract_dataset_fingerprint")
 
         self.dataset_fingerprint = load_json(join(preprocessed_folder, "dataset_fingerprint.json"))
-        self.preprocessor_name = preprocessor_name
         self.plans_identifier = plans_name
 
         self.plans = None
@@ -110,15 +109,11 @@ class ExperimentPlanner(object):
         impact performance (due to the low number of slices).
         """
         spacings = self.dataset_fingerprint["spacings"]
+        # ToDo: Add some k-means clustering approach here just because I am curious.
+        #   ToDo: Conduct this for Fabi's large 120-ish Dataset collection (just the downstream medical task?)
         target = np.percentile(np.vstack(spacings), 50, 0)
 
         return target
-
-    def determine_normalization_scheme_and_whether_mask_is_used_for_norm(self) -> Tuple[List[str], List[bool]]:
-        normalization_schemes = [ZScoreNormalization]
-        use_nonzero_mask_for_norm = [False]
-        normalization_schemes = [i.__name__ for i in normalization_schemes]
-        return normalization_schemes, use_nonzero_mask_for_norm
 
     def determine_transpose(self):
         if self.suppress_transpose:
@@ -134,22 +129,36 @@ class ExperimentPlanner(object):
 
     def get_plans_for_configuration(
         self,
+        config: configs,
         spacing: Union[np.ndarray, Tuple[float, ...], List[float]],
         data_identifier: str,
     ) -> ConfigurationPlan:
         assert all([i > 0 for i in spacing]), f"Spacing must be > 0! Spacing: {spacing}"
         resampling_data, resampling_data_kwargs, resampling_seg, resampling_seg_kwargs = self.determine_resampling()
+
+        spacing_style: PREPROCESS_SPACING_STYLES
+        if config == "median":
+            spacing_style = "median"
+        elif config == "onemmiso":
+            spacing = [1, 1, 1]
+            spacing_style = "onemmiso"
+        elif config == "noresample":
+            spacing = None
+            spacing_style = "noresample"
+        else:
+            raise NotImplementedError()
+
         plan = {
             "data_identifier": data_identifier,
-            "preprocessor_name": self.preprocessor_name,
+            "preprocessor_name": Preprocessors.DEFAULT.value,
+            "spacing_style": spacing_style,
             "spacing": spacing,
-            "normalization_schemes": "ZScoreNormalization",
+            "normalization_schemes": ["ZScoreNormalization"],
             "use_mask_for_norm": [False],
             "resampling_fn_data": resampling_data.__name__,
             "resampling_fn_data_kwargs": resampling_data_kwargs,
             "resampling_fn_mask": resampling_seg.__name__,
             "resampling_fn_mask_kwargs": resampling_seg_kwargs,
-            "batch_dice": False,
         }
 
         return ConfigurationPlan(**plan)
@@ -172,9 +181,21 @@ class ExperimentPlanner(object):
         fullres_spacing = self.determine_fullres_target_spacing()
         fullres_spacing_transposed = fullres_spacing[transpose_forward]
 
-        plan_3d_fullres = self.get_plans_for_configuration(
+        # ----------- We always plan all three because it's cheap and easy ----------- #
+        median = self.get_plans_for_configuration(
+            "median",
             fullres_spacing_transposed,
-            self.generate_data_identifier("3d_fullres"),
+            self.generate_data_identifier("median"),
+        )
+        onemmiso = self.get_plans_for_configuration(
+            "onemmiso",
+            fullres_spacing_transposed,
+            self.generate_data_identifier("onemmiso"),
+        )
+        noresample = self.get_plans_for_configuration(
+            "noresample",
+            fullres_spacing_transposed,
+            self.generate_data_identifier("onemmiso"),
         )
 
         median_spacing = np.median(self.dataset_fingerprint["spacings"], 0)[transpose_forward]
@@ -192,11 +213,9 @@ class ExperimentPlanner(object):
             }
         )
 
-        if plan_3d_fullres is not None:
-            plans["configurations"]["3d_fullres"] = plan_3d_fullres
-            print("3D fullres U-Net configuration:")
-            print(plan_3d_fullres)
-            print()
+        plans["configurations"]["median"] = median
+        plans["configurations"]["onemmiso"] = onemmiso
+        plans["configurations"]["noresample"] = noresample
 
         self.plans: Plan = plans
         plans.save_to_file(overwrite=True)

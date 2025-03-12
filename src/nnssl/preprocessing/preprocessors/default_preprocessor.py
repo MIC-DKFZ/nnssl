@@ -16,48 +16,28 @@ from dataclasses import asdict
 from functools import partial
 import multiprocessing
 from pathlib import Path
-import shutil
-from typing import Union
+from typing import Callable, Literal, Union
 
-import blosc2
 from loguru import logger
 
-import nnssl
 import numpy as np
 from batchgenerators.utilities.file_and_folder_operations import *
 
 
-from nnssl.data.raw_dataset import Collection, Dataset, IndependentImage
+from nnssl.data.raw_dataset import Collection, IndependentImage
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.paths import nnssl_preprocessed, nnssl_raw
 from nnssl.preprocessing.cropping.cropping import crop_to_nonzero
-from nnssl.preprocessing.normalization.normalization_schemes import apply_normalization
+
+from nnssl.preprocessing.preprocessors.normalize import normalize_arr
+from nnssl.preprocessing.preprocessors.no_resampling_preprocessor import no_resample_preprocess_case
 from nnssl.preprocessing.resampling.default_resampling import compute_new_shape, get_resampling_scheme
 from nnssl.training.dataloading.dataset import nnSSLDatasetBlosc2
 from nnssl.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
-from nnssl.data.utils import get_train_collection, get_train_dataset
+from nnssl.data.utils import get_train_collection
 
 
-def normalize(
-    data: np.ndarray,
-    non_zero_mask: np.ndarray,
-    normalization_schemes: list[str],
-    use_mask_for_norm: list[bool],
-) -> np.ndarray:
-    """
-    This code can give you a stroke if you read it.
-    Who initializes a new class everytime a function is called?
-    (I did not write this, but I am sorry you got here and had to read this as well.)
-    """
-    for c in range(data.shape[0]):
-        data[c] = apply_normalization(
-            scheme=normalization_schemes[c],
-            image=data[c],
-            target_dtype=data.dtype,
-            use_mask_for_norm=use_mask_for_norm[c],
-            non_zero_mask=non_zero_mask[c],
-        )
-    return data
+PREPROCESS_SPACING_STYLES = Literal["onemmiso", "median", "noresample"]
 
 
 def preprocess_case(
@@ -107,7 +87,7 @@ def preprocess_case(
     # normalization MUST happen before resampling or we get huge problems with resampled nonzero masks no
     # longer fitting the images perfectly!
     norm_mask = masks[0]
-    data = normalize(data, norm_mask, config_plan.normalization_schemes, config_plan.use_mask_for_norm)
+    data = normalize_arr(data, norm_mask, config_plan.normalization_schemes, config_plan.use_mask_for_norm)
 
     old_shape = data.shape[1:]
     resampling_fn = partial(
@@ -137,6 +117,10 @@ def preprocess_and_save(
     plan: Plan,
     config_plan: ConfigurationPlan,
     verbose: bool = True,
+    pp_case_func: Callable[
+        [np.ndarray, list[np.ndarray] | None, dict, Plan, ConfigurationPlan, bool],
+        tuple[np.ndarray, list[np.ndarray] | None],
+    ] = preprocess_case,
 ):
     """Reads the images and their properties, preprocesses them and saves them to disk. (in a compressed npz)"""
     output_image_filename = Path(join(output_directory, image.get_output_path("image")))
@@ -157,14 +141,14 @@ def preprocess_and_save(
             masks = [rw.read_seg(v)[0] for v in asdict(image.associated_masks).values() if v is not None]
         else:
             masks = None
-        data, masks = preprocess_case(data, masks, data_properties, plan, config_plan, verbose)
+        data, masks = pp_case_func(data, masks, data_properties, plan, config_plan, verbose)
         # print('dtypes', data.dtype, seg.dtype)
         block_size_data, chunk_size_data = nnSSLDatasetBlosc2.comp_blosc2_params(
-            data.shape, tuple(config_plan.patch_size), data.itemsize
+            data.shape, tuple([160, 160, 160]), data.itemsize
         )
         if masks is not None:
             block_size_seg, chunk_size_seg = nnSSLDatasetBlosc2.comp_blosc2_params(
-                data.shape, tuple(config_plan.patch_size), data.itemsize
+                data.shape, tuple([160, 160, 160]), data.itemsize
             )
             if image.associated_masks.anatomy_mask is not None:
                 anat_mask = masks[0]
@@ -228,29 +212,32 @@ def default_preprocess(
 
     output_directory = join(nnssl_preprocessed, dataset_name, config_plan.data_identifier)
 
-    # if isdir(output_directory):
-    #     shutil.rmtree(output_directory)
-
     maybe_mkdir_p(output_directory)
 
     collection: Collection = get_train_collection(join(nnssl_raw, dataset_name))
-    # identifiers = [os.path.basename(i[:-len(dataset_json['file_ending'])]) for i in seg_fnames]
-    # output_filenames_truncated = [join(output_directory, i) for i in identifiers]
-    # Make a copy for after preprocessing
     pp_collection = deepcopy(collection)
     pp_collection.update_extension(new_extension=".b2nd")
-    # pp_collection.resolve_relative_paths()
-    pp_collection.raw_to_pp_path()  # This method removes extensions unless specified.
+    pp_collection.raw_to_pp_path()
     save_json(
         pp_collection.to_dict(relative_paths=True), join(nnssl_preprocessed, dataset_name, "pretrain_data.json")
     )
     # multiprocessing magic.
+    spst: PREPROCESS_SPACING_STYLES
+    spst = config_plan.spacing_style
+    if spst == "noresample":
+        pp_func = no_resample_preprocess_case
+    elif spst in ["onemmiso", "median"]:
+        pp_func = preprocess_case
+    else:
+        raise NotImplementedError("Unknown")
+
     preprocess_and_save_partial = partial(
         preprocess_and_save,
         output_directory=output_directory,
         plan=plan,
         config_plan=config_plan,
         verbose=verbose,
+        pp_case_func=pp_func,
     )
     all_independent_images: list[IndependentImage] = collection.to_independent_images()
     # ------------------- Optional new splitting into sub-parts ------------------ #
@@ -268,13 +255,13 @@ def default_preprocess(
     else:
         r = [preprocess_and_save_partial(image=img) for img in all_independent_images]
 
-    wrongly_processed_imgs = [img for img, r in zip(all_independent_images, r) if not r]
+    valid_imgs = [img for img, r in zip(all_independent_images, r) if r]
 
     if total_parts > 1:
         out_filename = join(nnssl_preprocessed, dataset_name, f"valid_imgs__{part}_of_{total_parts}.json")
     else:
         out_filename = join(nnssl_preprocessed, dataset_name, "valid_imgs.json")
-    save_json([img.to_dict() for img in wrongly_processed_imgs], out_filename)
+    save_json([img.to_dict() for img in valid_imgs], out_filename)
 
     # ------------------------- Merge problematic images ------------------------- #
     if total_parts > 1:

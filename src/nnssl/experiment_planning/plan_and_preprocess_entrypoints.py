@@ -1,5 +1,7 @@
 from nnssl.configuration import default_num_processes
 from nnssl.experiment_planning.plan_and_preprocess_api import extract_fingerprints, plan_experiments, preprocess
+from nnssl.preprocessing.preprocessors.default_preprocessor import PREPROCESS_SPACING_STYLES
+from typing import get_args
 
 
 def extract_fingerprint_entry():
@@ -20,14 +22,6 @@ def extract_fingerprint_entry():
         help=f"[OPTIONAL] Number of processes used for fingerprint extraction. " f"Default: {default_num_processes}",
     )
     parser.add_argument(
-        "--verify_dataset_integrity",
-        required=False,
-        default=False,
-        action="store_true",
-        help="[RECOMMENDED] set this flag to check the dataset integrity. This is useful and should be done once for "
-        "each dataset!",
-    )
-    parser.add_argument(
         "--clean",
         required=False,
         default=False,
@@ -43,7 +37,7 @@ def extract_fingerprint_entry():
         "Recommended for cluster environments",
     )
     args, unrecognized_args = parser.parse_known_args()
-    extract_fingerprints([args.d], args.np, args.verify_dataset_integrity, args.clean, args.verbose)
+    extract_fingerprints([args.d], args.np, args.clean, args.verbose)
 
 
 def plan_experiment_entry():
@@ -66,21 +60,10 @@ def plan_experiment_entry():
         "'ExperimentPlanner'. Note: There is no longer a distinction between 2d and 3d planner. "
         "It's an all in one solution now. Wuch. Such amazing.",
     )
-    parser.add_argument(
-        "-preprocessor_name",
-        default="DefaultPreprocessor",
-        type=str,
-        required=False,
-        help="[OPTIONAL] DANGER ZONE! Sets a custom preprocessor class. This class must be located in "
-        "nnssl.preprocessing. Default: 'DefaultPreprocessor'. Changing this may affect your "
-        "models performance! Only use this if you really know what you "
-        "are doing and NEVER use this without running the default nnU-Net first (as a baseline).",
-    )
     args, unrecognized_args = parser.parse_known_args()
     plan_experiments(
         args.d,
         args.pl,
-        args.preprocessor_name,
     )
 
 
@@ -94,6 +77,14 @@ def preprocess_entry():
         type=int,
         help="[REQUIRED] List of dataset IDs. Example: 2 4 5. This will run fingerprint extraction, experiment "
         "planning and preprocessing for these datasets. Can of course also be just one dataset",
+    )
+    parser.add_argument(
+        "-c",
+        nargs="+",
+        type=str,
+        default=["onemmiso"],
+        help="List of configurations. This will create a pre-training dataset that is resampled in the respective way.",
+        choices=get_args(PREPROCESS_SPACING_STYLES),
     )
     parser.add_argument(
         "-plans_name",
@@ -169,6 +160,14 @@ def plan_and_preprocess_entry():
         "planning and preprocessing for these datasets. Can of course also be just one dataset",
     )
     parser.add_argument(
+        "-c",
+        nargs="+",
+        type=str,
+        default=["onemmiso"],
+        help="List of configurations. This will create a pre-training dataset that is resampled in the respective way.",
+        choices=get_args(PREPROCESS_SPACING_STYLES),
+    )
+    parser.add_argument(
         "-npfp",
         type=int,
         default=8,
@@ -202,59 +201,6 @@ def plan_and_preprocess_entry():
         "It's an all in one solution now. Wuch. Such amazing.",
     )
     parser.add_argument(
-        "-gpu_memory_target",
-        default=11,
-        type=int,
-        required=False,
-        help="[OPTIONAL] DANGER ZONE! Sets a custom GPU memory target. Default: 8 [GB]. Changing this will "
-        "affect patch and batch size and will "
-        "definitely affect your models performance! Only use this if you really know what you "
-        "are doing and NEVER use this without running the default nnU-Net first (as a baseline).",
-    )
-    parser.add_argument(
-        "-preprocessor_name",
-        default="DefaultPreprocessor",
-        type=str,
-        required=False,
-        help="[OPTIONAL] DANGER ZONE! Sets a custom preprocessor class. This class must be located in "
-        "nnssl.preprocessing. Default: 'DefaultPreprocessor'. Changing this may affect your "
-        "models performance! Only use this if you really know what you "
-        "are doing and NEVER use this without running the default nnU-Net first (as a baseline).",
-    )
-    parser.add_argument(
-        "-overwrite_target_spacing",
-        default=None,
-        nargs="+",
-        required=False,
-        help="[OPTIONAL] DANGER ZONE! Sets a custom target spacing for the 3d_fullres and 3d_cascade_fullres "
-        "configurations. Default: None [no changes]. Changing this will affect image size and "
-        "potentially patch and batch "
-        "size. This will definitely affect your models performance! Only use this if you really "
-        "know what you are doing and NEVER use this without running the default nnU-Net first "
-        "(as a baseline). Changing the target spacing for the other configurations is currently "
-        "not implemented. New target spacing must be a list of three numbers!",
-    )
-    parser.add_argument(
-        "-overwrite_plans_name",
-        default="nnsslPlans",
-        required=False,
-        help="[OPTIONAL] uSE A CUSTOM PLANS IDENTIFIER. If you used -gpu_memory_target, "
-        "-preprocessor_name or "
-        "-overwrite_target_spacing it is best practice to use -overwrite_plans_name to generate a "
-        "differently named plans file such that the nnunet default plans are not "
-        "overwritten. You will then need to specify your custom plans file with -p whenever "
-        "running other nnunet commands (training, inference etc)",
-    )
-    parser.add_argument(
-        "-c",
-        required=False,
-        default=["3d_fullres"],
-        nargs="+",
-        help="[OPTIONAL] Configurations for which the preprocessing should be run. Default: 2d 3d_fullres "
-        "3d_lowres. 3d_cascade_fullres does not need to be specified because it uses the data "
-        "from 3d_fullres. Configurations that do not exist for some dataset will be skipped.",
-    )
-    parser.add_argument(
         "-part",
         type=int,
         default=0,
@@ -272,7 +218,7 @@ def plan_and_preprocess_entry():
         "-np",
         type=int,
         nargs="+",
-        default=None,
+        default=4,
         required=False,
         help="[OPTIONAL] Use this to define how many processes are to be used. If this is just one number then "
         "this number of processes is used for all configurations specified with -c. If it's a "
@@ -293,20 +239,6 @@ def plan_and_preprocess_entry():
         help="Set this to print a lot of stuff. Useful for debugging. Will disable progress bar! "
         "Recommended for cluster environments",
     )
-    parser.add_argument(
-        "--start_fresh",
-        required=False,
-        default=True,
-        action="store_true",
-        help="Set this to False to append the outputs of this preprocessing with previous dataset versions.",
-    )
-    parser.add_argument(
-        "--compress_output",
-        required=False,
-        default=True,
-        action="store_true",
-        help="Set to true to zip files.",
-    )
     args = parser.parse_args()
 
     dataset_id = args.d
@@ -316,27 +248,19 @@ def plan_and_preprocess_entry():
 
     # experiment planning
     print("Experiment planning...")
-    plan_experiments(
+    plans = plan_experiments(
         dataset_id,
         args.pl,
-        args.gpu_memory_target,
-        args.preprocessor_name,
-        args.overwrite_target_spacing,
-        args.overwrite_plans_name,
     )
 
-    # manage default np
-    if args.np is None:
-        default_np = {"3d_fullres": 4}
-        np = [default_np[c] if c in default_np.keys() else 4 for c in args.c]
-    else:
-        np = args.np
+
+    np = args.np
     # preprocessing
     if not args.no_pp:
         print("Preprocessing...")
         preprocess(
             dataset_ids=dataset_id,
-            plans_identifier=args.overwrite_plans_name,
+            plans_identifier=plans[0].plans_name,
             configurations=args.c,
             part=args.part,
             total_parts=args.total_parts,
