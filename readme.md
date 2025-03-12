@@ -63,7 +63,7 @@ dataset](#complimentary-resources)**. However any other dataset could be used as
   <details>
   <summary>Hence, our `pretrain_data.json` file mirrors the BIDS structure:</summary>
 
-  ```json
+  ```jsonc
   {  // Examplary Structure
     "collection_index": 745,    // Collection Index -- 
     "collection_name": "Dataset745__OpenNeuro",     // Collection Index -- 
