@@ -1,9 +1,4 @@
 from nnssl.configuration import default_num_processes
-
-from nnssl.experiment_planning.dataset_fingerprint.abstract_fingerprint_extraction import (
-    DatasetFingerprintExtractor,
-    fingerprint_type,
-)
 from nnssl.experiment_planning.plan_and_preprocess_api import extract_fingerprints
 
 
@@ -26,14 +21,6 @@ def extract_fingerprint_entry():
         help=f"[OPTIONAL] Number of processes used for fingerprint extraction. " f"Default: {default_num_processes}",
     )
     parser.add_argument(
-        "--verify_dataset_integrity",
-        required=False,
-        default=False,
-        action="store_true",
-        help="[RECOMMENDED] set this flag to check the dataset integrity. This is useful and should be done once for "
-        "each dataset!",
-    )
-    parser.add_argument(
         "--clean",
         required=False,
         default=False,
@@ -49,7 +36,7 @@ def extract_fingerprint_entry():
         "Recommended for cluster environments",
     )
     args, unrecognized_args = parser.parse_known_args()
-    extract_fingerprints(args.d, args.np, args.verify_dataset_integrity, args.clean, args.verbose)
+    extract_fingerprints(args.d, args.np, args.clean, args.verbose)
 
 
 if __name__ == "__main__":

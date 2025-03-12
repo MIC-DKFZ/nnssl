@@ -4,7 +4,6 @@ from typing import Type
 from batchgenerators.utilities.file_and_folder_operations import join
 
 import nnssl
-from nnssl.imageio.natural_image_reader_writer import NaturalImage2DIO
 from nnssl.imageio.nibabel_reader_writer import NibabelIO, NibabelIOWithReorient
 from nnssl.imageio.simpleitk_reader_writer import SimpleITKIO
 from nnssl.imageio.tif_reader_writer import Tiff3DIO
@@ -12,30 +11,11 @@ from nnssl.imageio.base_reader_writer import BaseReaderWriter
 from nnssl.utilities.find_class_by_name import recursive_find_python_class
 
 LIST_OF_IO_CLASSES = [
-    NaturalImage2DIO,
     SimpleITKIO,
     Tiff3DIO,
     NibabelIO,
     NibabelIOWithReorient
 ]
-
-
-def determine_reader_writer_from_dataset_json(dataset_json_content: dict, example_file: str = None,
-                                              allow_nonmatching_filename: bool = False, verbose: bool = True
-                                              ) -> Type[BaseReaderWriter]:
-    if 'overwrite_image_reader_writer' in dataset_json_content.keys() and \
-            dataset_json_content['overwrite_image_reader_writer'] != 'None':
-        ioclass_name = dataset_json_content['overwrite_image_reader_writer']
-        # trying to find that class in the nnunetv2.imageio module
-        try:
-            ret = recursive_find_reader_writer_by_name(ioclass_name)
-            if verbose: print(f'Using {ret} reader/writer')
-            return ret
-        except RuntimeError:
-            if verbose: print(f'Warning: Unable to find ioclass specified in dataset.json: {ioclass_name}')
-            if verbose: print('Trying to automatically determine desired class')
-    return determine_reader_writer_from_file_ending(dataset_json_content['file_ending'], example_file,
-                                                    allow_nonmatching_filename, verbose)
 
 
 def determine_reader_writer_from_file_ending(file_ending: str, example_file: str = None, allow_nonmatching_filename: bool = False,
