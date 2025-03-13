@@ -75,7 +75,7 @@ def get_trainer_from_args(
     preprocessed_dataset_folder_base = join(nnssl_preprocessed, maybe_convert_to_dataset_name(dataset_name_or_id))
     plans_file = join(preprocessed_dataset_folder_base, plans_identifier + ".json")
     plans: Plan = Plan.load_from_file(plans_file)
-    pretrain_json = load_json(join(preprocessed_dataset_folder_base, "pretrain_data.json"))
+    pretrain_json = load_json(join(preprocessed_dataset_folder_base, f"pretrain_data__{configuration}.json"))
     nnssl_trainer: AbstractBaseTrainer = nnssl_trainer_cls(
         plan=plans,
         configuration_name=configuration,
