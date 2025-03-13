@@ -4,7 +4,7 @@ from torch import nn
 from torch.optim import AdamW
 from typing_extensions import override
 
-from nnssl.architectures.build_architecture import build_network_architecture
+from nnssl.architectures.get_network_by_name import get_network_by_name
 from nnssl.architectures.gvsl_architecture import GVSLArchitecture, GVSLArchitecture_recon_only
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.ssl_data.dataloading.data_loader_3d import nnsslCenterCropDataLoader3D
@@ -25,6 +25,7 @@ from typing import List
 import matplotlib.pyplot as plt
 import numpy as np
 
+
 class GVSLTrainer(AbstractBaseTrainer):
 
     def __init__(
@@ -34,13 +35,12 @@ class GVSLTrainer(AbstractBaseTrainer):
         fold: int,
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
-        do_spatial_aug: bool = True
+        do_spatial_aug: bool = True,
     ):
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
 
         self.do_spatial_aug = do_spatial_aug
         self.spatial_transforms = SpatialTransforms()
-
 
     @override
     def build_loss(self):
@@ -48,14 +48,15 @@ class GVSLTrainer(AbstractBaseTrainer):
 
     @override
     def build_architecture(
-            self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
+        self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
     ) -> nn.Module:
-        backbone = build_network_architecture(
+        architecture = get_network_by_name(
             config_plan,
+            "ResEncL",
             num_input_channels,
             num_output_channels,
         )
-        architecture = GVSLArchitecture(backbone, num_input_channels)
+        architecture = GVSLArchitecture(architecture, num_input_channels)
 
         return architecture
 
@@ -94,13 +95,12 @@ class GVSLTrainer(AbstractBaseTrainer):
             )
         return mt_gen_train, mt_gen_val
 
-
     def get_centercrop_dataloaders_with_doubled_batch_size(self):
         dataset_tr, dataset_val = self.get_tr_and_val_datasets()
 
         dl_tr = nnsslCenterCropDataLoader3D(
             dataset_tr,
-            2*self.batch_size,
+            2 * self.batch_size,
             self.config_plan.patch_size,
             self.config_plan.patch_size,
             sampling_probabilities=None,
@@ -108,14 +108,13 @@ class GVSLTrainer(AbstractBaseTrainer):
         )
         dl_val = nnsslCenterCropDataLoader3D(
             dataset_val,
-            2*self.batch_size,
+            2 * self.batch_size,
             self.config_plan.patch_size,
             self.config_plan.patch_size,
             sampling_probabilities=None,
             pad_sides=None,
         )
         return dl_tr, dl_val
-
 
     def visualize_brain_slices(self, batch_tensor, save_path, row_view=False):
         """
@@ -147,9 +146,9 @@ class GVSLTrainer(AbstractBaseTrainer):
         axes = np.atleast_1d(axes)  # Ensure axes is always iterable
 
         for i, (ax, slice_2d) in enumerate(zip(axes.flatten(), slices)):
-            ax.imshow(slice_2d, cmap='gray')
+            ax.imshow(slice_2d, cmap="gray")
             ax.set_title(f"Sample {i + 1} (Depth {depth_index})")
-            ax.axis('off')
+            ax.axis("off")
 
         plt.tight_layout()
         plt.savefig(save_path)
@@ -185,7 +184,9 @@ class GVSLTrainer(AbstractBaseTrainer):
             # These augmentations benefit from GPU acceleration, and since batchgenerators does not provide GPU support
             # for their transforms, they have to be conducted here
             if self.do_spatial_aug:
-                affine_mat, flow = self.spatial_transforms.get_rand_spatial(self.batch_size, self.config_plan.patch_size)
+                affine_mat, flow = self.spatial_transforms.get_rand_spatial(
+                    self.batch_size, self.config_plan.patch_size
+                )
                 imgsA = self.spatial_transforms.augment_spatial(imgsA, affine_mat, flow)
                 imgsA_app = self.spatial_transforms.augment_spatial(imgsA_app, affine_mat, flow)
                 imgsB = self.spatial_transforms.augment_spatial(imgsB, affine_mat, flow)
@@ -220,7 +221,6 @@ class GVSLTrainer(AbstractBaseTrainer):
             self.optimizer.step()
         return {"loss": l.detach().cpu().numpy()}
 
-
     @override
     def validation_step(self, batch: dict) -> dict:
         imgsA = batch["imgsA"]
@@ -233,7 +233,9 @@ class GVSLTrainer(AbstractBaseTrainer):
 
         with torch.no_grad(), torch.device(self.device):
             if self.do_spatial_aug:
-                affine_mat, flow = self.spatial_transforms.get_rand_spatial(self.batch_size, self.config_plan.patch_size)
+                affine_mat, flow = self.spatial_transforms.get_rand_spatial(
+                    self.batch_size, self.config_plan.patch_size
+                )
                 imgsA = self.spatial_transforms.augment_spatial(imgsA, affine_mat, flow)
                 imgsA_app = self.spatial_transforms.augment_spatial(imgsA_app, affine_mat, flow)
                 imgsB = self.spatial_transforms.augment_spatial(imgsB, affine_mat, flow)
@@ -268,7 +270,7 @@ class GVSLTrainer_do_spatial(GVSLTrainer):
         configuration_name: str,
         fold: int,
         pretrain_json: dict,
-        device: torch.device = torch.device("cuda")
+        device: torch.device = torch.device("cuda"),
     ):
         super().__init__(plan, configuration_name, fold, pretrain_json, device, do_spatial_aug=True)
 
@@ -280,7 +282,7 @@ class GVSLTrainer_no_spatial(GVSLTrainer):
         configuration_name: str,
         fold: int,
         pretrain_json: dict,
-        device: torch.device = torch.device("cuda")
+        device: torch.device = torch.device("cuda"),
     ):
         super().__init__(plan, configuration_name, fold, pretrain_json, device, do_spatial_aug=False)
 
@@ -300,6 +302,7 @@ class GVSLTrainer_test(GVSLTrainer_do_spatial):
         self.num_iterations_per_epoch = 20
         self.num_val_iterations_per_epoch = 2
 
+
 class GVSLTrainer_BS2_lr_1e4(GVSLTrainer_do_spatial):
     def __init__(
         self,
@@ -307,7 +310,7 @@ class GVSLTrainer_BS2_lr_1e4(GVSLTrainer_do_spatial):
         configuration_name: str,
         fold: int,
         pretrain_json: dict,
-        device: torch.device = torch.device("cuda")
+        device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
@@ -322,7 +325,7 @@ class GVSLTrainer_BS2_lr_1e5(GVSLTrainer_do_spatial):
         configuration_name: str,
         fold: int,
         pretrain_json: dict,
-        device: torch.device = torch.device("cuda")
+        device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
@@ -338,7 +341,7 @@ class GVSLTrainer_recon_only(GVSLTrainer_no_spatial):
         configuration_name: str,
         fold: int,
         pretrain_json: dict,
-        device: torch.device = torch.device("cuda")
+        device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
@@ -347,12 +350,14 @@ class GVSLTrainer_recon_only(GVSLTrainer_no_spatial):
         self.num_iterations_per_epoch = 100
 
     def build_architecture(
-            self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
+        self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
     ) -> nn.Module:
-        backbone = build_network_architecture(
+        backbone = get_network_by_name(
             config_plan,
+            "ResEncL",
             num_input_channels,
             num_output_channels,
+            encoder_only=True,
         )
         architecture = GVSLArchitecture_recon_only(backbone, num_input_channels)
 
@@ -374,7 +379,9 @@ class GVSLTrainer_recon_only(GVSLTrainer_no_spatial):
             # These augmentations benefit from GPU acceleration, and since batchgenerators does not provide GPU support
             # for their transforms, they have to be conducted here
             if self.do_spatial_aug:
-                affine_mat, flow = self.spatial_transforms.get_rand_spatial(self.batch_size, self.config_plan.patch_size)
+                affine_mat, flow = self.spatial_transforms.get_rand_spatial(
+                    self.batch_size, self.config_plan.patch_size
+                )
                 imgsA = self.spatial_transforms.augment_spatial(imgsA, affine_mat, flow)
                 imgsA_app = self.spatial_transforms.augment_spatial(imgsA_app, affine_mat, flow)
                 imgsB = self.spatial_transforms.augment_spatial(imgsB, affine_mat, flow)
@@ -418,7 +425,9 @@ class GVSLTrainer_recon_only(GVSLTrainer_no_spatial):
 
         with torch.no_grad(), torch.device(self.device):
             if self.do_spatial_aug:
-                affine_mat, flow = self.spatial_transforms.get_rand_spatial(self.batch_size, self.config_plan.patch_size)
+                affine_mat, flow = self.spatial_transforms.get_rand_spatial(
+                    self.batch_size, self.config_plan.patch_size
+                )
                 imgsA = self.spatial_transforms.augment_spatial(imgsA, affine_mat, flow)
                 imgsA_app = self.spatial_transforms.augment_spatial(imgsA_app, affine_mat, flow)
                 imgsB = self.spatial_transforms.augment_spatial(imgsB, affine_mat, flow)
@@ -440,7 +449,7 @@ class GVSLTrainer_recon_only_with_spatial(GVSLTrainer_do_spatial):
         configuration_name: str,
         fold: int,
         pretrain_json: dict,
-        device: torch.device = torch.device("cuda")
+        device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
@@ -449,10 +458,11 @@ class GVSLTrainer_recon_only_with_spatial(GVSLTrainer_do_spatial):
         self.num_iterations_per_epoch = 100
 
     def build_architecture(
-            self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
+        self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
     ) -> nn.Module:
-        backbone = build_network_architecture(
+        backbone = get_network_by_name(
             config_plan,
+            "ResEncL",
             num_input_channels,
             num_output_channels,
         )
@@ -476,7 +486,9 @@ class GVSLTrainer_recon_only_with_spatial(GVSLTrainer_do_spatial):
             # These augmentations benefit from GPU acceleration, and since batchgenerators does not provide GPU support
             # for their transforms, they have to be conducted here
             if self.do_spatial_aug:
-                affine_mat, flow = self.spatial_transforms.get_rand_spatial(self.batch_size, self.config_plan.patch_size)
+                affine_mat, flow = self.spatial_transforms.get_rand_spatial(
+                    self.batch_size, self.config_plan.patch_size
+                )
                 imgsA = self.spatial_transforms.augment_spatial(imgsA, affine_mat, flow)
                 imgsA_app = self.spatial_transforms.augment_spatial(imgsA_app, affine_mat, flow)
                 imgsB = self.spatial_transforms.augment_spatial(imgsB, affine_mat, flow)
@@ -520,7 +532,9 @@ class GVSLTrainer_recon_only_with_spatial(GVSLTrainer_do_spatial):
 
         with torch.no_grad(), torch.device(self.device):
             if self.do_spatial_aug:
-                affine_mat, flow = self.spatial_transforms.get_rand_spatial(self.batch_size, self.config_plan.patch_size)
+                affine_mat, flow = self.spatial_transforms.get_rand_spatial(
+                    self.batch_size, self.config_plan.patch_size
+                )
                 imgsA = self.spatial_transforms.augment_spatial(imgsA, affine_mat, flow)
                 imgsA_app = self.spatial_transforms.augment_spatial(imgsA_app, affine_mat, flow)
                 imgsB = self.spatial_transforms.augment_spatial(imgsB, affine_mat, flow)

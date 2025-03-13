@@ -7,10 +7,9 @@ from torch.optim.adamw import AdamW
 from batchgenerators.dataloading.single_threaded_augmenter import SingleThreadedAugmenter
 from batchgenerators.transforms.abstract_transforms import AbstractTransform, Compose
 from batchgenerators.transforms.utility_transforms import NumpyToTensor
-from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 
 from torch import autocast
-from nnssl.architectures.build_architecture import build_network_architecture
+from nnssl.architectures.get_network_by_name import get_network_by_name
 from nnssl.architectures.voco_architecture import VoCoArchitecture
 from nnssl.training.loss.voco_loss import VoCoLoss
 from nnssl.utilities.helpers import dummy_context
@@ -215,8 +214,9 @@ class VoCoTrainer(AbstractBaseTrainer):
     def build_architecture(
         self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
     ) -> nn.Module:
-        encoder = build_network_architecture(
+        encoder = get_network_by_name(
             config_plan,
+            "ResEncL",
             num_input_channels,
             num_output_channels,
             encoder_only=True,

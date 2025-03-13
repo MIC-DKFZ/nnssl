@@ -1,17 +1,14 @@
 import torch
 from torch import nn
-from torch.optim import AdamW
 from typing_extensions import override
 
-from nnssl.architectures.build_architecture import build_network_architecture
+from nnssl.architectures.get_network_by_name import get_network_by_name
 from nnssl.architectures.swinunetr_architecture import SwinUNETRArchitecture
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.ssl_data.dataloading.swin_unetr_transform import SwinUNETRTransform
 from nnssl.training.loss.swinunetr_loss import SwinUNETRLoss
 
-from nnssl.training.lr_scheduler.polylr import PolyLRScheduler
 from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
-from nnssl.utilities.collate_outputs import collate_outputs
 from nnssl.utilities.default_n_proc_DA import get_allowed_n_proc_DA
 from batchgenerators.dataloading.single_threaded_augmenter import SingleThreadedAugmenter
 from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
@@ -42,24 +39,22 @@ class SwinUNETRTrainer(AbstractBaseTrainer):
         self.contrast_loss_weight = 1
         self.rot_loss_weight = 1
 
-
     @override
     def build_loss(self):
-        return SwinUNETRLoss(self.batch_size,
-                             self.device,
-                             self.rec_loss_weight,
-                             self.contrast_loss_weight,
-                             self.rot_loss_weight)
+        return SwinUNETRLoss(
+            self.batch_size, self.device, self.rec_loss_weight, self.contrast_loss_weight, self.rot_loss_weight
+        )
 
     @override
     def build_architecture(
         self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
     ) -> nn.Module:
-        encoder = build_network_architecture(
+        encoder = get_network_by_name(
             config_plan,
+            "ResEncL",
             num_input_channels,
             num_output_channels,
-            encoder_only=True
+            encoder_only=True,
         )
         architecture = SwinUNETRArchitecture(encoder, self.num_output_channels)
         return architecture
@@ -143,7 +138,6 @@ class SwinUNETRTrainer(AbstractBaseTrainer):
             self.optimizer.step()
         return {"loss": l.detach().cpu().numpy()}
 
-
     @override
     def validation_step(self, batch: dict) -> dict:
         imgs1_rotated, imgs2_rotated = batch["imgs_rotated"]
@@ -162,7 +156,6 @@ class SwinUNETRTrainer(AbstractBaseTrainer):
             with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
                 rotations_pred, contrast_pred, reconstructions = self.network(imgs_rotated_cutout)
                 l = self.loss(rotations_pred, rotations, contrast_pred, reconstructions, imgs_rotated)
-
 
         return {"loss": l.detach().cpu().numpy()}
 
@@ -275,6 +268,8 @@ class SwinUNETRTrainer_two_forward_passes(SwinUNETRTrainer):
                 reconstructions = torch.cat([reconstructions1, reconstructions2], dim=0)
                 imgs_rotated = torch.cat([imgs1_rotated, imgs2_rotated], dim=0)
 
-                l = self.loss(rotations_pred, rotations, contrast1_pred, contrast2_pred, reconstructions, imgs_rotated)
+                l = self.loss(
+                    rotations_pred, rotations, contrast1_pred, contrast2_pred, reconstructions, imgs_rotated
+                )
 
         return {"loss": l.detach().cpu().numpy()}

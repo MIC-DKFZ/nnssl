@@ -1,9 +1,10 @@
 from typing import Union
 import torch
+from nnssl.architectures.get_network_by_name import get_network_by_name
 from nnssl.architectures.spark_model import SparK3D
 from nnssl.architectures.spark_utils import convert_to_spark_cnn
 
-from nnssl.experiment_planning.experiment_planners.plan import Plan
+from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.training.loss.spark_loss import SparkLoss
 from nnssl.training.lr_scheduler.polylr import PolyLRScheduler
 from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import BaseMAETrainer
@@ -42,23 +43,14 @@ class SparkMAETrainer(BaseMAETrainer):
 
         return SparkLoss()
 
-    def build_architecture(self, *args, **kwargs) -> nn.Module:
-        n_stages = 6
-        network = ResidualEncoderUNet(
-            input_channels=1,
-            n_stages=n_stages,
-            features_per_stage=[32, 64, 128, 256, 320, 320],
-            conv_op=nn.Conv3d,
-            kernel_sizes=[[3, 3, 3] for _ in range(n_stages)],
-            strides=[[1, 1, 1], [2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2]],
-            n_blocks_per_stage=[1, 3, 4, 6, 6, 6],
-            num_classes=1,
-            n_conv_per_stage_decoder=[1, 1, 1, 1, 1],
-            conv_bias=True,
-            norm_op=nn.InstanceNorm3d,
-            norm_op_kwargs={"eps": 1e-5, "affine": True},
-            nonlin=nn.LeakyReLU,
-            nonlin_kwargs={"inplace": True},
+    def build_architecture(
+        self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
+    ) -> nn.Module:
+        network = get_network_by_name(
+            config_plan,
+            "ResEncL",
+            num_input_channels,
+            num_output_channels,
             deep_supervision=False,
         )
 

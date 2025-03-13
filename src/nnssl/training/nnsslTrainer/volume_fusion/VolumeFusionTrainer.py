@@ -1,7 +1,7 @@
 from typing import Tuple, Union
 import numpy as np
 from torch.nn.modules import Module
-from nnssl.architectures.build_architecture import build_network_architecture
+from nnssl.architectures.get_network_by_name import get_network_by_name
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 import torch
 from torch import autocast, distributed as dist
@@ -21,8 +21,8 @@ from batchgenerators.transforms.color_transforms import (
 )
 from batchgenerators.transforms.noise_transforms import GaussianNoiseTransform, GaussianBlurTransform
 from batchgenerators.transforms.resample_transforms import SimulateLowResolutionTransform
-from batchgenerators.transforms.spatial_transforms import SpatialTransform, MirrorTransform
-from batchgenerators.transforms.utility_transforms import RemoveLabelTransform, RenameTransform, NumpyToTensor
+from batchgenerators.transforms.spatial_transforms import  MirrorTransform
+from batchgenerators.transforms.utility_transforms import NumpyToTensor
 from batchgenerators.dataloading.single_threaded_augmenter import SingleThreadedAugmenter
 from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
 from nnssl.utilities.default_n_proc_DA import get_allowed_n_proc_DA
@@ -38,7 +38,7 @@ class VolumeFusionTrainer(AbstractBaseTrainer):
         fold: int,
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
-        foreground_classes: int = 5
+        foreground_classes: int = 5,
     ):
         # We increase the batch size by 2x because we mix the two samples together!
         """
@@ -113,7 +113,13 @@ class VolumeFusionTrainer(AbstractBaseTrainer):
     def build_architecture(
         self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int, *args, **kwargs
     ) -> Module:
-        architecture = build_network_architecture(config_plan, num_input_channels, num_output_channels)
+        architecture = get_network_by_name(
+            config_plan,
+            "ResEncL",
+            num_input_channels,
+            num_output_channels,
+            encoder_only=True,
+        )
         return architecture
 
     def get_plain_dataloaders(self, initial_patch_size: Tuple[int, ...]):
@@ -146,7 +152,7 @@ class VolumeFusionTrainer(AbstractBaseTrainer):
 
         dl_tr = nnsslCenterCropDataLoader3D(
             dataset_tr,
-            2*self.batch_size,
+            2 * self.batch_size,
             self.config_plan.patch_size,
             self.config_plan.patch_size,
             sampling_probabilities=None,
@@ -154,7 +160,7 @@ class VolumeFusionTrainer(AbstractBaseTrainer):
         )
         dl_val = nnsslCenterCropDataLoader3D(
             dataset_val,
-            2*self.batch_size,
+            2 * self.batch_size,
             self.config_plan.patch_size,
             self.config_plan.patch_size,
             sampling_probabilities=None,
@@ -333,6 +339,7 @@ class VolumeFusionTrainer(AbstractBaseTrainer):
 ############################# VARIANTS #############################
 ####################################################################
 
+
 class VolumeFusionTrainer_test(VolumeFusionTrainer):
 
     def __init__(
@@ -365,6 +372,7 @@ class VolumeFusionTrainer_BS8(VolumeFusionTrainer):
 
 ############################# LEARNING RATE #############################
 
+
 class VolumeFusionTrainer_center_BS8_lr_1e2(VolumeFusionTrainer):
 
     def __init__(
@@ -380,6 +388,7 @@ class VolumeFusionTrainer_center_BS8_lr_1e2(VolumeFusionTrainer):
         self.total_batch_size = 8
         self.initial_lr = 1e-2
 
+
 class VolumeFusionTrainer_center_BS8_lr_1e3(VolumeFusionTrainer):
 
     def __init__(
@@ -394,6 +403,7 @@ class VolumeFusionTrainer_center_BS8_lr_1e3(VolumeFusionTrainer):
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.total_batch_size = 8
         self.initial_lr = 1e-3
+
 
 class VolumeFusionTrainer_center_BS8_lr_1e4(VolumeFusionTrainer):
 
@@ -430,6 +440,7 @@ class VolumeFusionTrainer_center_BS8_lr_1e3_wd_3e4(VolumeFusionTrainer):
         self.initial_lr = 1e-3
         self.weight_decay = 3e-4
 
+
 class VolumeFusionTrainer_center_BS8_lr_1e3_wd_3e6(VolumeFusionTrainer):
 
     def __init__(
@@ -465,6 +476,7 @@ class VolumeFusionTrainer_center_BS8_lr_1e3_wd_3e5_C3(VolumeFusionTrainer):
         self.total_batch_size = 8
         self.initial_lr = 1e-3
         self.weight_decay = 3e-5
+
 
 class VolumeFusionTrainer_center_BS8_lr_1e3_wd_3e5_C9(VolumeFusionTrainer):
 
