@@ -343,10 +343,9 @@ class VolumeFusionTrainer_test(VolumeFusionTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 4
         plan.configurations[configuration_name].patch_size = (96, 96, 96)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
-
+        self.total_batch_size = 4
 
 
 class VolumeFusionTrainer_BS8(VolumeFusionTrainer):
@@ -359,10 +358,9 @@ class VolumeFusionTrainer_BS8(VolumeFusionTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
-
+        self.total_batch_size = 8
 
 
 ############################# LEARNING RATE #############################
@@ -377,9 +375,9 @@ class VolumeFusionTrainer_center_BS8_lr_1e2(VolumeFusionTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 8
         self.initial_lr = 1e-2
 
 class VolumeFusionTrainer_center_BS8_lr_1e3(VolumeFusionTrainer):
@@ -392,9 +390,9 @@ class VolumeFusionTrainer_center_BS8_lr_1e3(VolumeFusionTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 8
         self.initial_lr = 1e-3
 
 class VolumeFusionTrainer_center_BS8_lr_1e4(VolumeFusionTrainer):
@@ -407,9 +405,9 @@ class VolumeFusionTrainer_center_BS8_lr_1e4(VolumeFusionTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 8
         self.initial_lr = 1e-4
 
 
@@ -426,9 +424,9 @@ class VolumeFusionTrainer_center_BS8_lr_1e3_wd_3e4(VolumeFusionTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 8
         self.initial_lr = 1e-3
         self.weight_decay = 3e-4
 
@@ -442,9 +440,9 @@ class VolumeFusionTrainer_center_BS8_lr_1e3_wd_3e6(VolumeFusionTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 8
         self.initial_lr = 1e-3
         self.weight_decay = 3e-6
 
@@ -462,9 +460,9 @@ class VolumeFusionTrainer_center_BS8_lr_1e3_wd_3e5_C3(VolumeFusionTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device, foreground_classes=3)
+        self.total_batch_size = 8
         self.initial_lr = 1e-3
         self.weight_decay = 3e-5
 
@@ -478,10 +476,8 @@ class VolumeFusionTrainer_center_BS8_lr_1e3_wd_3e5_C9(VolumeFusionTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device, foreground_classes=9)
+        self.total_batch_size = 8
         self.initial_lr = 1e-3
         self.weight_decay = 3e-5
-
-

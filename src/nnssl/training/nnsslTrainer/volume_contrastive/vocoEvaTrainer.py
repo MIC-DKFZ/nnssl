@@ -198,8 +198,8 @@ class VoCoEvaTrainer_BS8(VoCoEvaTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 8
 
 
 class VoCoEvaTrainer_test(VoCoEvaTrainer):
@@ -211,9 +211,8 @@ class VoCoEvaTrainer_test(VoCoEvaTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 1
         super().__init__(plan, configuration_name, fold, pretrain_json, device,
                          patch_size=(128, 128, 64), base_crop_count=(2, 2, 1))
+        self.total_batch_size = 1
         self.num_iterations_per_epoch = 1
         self.num_val_iterations_per_epoch = 1
-

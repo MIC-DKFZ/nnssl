@@ -63,8 +63,8 @@ class NoTokenSparkMAETrainer_BS6_1000ep(NoTokenSparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 6
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 6
         self.num_epochs = 1000
 
 
@@ -78,6 +78,6 @@ class NoTokenSparkMAETrainer_5ep_BS6(NoTokenSparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 6
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 6
         self.num_epochs = 5

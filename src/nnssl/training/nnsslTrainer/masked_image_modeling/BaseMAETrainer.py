@@ -636,9 +636,9 @@ class BaseMAETrainer_test(BaseMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 2
         plan.configurations[configuration_name].patch_size = (96, 96, 96)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 2
 
 class BaseMAETrainer_ANAT_ANON_test(BaseMAETrainer_ANAT_ANON):
     def __init__(
@@ -649,9 +649,9 @@ class BaseMAETrainer_ANAT_ANON_test(BaseMAETrainer_ANAT_ANON):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 2
         plan.configurations[configuration_name].patch_size = (128, 128, 128)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 2
 
 class BaseMAETrainer_BS8_IQS_test(BaseMAETrainer):
     def __init__(
@@ -662,10 +662,10 @@ class BaseMAETrainer_BS8_IQS_test(BaseMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 1
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.iimg_filter = OpenMindIQSFilter(Collection.from_dict(self.pretrain_json), 2.5)
+        self.total_batch_size = 1
 
 ############################# BASELINE #############################
 
@@ -678,9 +678,9 @@ class BaseMAETrainer_BS8(BaseMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 8
 
 ############################# MASKS & IQS #############################
 
@@ -693,9 +693,9 @@ class BaseMAETrainer_ANAT_ANON_BS8(BaseMAETrainer_ANAT_ANON):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 8
 
 class BaseMAETrainer_BS8_IQS1_5(BaseMAETrainer):
     def __init__(
@@ -706,9 +706,9 @@ class BaseMAETrainer_BS8_IQS1_5(BaseMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 8
         self.iimg_filters.append(OpenMindIQSFilter(Collection.from_dict(self.pretrain_json), 1.5))
 
 class BaseMAETrainer_BS8_IQS2_5(BaseMAETrainer):
@@ -720,9 +720,9 @@ class BaseMAETrainer_BS8_IQS2_5(BaseMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 8
         self.iimg_filters.append(OpenMindIQSFilter(Collection.from_dict(self.pretrain_json), 2.5))
 
 class BaseMAETrainer_BS8_IQS3_0(BaseMAETrainer):
@@ -734,9 +734,9 @@ class BaseMAETrainer_BS8_IQS3_0(BaseMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 8
         self.iimg_filters.append(OpenMindIQSFilter(Collection.from_dict(self.pretrain_json), 3.0))
 
 class BaseMAETrainer_BS8_T1w_T2w_FLAIR(BaseMAETrainer):
@@ -748,9 +748,9 @@ class BaseMAETrainer_BS8_T1w_T2w_FLAIR(BaseMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 8
         self.iimg_filters.append(ModalityFilter(valid_modalities=["T1w", "T2w", "FLAIR"]))
 
 class BaseMAETrainer_BS8_IQS3_5_FA(BaseMAETrainer):
@@ -762,9 +762,9 @@ class BaseMAETrainer_BS8_IQS3_5_FA(BaseMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 8
         self.iimg_filters.extend([
                 ModalityFilter(valid_modalities=["FA"]),
                 OpenMindIQSFilter(Collection.from_dict(self.pretrain_json), 3.5)
@@ -782,8 +782,8 @@ class BaseMAETrainer_BS8_100ep(BaseMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 8
         self.num_epochs = 100
 
 
@@ -796,8 +796,8 @@ class BaseMAETrainer_BS1(BaseMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 1
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 1
         self.num_epochs = 1000
 
 
@@ -810,8 +810,8 @@ class BaseMAETrainer_BS2(BaseMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 2
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 2
         self.num_epochs = 1000
 
 
@@ -824,6 +824,6 @@ class BaseMAETrainer_BS8_1000ep(BaseMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 8
         self.num_epochs = 1000

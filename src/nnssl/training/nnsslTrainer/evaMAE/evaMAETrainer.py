@@ -155,7 +155,7 @@ class EvaMAETrainer(BaseMAETrainer):
                 self.batch_size = self.batch_size_from_args
             else:
                 # set batch size to what the plan says, leave oversample untouched
-                self.batch_size = self.config_plan.batch_size
+                self.batch_size = self.total_batch_size
 
         else:
             # batch size is distributed over DDP workers and we need to change oversample_percent for each worker
@@ -168,7 +168,7 @@ class EvaMAETrainer(BaseMAETrainer):
                 # set the batch size from the arguments
                 global_batch_size = self.batch_size_from_args
             else:
-                global_batch_size = self.config_plan.batch_size
+                global_batch_size = self.total_batch_size
             assert global_batch_size >= world_size, (
                 "Cannot run DDP if the batch size is smaller than the number of " "GPUs... Duh."
             )

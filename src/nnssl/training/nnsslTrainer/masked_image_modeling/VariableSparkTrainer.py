@@ -202,7 +202,9 @@ class BaseVariableSparkMAETrainer_ANON(BaseVariableSparkMAETrainer):
                 data.shape[3] // mask.shape[3],
                 data.shape[4] // mask.shape[4],
             )
-            mask = mask.repeat_interleave(rep_D, dim=2).repeat_interleave(rep_H, dim=3).repeat_interleave(rep_W, dim=4)
+            mask = (
+                mask.repeat_interleave(rep_D, dim=2).repeat_interleave(rep_H, dim=3).repeat_interleave(rep_W, dim=4)
+            )
             loss_mask = (1 - mask) * (1 - anon)
 
             with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
@@ -224,9 +226,9 @@ class VariableSparkMAETrainer_BS8(BaseVariableSparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 8
 
 
 class VariableSparkMAETrainer_ANAT_ANON_BS8(BaseVariableSparkMAETrainer_ANAT_ANON):
@@ -238,9 +240,9 @@ class VariableSparkMAETrainer_ANAT_ANON_BS8(BaseVariableSparkMAETrainer_ANAT_ANO
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 8
 
 
 class VariableSparkMAETrainer_ANAT_ANON_test(BaseVariableSparkMAETrainer_ANAT_ANON):
@@ -252,9 +254,9 @@ class VariableSparkMAETrainer_ANAT_ANON_test(BaseVariableSparkMAETrainer_ANAT_AN
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 1
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 1
 
 
 class VariableSparkMAETrainer_BS1(BaseVariableSparkMAETrainer):
@@ -266,9 +268,9 @@ class VariableSparkMAETrainer_BS1(BaseVariableSparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 1
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 1
 
 
 class VariableSparkMAETrainer_5ep(BaseVariableSparkMAETrainer):
@@ -280,8 +282,8 @@ class VariableSparkMAETrainer_5ep(BaseVariableSparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 6  # 6 * 8 (8 GPUs)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 6
         self.num_epochs = 5
 
 
@@ -294,8 +296,8 @@ class VariableSparkMAETrainer_BS6_ep1000(BaseVariableSparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 6  # 6 * 8 (8 GPUs)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 8
         self.num_epochs = 1000
 
 
@@ -308,8 +310,8 @@ class BigVariableSparkMAETrainer(BaseVariableSparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 48  # 6 * 8 (8 GPUs)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 48  # 6 * 8 (8 GPUs)
         self.num_epochs = 4000
         self.initial_lr = 3e-2  # Bit more as we increase batch size a lot
 

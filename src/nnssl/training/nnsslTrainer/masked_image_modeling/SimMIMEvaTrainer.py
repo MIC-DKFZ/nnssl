@@ -239,9 +239,9 @@ class SimMIMEvaTrainer_BS8(SimMIMEvaTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 8
 
 
 class SimMIMEvaTrainer_test(SimMIMEvaTrainer):
@@ -253,11 +253,11 @@ class SimMIMEvaTrainer_test(SimMIMEvaTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 1
         plan.configurations[configuration_name].patch_size = (128, 128, 128)
         self.num_iterations_per_epoch = 10
         self.num_val_iterations_per_epoch = 10
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 1
 
 
 if __name__ == "__main__":

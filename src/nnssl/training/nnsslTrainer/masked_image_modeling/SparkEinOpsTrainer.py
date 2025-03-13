@@ -59,6 +59,6 @@ class EinOps_SparkMAETrainer_5ep_BS6(EinOps_SparkMAETrainer):
         pretrain_json: dict,
         device: device = ...,
     ):
-        plan.configurations[configuration_name].batch_size = 6
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 6
         self.num_epochs = 5
