@@ -381,11 +381,9 @@ class Collection:
         for dataset in self.datasets.values():
             dataset.update_extension(new_extension)
 
-    def raw_to_pp_path(self, ext: str | None = None) -> None:
+    def raw_to_pp_path(self, data_identifier: str, ext: str | None = None) -> None:
         independent_imgs = self.to_independent_images()
-        pp_path = [
-            img.get_absolute_pp_path(self.collection_name, "nnsslPlans_3d_fullres", ext) for img in independent_imgs
-        ]
+        pp_path = [img.get_absolute_pp_path(self.collection_name, data_identifier, ext) for img in independent_imgs]
         for img, pp_path in zip(independent_imgs, pp_path):
             subj_id = img.subject_id
             sess_id = img.session_id

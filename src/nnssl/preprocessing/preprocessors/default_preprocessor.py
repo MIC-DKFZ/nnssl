@@ -217,9 +217,9 @@ def default_preprocess(
     collection: Collection = get_train_collection(join(nnssl_raw, dataset_name))
     pp_collection = deepcopy(collection)
     pp_collection.update_extension(new_extension=".b2nd")
-    pp_collection.raw_to_pp_path()
+    pp_collection.raw_to_pp_path(data_identifier=config_plan.data_identifier)
     save_json(
-        pp_collection.to_dict(relative_paths=True), join(nnssl_preprocessed, dataset_name, "pretrain_data.json")
+        pp_collection.to_dict(relative_paths=True), join(nnssl_preprocessed, dataset_name, f"pretrain_data__{configuration_name}.json")
     )
     # multiprocessing magic.
     spst: PREPROCESS_SPACING_STYLES

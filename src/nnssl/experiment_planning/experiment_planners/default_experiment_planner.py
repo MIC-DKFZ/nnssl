@@ -195,7 +195,7 @@ class ExperimentPlanner(object):
         noresample = self.get_plans_for_configuration(
             "noresample",
             fullres_spacing_transposed,
-            self.generate_data_identifier("onemmiso"),
+            self.generate_data_identifier("noresample"),
         )
 
         median_spacing = np.median(self.dataset_fingerprint["spacings"], 0)[transpose_forward]
