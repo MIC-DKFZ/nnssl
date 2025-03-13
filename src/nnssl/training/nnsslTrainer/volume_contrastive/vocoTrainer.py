@@ -41,7 +41,7 @@ class VoCoTrainer(AbstractBaseTrainer):
         device: torch.device = torch.device("cuda"),
         patch_size: tuple = (256, 256, 64),
         base_crop_count: tuple = (4, 4, 1),
-        target_crop_count: int = 4
+        target_crop_count: int = 4,
     ):
         # plan.configurations[configuration_name].patch_size = (192, 192, 64)
         plan.configurations[configuration_name].patch_size = patch_size
@@ -294,16 +294,23 @@ class VoCoTrainer_test(VoCoTrainer):
         plan: Plan,
         configuration_name: str,
         fold: int,
-
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 1
-        super().__init__(plan, configuration_name, fold,  pretrain_json, device,
-                         patch_size=(128, 128, 64), base_crop_count=(2, 2, 1))
+        super().__init__(
+            plan,
+            configuration_name,
+            fold,
+            pretrain_json,
+            device,
+            patch_size=(128, 128, 64),
+            base_crop_count=(2, 2, 1),
+        )
+        self.total_batch_size = 1
 
 
 ############################# LEARNING RATE #############################
+
 
 class VoCoTrainer_BS8_lr_1e2(VoCoTrainer):
     def __init__(
@@ -314,8 +321,8 @@ class VoCoTrainer_BS8_lr_1e2(VoCoTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 8
         self.initial_lr = 1e-2
 
 
@@ -328,8 +335,8 @@ class VoCoTrainer_BS8_lr_1e3(VoCoTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
-        super().__init__(plan, configuration_name, fold,  pretrain_json, device)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 8
         self.initial_lr = 1e-3
 
 
@@ -342,59 +349,61 @@ class VoCoTrainer_BS8_lr_1e4(VoCoTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
-        super().__init__(plan, configuration_name, fold,  pretrain_json, device)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 8
         self.initial_lr = 1e-4
 
 
 ############################# WEIGHT DECAY #############################
 
+
 class VoCoTrainer_BS8_lr_1e2_wd_3e4(VoCoTrainer):
     def __init__(
-            self,
-            plan: Plan,
-            configuration_name: str,
-            fold: int,
-            pretrain_json: dict,
-            device: torch.device = torch.device("cuda"),
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 8
         self.initial_lr = 1e-2
         self.weight_decay = 3e-4
 
 
 class VoCoTrainer_BS8_lr_1e2_wd_3e6(VoCoTrainer):
     def __init__(
-            self,
-            plan: Plan,
-            configuration_name: str,
-            fold: int,
-            pretrain_json: dict,
-            device: torch.device = torch.device("cuda"),
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 8
         self.initial_lr = 1e-2
         self.weight_decay = 3e-6
 
 
 class VoCoTrainer_BS8_lr_1e2_wd_3e2(VoCoTrainer):
     def __init__(
-            self,
-            plan: Plan,
-            configuration_name: str,
-            fold: int,
-            pretrain_json: dict,
-            device: torch.device = torch.device("cuda"),
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 8
         self.initial_lr = 1e-2
         self.weight_decay = 3e-2
 
 
 ############################# BASES & PATCH SIZE #############################
+
 
 class VoCoTrainer_BS8_lr_1e2_wd_3e5_2x2x1_PS96(VoCoTrainer):
     def __init__(
@@ -402,13 +411,20 @@ class VoCoTrainer_BS8_lr_1e2_wd_3e5_2x2x1_PS96(VoCoTrainer):
         plan: Plan,
         configuration_name: str,
         fold: int,
-
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
-        super().__init__(plan, configuration_name, fold,  pretrain_json, device,
-                         patch_size=(192, 192, 96), base_crop_count=(2, 2, 1))
+        super().__init__(
+            plan,
+            configuration_name,
+            fold,
+            pretrain_json,
+            device,
+            patch_size=(192, 192, 96),
+            base_crop_count=(2, 2, 1),
+        )
+        self.total_batch_size = 8
+
 
 class VoCoTrainer_BS8_lr_1e2_wd_3e5_2x2x2_PS96(VoCoTrainer):
     def __init__(
@@ -416,13 +432,20 @@ class VoCoTrainer_BS8_lr_1e2_wd_3e5_2x2x2_PS96(VoCoTrainer):
         plan: Plan,
         configuration_name: str,
         fold: int,
-
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
-        super().__init__(plan, configuration_name, fold,  pretrain_json, device,
-                         patch_size=(192, 192, 192), base_crop_count=(2, 2, 2))
+        super().__init__(
+            plan,
+            configuration_name,
+            fold,
+            pretrain_json,
+            device,
+            patch_size=(192, 192, 192),
+            base_crop_count=(2, 2, 2),
+        )
+        self.total_batch_size = 8
+
 
 class VoCoTrainer_BS8_lr_1e2_wd_3e5_3x3x1_PS64(VoCoTrainer):
     def __init__(
@@ -430,13 +453,20 @@ class VoCoTrainer_BS8_lr_1e2_wd_3e5_3x3x1_PS64(VoCoTrainer):
         plan: Plan,
         configuration_name: str,
         fold: int,
-
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
-        super().__init__(plan, configuration_name, fold,  pretrain_json, device,
-                         patch_size=(192, 192, 64), base_crop_count=(3, 3, 1))
+        super().__init__(
+            plan,
+            configuration_name,
+            fold,
+            pretrain_json,
+            device,
+            patch_size=(192, 192, 64),
+            base_crop_count=(3, 3, 1),
+        )
+        self.total_batch_size = 8
+
 
 class VoCoTrainer_BS8_lr_1e2_wd_3e5_3x3x2_PS64(VoCoTrainer):
     def __init__(
@@ -444,13 +474,20 @@ class VoCoTrainer_BS8_lr_1e2_wd_3e5_3x3x2_PS64(VoCoTrainer):
         plan: Plan,
         configuration_name: str,
         fold: int,
-
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
-        super().__init__(plan, configuration_name, fold,  pretrain_json, device,
-                         patch_size=(192, 192, 128), base_crop_count=(3, 3, 2))
+        super().__init__(
+            plan,
+            configuration_name,
+            fold,
+            pretrain_json,
+            device,
+            patch_size=(192, 192, 128),
+            base_crop_count=(3, 3, 2),
+        )
+        self.total_batch_size = 8
+
 
 class VoCoTrainer_BS8_lr_1e2_wd_3e5_4x4x2_PS64(VoCoTrainer):
     def __init__(
@@ -458,16 +495,23 @@ class VoCoTrainer_BS8_lr_1e2_wd_3e5_4x4x2_PS64(VoCoTrainer):
         plan: Plan,
         configuration_name: str,
         fold: int,
-
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
-        super().__init__(plan, configuration_name, fold,  pretrain_json, device,
-                         patch_size=(256, 256, 128), base_crop_count=(4, 4, 2))
+        super().__init__(
+            plan,
+            configuration_name,
+            fold,
+            pretrain_json,
+            device,
+            patch_size=(256, 256, 128),
+            base_crop_count=(4, 4, 2),
+        )
+        self.total_batch_size = 8
 
 
 ############################# NUMBER OF TARGET CROPS #############################
+
 
 class VoCoTrainer_BS8_lr_1e2_wd_3e5_4x4x1_PS64_N2(VoCoTrainer):
     def __init__(
@@ -475,14 +519,20 @@ class VoCoTrainer_BS8_lr_1e2_wd_3e5_4x4x1_PS64_N2(VoCoTrainer):
         plan: Plan,
         configuration_name: str,
         fold: int,
-
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
-        super().__init__(plan, configuration_name, fold,  pretrain_json, device,
-                         patch_size=(256, 256, 64), base_crop_count=(4, 4, 1),
-                         target_crop_count=2)
+        super().__init__(
+            plan,
+            configuration_name,
+            fold,
+            pretrain_json,
+            device,
+            patch_size=(256, 256, 64),
+            base_crop_count=(4, 4, 1),
+            target_crop_count=2,
+        )
+        self.total_batch_size = 8
 
 
 class VoCoTrainer_BS8_lr_1e2_wd_3e5_4x4x1_PS64_N8(VoCoTrainer):
@@ -491,13 +541,17 @@ class VoCoTrainer_BS8_lr_1e2_wd_3e5_4x4x1_PS64_N8(VoCoTrainer):
         plan: Plan,
         configuration_name: str,
         fold: int,
-
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
-        super().__init__(plan, configuration_name, fold,  pretrain_json, device,
-                         patch_size=(256, 256, 64), base_crop_count=(4, 4, 1),
-                         target_crop_count=8)
-
-
+        super().__init__(
+            plan,
+            configuration_name,
+            fold,
+            pretrain_json,
+            device,
+            patch_size=(256, 256, 64),
+            base_crop_count=(4, 4, 1),
+            target_crop_count=8,
+        )
+        self.total_batch_size = 8

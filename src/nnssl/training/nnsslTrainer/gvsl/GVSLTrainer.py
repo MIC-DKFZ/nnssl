@@ -294,9 +294,9 @@ class GVSLTrainer_test(GVSLTrainer_do_spatial):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 4
         plan.configurations[configuration_name].patch_size = (192, 192, 192)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 4
         self.num_iterations_per_epoch = 20
         self.num_val_iterations_per_epoch = 2
 
@@ -309,9 +309,9 @@ class GVSLTrainer_BS2_lr_1e4(GVSLTrainer_do_spatial):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda")
     ):
-        plan.configurations[configuration_name].batch_size = 2
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 2
         self.initial_lr = 1e-4
 
 
@@ -324,9 +324,9 @@ class GVSLTrainer_BS2_lr_1e5(GVSLTrainer_do_spatial):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda")
     ):
-        plan.configurations[configuration_name].batch_size = 2
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 2
         self.initial_lr = 1e-5
 
 
@@ -340,9 +340,9 @@ class GVSLTrainer_recon_only(GVSLTrainer_no_spatial):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda")
     ):
-        plan.configurations[configuration_name].batch_size = 2
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 2
         self.initial_lr = 1e-4
         self.num_iterations_per_epoch = 100
 
@@ -442,9 +442,9 @@ class GVSLTrainer_recon_only_with_spatial(GVSLTrainer_do_spatial):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda")
     ):
-        plan.configurations[configuration_name].batch_size = 2
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 2
         self.initial_lr = 1e-4
         self.num_iterations_per_epoch = 100
 

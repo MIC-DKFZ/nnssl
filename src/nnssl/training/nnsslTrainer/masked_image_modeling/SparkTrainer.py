@@ -252,8 +252,8 @@ class SparkMAETrainer_BS8_1000ep(SparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 8
         self.num_epochs = 1000
 
 
@@ -293,10 +293,8 @@ class SparkMAETrainer5epBS10(SparkMAETrainer5ep):
         device: torch.device = torch.device("cuda"),
     ):
         # plan.configurations[configuration_name].batch_size = 10
-        plan.configurations[configuration_name].batch_size = 10
-        print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
-        print(f"Post Init Batch size: {self.batch_size}")
+        self.total_batch_size = 10
 
 
 class SparkMAETrainer5epBS8(SparkMAETrainer5ep):
@@ -308,10 +306,8 @@ class SparkMAETrainer5epBS8(SparkMAETrainer5ep):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
-        print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
-        print(f"Post Init Batch size: {self.batch_size}")
+        self.total_batch_size = 8
 
 
 class SparkMAETrainer5epBS6(SparkMAETrainer5ep):
@@ -323,10 +319,8 @@ class SparkMAETrainer5epBS6(SparkMAETrainer5ep):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 6
-        print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
-        print(f"Post Init Batch size: {self.batch_size}")
+        self.total_batch_size = 6
 
 
 class SparkMAETrainer5epBS4(SparkMAETrainer5ep):
@@ -338,10 +332,8 @@ class SparkMAETrainer5epBS4(SparkMAETrainer5ep):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 4
-        print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
-        print(f"Post Init Batch size: {self.batch_size}")
+        self.total_batch_size = 4
 
 
 class SparkMAETrainer5epBS2(SparkMAETrainer5ep):
@@ -353,10 +345,8 @@ class SparkMAETrainer5epBS2(SparkMAETrainer5ep):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 2
-        print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
-        print(f"Post Init Batch size: {self.batch_size}")
+        self.total_batch_size = 2
 
 
 class SparkMAETrainerBS8(SparkMAETrainer):
@@ -368,10 +358,8 @@ class SparkMAETrainerBS8(SparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
-        print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
-        print(f"Post Init Batch size: {self.batch_size}")
+        self.total_batch_size = 8
 
 
 class SparkMAETrainer_test_mask(SparkMAETrainer):
@@ -383,10 +371,8 @@ class SparkMAETrainer_test_mask(SparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 1
-        print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
-        print(f"Post Init Batch size: {self.batch_size}")
+        self.total_batch_size = 1
 
 
 class SparkMAETrainer_test_no_mask(SparkMAETrainer):
@@ -398,11 +384,9 @@ class SparkMAETrainer_test_no_mask(SparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 1
-        print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 1
         self.use_mask_token = False
-        print(f"Post Init Batch size: {self.batch_size}")
 
 
 class SparkMAETrainerBS7(SparkMAETrainer):
@@ -414,10 +398,8 @@ class SparkMAETrainerBS7(SparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 7
-        print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
-        print(f"Post Init Batch size: {self.batch_size}")
+        self.total_batch_size = 7
 
 
 class SparkMAETrainerBS7_noMaskToken(SparkMAETrainer):
@@ -429,11 +411,9 @@ class SparkMAETrainerBS7_noMaskToken(SparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 7
-        print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 7
         self.use_mask_token = False
-        print(f"Post Init Batch size: {self.batch_size}")
 
 
 class SparkMAETrainerBS4(SparkMAETrainer):
@@ -445,10 +425,8 @@ class SparkMAETrainerBS4(SparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 4
-        print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
-        print(f"Post Init Batch size: {self.batch_size}")
+        self.total_batch_size = 4
 
 
 class SparkMAETrainerBS4_2k(SparkMAETrainer):
@@ -460,10 +438,8 @@ class SparkMAETrainerBS4_2k(SparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 4
-        print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
-        print(f"Post Init Batch size: {self.batch_size}")
+        self.total_batch_size = 4
         self.num_epochs = 2000
 
 
@@ -476,10 +452,8 @@ class SparkMAETrainerBS2(SparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 2
-        print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
-        print(f"Post Init Batch size: {self.batch_size}")
+        self.total_batch_size = 2
 
 
 class SparkMAETrainerBS2_4k(SparkMAETrainer):
@@ -491,11 +465,9 @@ class SparkMAETrainerBS2_4k(SparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 2
-        print(f"Pre Batch size: {plan.configurations[configuration_name].batch_size}")
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 2
         self.num_epochs = 4000
-        print(f"Post Init Batch size: {self.batch_size}")
 
 
 class SparkMAETrainerBS2_lr5e_2(SparkMAETrainerBS2):
@@ -619,8 +591,8 @@ class SparkMAETrainer_5ep_BS6_mask60(SparkMAETrainer5ep):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 6
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 6
         self.mask_percentage: float = 0.6
 
 
@@ -634,8 +606,8 @@ class SparkMAETrainer_5ep_BS7_mask60(SparkMAETrainer5ep):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 7
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 7
         self.mask_percentage: float = 0.6
 
 
@@ -649,8 +621,8 @@ class SparkMAETrainer_BS6_250ep(SparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 6
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 6
         self.num_epochs = 250
 
 
@@ -664,8 +636,8 @@ class SparkMAETrainer_BS6_500ep(SparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 6
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 6
         self.num_epochs = 500
 
 
@@ -679,8 +651,8 @@ class SparkMAETrainer_BS6_1000ep(SparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 6
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 6
         self.num_epochs = 1000
 
 
@@ -694,8 +666,8 @@ class SparkMAETrainer_BS6_2000ep(SparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 6
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 6
         self.num_epochs = 2000
 
 
@@ -709,8 +681,8 @@ class SparkMAETrainer_BS6_4000ep(SparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 6
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 6
         self.num_epochs = 4000
 
 
@@ -724,8 +696,8 @@ class SparkMAETrainer_BS6_1000ep_Mask30(SparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 6
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 6
         self.num_epochs = 1000
         self.mask_percentage: float = 0.30
 
@@ -740,8 +712,8 @@ class SparkMAETrainer_BS6_1000ep_Mask45(SparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 6
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 6
         self.num_epochs = 1000
         self.mask_percentage: float = 0.45
 
@@ -756,8 +728,8 @@ class SparkMAETrainer_BS6_1000ep_Mask60(SparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 6
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 6
         self.num_epochs = 1000
         self.mask_percentage: float = 0.60
 
@@ -772,8 +744,8 @@ class SparkMAETrainer_BS6_1000ep_Mask90(SparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 6
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 6
         self.num_epochs = 1000
         self.mask_percentage: float = 0.90
 
@@ -787,5 +759,5 @@ class SparkMAETrainer_BS8(SparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 8

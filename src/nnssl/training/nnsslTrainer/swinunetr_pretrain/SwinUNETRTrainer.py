@@ -22,7 +22,6 @@ from batchgenerators.transforms.abstract_transforms import AbstractTransform, Co
 from batchgenerators.transforms.utility_transforms import NumpyToTensor
 
 
-
 class SwinUNETRTrainer(AbstractBaseTrainer):
 
     def __init__(
@@ -197,9 +196,8 @@ class SwinUNETRTrainer_BS2(SwinUNETRTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 2
-        # plan.configurations[configuration_name].patch_size = (96, 96, 96)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 2
 
 
 class SwinUNETRTrainer_BS8(SwinUNETRTrainer):
@@ -212,8 +210,8 @@ class SwinUNETRTrainer_BS8(SwinUNETRTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 8
 
 
 class SwinUNETRTrainer_two_forward_passes(SwinUNETRTrainer):
@@ -280,5 +278,3 @@ class SwinUNETRTrainer_two_forward_passes(SwinUNETRTrainer):
                 l = self.loss(rotations_pred, rotations, contrast1_pred, contrast2_pred, reconstructions, imgs_rotated)
 
         return {"loss": l.detach().cpu().numpy()}
-
-

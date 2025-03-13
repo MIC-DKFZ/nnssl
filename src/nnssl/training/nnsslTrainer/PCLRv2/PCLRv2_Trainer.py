@@ -29,7 +29,6 @@ from batchgenerators.transforms.abstract_transforms import AbstractTransform, Co
 from batchgenerators.transforms.utility_transforms import NumpyToTensor
 
 
-
 class PCRLv2Trainer(AbstractBaseTrainer):
 
     def __init__(
@@ -291,9 +290,9 @@ class PCRLv2Trainer_test(PCRLv2Trainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 2
         super().__init__(plan, configuration_name, fold,  pretrain_json, device,
                          global_input_size=(96, 96, 96))
+        self.total_batch_size = 2
         self.num_iterations_per_epoch=20
         self.num_val_iterations_per_epoch=5
         self.initial_lr = 1e-3
@@ -309,5 +308,5 @@ class PCRLv2Trainer_BS8(PCRLv2Trainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 8
         super().__init__(plan, configuration_name, fold,  pretrain_json, device)
+        self.total_batch_size = 8

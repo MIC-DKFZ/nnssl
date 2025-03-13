@@ -310,8 +310,8 @@ class SimCLRTrainer_BS6(SimCLRTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 6
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 6
 
 
 class SimCLRTrainer_BS32(SimCLRTrainer):
@@ -324,5 +324,5 @@ class SimCLRTrainer_BS32(SimCLRTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].batch_size = 32
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 32

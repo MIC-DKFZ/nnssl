@@ -141,6 +141,7 @@ class AbstractBaseTrainer(ABC):
         self.num_val_iterations_per_epoch = 50
         self.num_epochs = 1000
         self.current_epoch = 0
+        self.total_batch_size = 2
 
         ### Dealing with labels/regions
         self.num_input_channels = 1  # -> self.initialize()
@@ -178,7 +179,6 @@ class AbstractBaseTrainer(ABC):
         # we need to change the batch size in DDP because we don't use any of those distributed samplers
         # Todo: Should likely be moved to initialize() call, since it's not needed during init at all.
         #   This also allows overriding previous batch_size settings easily.
-        self._set_batch_size()
 
         self.was_initialized = False
 
@@ -199,8 +199,8 @@ class AbstractBaseTrainer(ABC):
     def _set_batch_size(self):
         if not self.is_ddp:
             # set batch size to what the plan says, leave oversample untouched
-            logger.info(f"Not using DDP. Setting batch size for single gpu to {self.config_plan.batch_size}.")
-            self.batch_size = self.config_plan.batch_size
+            logger.info(f"Not using DDP. Setting batch size for single gpu to {self.total_batch_size}.")
+            self.batch_size = self.total_batch_size
         else:
             # batch size is distributed over DDP workers and we need to change oversample_percent for each worker
             batch_sizes = []
@@ -208,15 +208,13 @@ class AbstractBaseTrainer(ABC):
             world_size = dist.get_world_size()
             my_rank = dist.get_rank()
             logger.info(
-                f"Using DDP. Total Batch size {self.config_plan.batch_size} distributed across all {world_size} gpus."
+                f"Using DDP. Total Batch size {self.total_batch_size} distributed across all {world_size} gpus."
             )
 
-            global_batch_size = self.config_plan.batch_size
+            global_batch_size = self.total_batch_size
             assert global_batch_size >= world_size, (
                 "Cannot run DDP if the batch size is smaller than the number of " "GPUs... Duh."
             )
-
-            global_batch_size = self.config_plan.batch_size
 
             assert (
                 global_batch_size >= world_size
@@ -258,6 +256,7 @@ class AbstractBaseTrainer(ABC):
 
     def initialize(self):
         if not self.was_initialized:
+            self._set_batch_size()
             self.network = self.build_architecture(
                 self.config_plan, self.num_input_channels, self.num_output_channels
             ).to(self.device)
@@ -861,10 +860,10 @@ class AbstractBaseTrainer(ABC):
         # There used to be a if/else for the case that we don't use all samples, but we only do self-supervised thingies,
         #   so we use all samples for training and validation
         splits_file_name = "splits_final.json"
-        #DEBUG
+        # DEBUG
         if self.plan.dataset_name != "Dataset745_OpenNeuro_v2":
             splits_file_name = "splits_final_v2.json"   # for ABCD, since other branch uses different
-                                                        # subject_identifiers in splits_final.json
+            # subject_identifiers in splits_final.json
 
         splits_file = join(self.preprocessed_dataset_folder_base, splits_file_name)
         if not isfile(splits_file):
