@@ -11,7 +11,7 @@ from torch import nn
 from tqdm import tqdm
 from typing_extensions import override
 
-from nnssl.architectures.nsUNet import ResidualEncoderUNet_noskip
+from nnssl.architectures.get_network_by_name import get_network_by_name
 from nnssl.architectures.pclrv2_architecture import PCRLv2Architecture
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.ssl_data.dataloading.pcrlv2_transform import PCLRv2Transform, Shape3D
@@ -41,7 +41,13 @@ class PCRLv2Trainer(AbstractBaseTrainer):
         # Our network has 5 downsampling stages, we need a minimum size of 2⁵=32 per axis. Although we could set
         # the global_input_size to our standard (160, 160, 160), the orig config *never* upsamples their
         # global crops. We try to scale the config while keeping it reasonable and close to the original.
-        global_patch_sizes: tuple[Shape3D] = ((96, 96, 96), (128, 128, 96), (128, 128, 128), (160, 160, 128), (160, 160, 160)),
+        global_patch_sizes: tuple[Shape3D] = (
+            (96, 96, 96),
+            (128, 128, 96),
+            (128, 128, 128),
+            (160, 160, 128),
+            (160, 160, 160),
+        ),
         global_input_size: Shape3D = (128, 128, 128),
         local_patch_sizes: tuple[Shape3D] = ((32, 32, 32), (64, 64, 32), (64, 64, 64)),
         local_input_size: Shape3D = (64, 64, 64),
@@ -51,7 +57,7 @@ class PCRLv2Trainer(AbstractBaseTrainer):
         # local_patch_sizes: tuple[Shape3D] = ((8, 8, 8), (16, 16, 16), (32, 32, 16), (32, 32, 32)),
         # local_input_size: Shape3D = (16, 16, 16),
         num_locals: int = 6,
-        min_IoU: float = 0.3
+        min_IoU: float = 0.3,
     ):
         # We want the dataloader to give us a patch_size big enough, to accommodate for the largest patch size
         # for each axis, while making it possible to have different overlapping volumes and still allow the anatomy
@@ -75,22 +81,7 @@ class PCRLv2Trainer(AbstractBaseTrainer):
     def build_architecture(
         self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
     ) -> nn.Module:
-        network = ResidualEncoderUNet_noskip(
-            input_channels=1,
-            n_stages=6,
-            features_per_stage=[32, 64, 128, 256, 320, 320],
-            conv_op=nn.Conv3d,
-            kernel_sizes=[[3, 3, 3] for _ in range(6)],
-            strides=[[1, 1, 1], [2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2]],
-            n_blocks_per_stage=[1, 3, 4, 6, 6, 6],
-            num_classes=1,
-            n_conv_per_stage_decoder=[1, 1, 1, 1, 1],
-            conv_bias=True,
-            norm_op=nn.InstanceNorm3d,
-            norm_op_kwargs={"eps": 1e-5, "affine": True},
-            nonlin=nn.LeakyReLU,
-            nonlin_kwargs={"inplace": True}
-        )
+        network = get_network_by_name(config_plan, "NoSkipResEncL", num_input_channels, num_output_channels)
         architecture = PCRLv2Architecture(network)
         self.num_mid_stages = len(architecture.features_per_mid_stage)
         return architecture
@@ -130,14 +121,21 @@ class PCRLv2Trainer(AbstractBaseTrainer):
             )
         return mt_gen_train, mt_gen_val
 
-
     @override
     def train_step(self, batch: dict) -> dict:
 
-        aug_global_crops_A = batch["aug_global_crops_A"]    # [B,              C, X_global_input_size, Y_global_input_size, Z_global_input_size]
-        global_crops_A = batch["global_crops_A"]            # [B,              C, X_global_input_size, Y_global_input_size, Z_global_input_size]
-        aug_global_crops_B = batch["aug_global_crops_B"]    # [B,              C, X_global_input_size, Y_global_input_size, Z_global_input_size]
-        aug_local_crops = batch["aug_local_crops"]          # [(B*num_locals), C, X_local_input_size,  Y_local_input_size,  Z_local_input_size ]
+        aug_global_crops_A = batch[
+            "aug_global_crops_A"
+        ]  # [B,              C, X_global_input_size, Y_global_input_size, Z_global_input_size]
+        global_crops_A = batch[
+            "global_crops_A"
+        ]  # [B,              C, X_global_input_size, Y_global_input_size, Z_global_input_size]
+        aug_global_crops_B = batch[
+            "aug_global_crops_B"
+        ]  # [B,              C, X_global_input_size, Y_global_input_size, Z_global_input_size]
+        aug_local_crops = batch[
+            "aug_local_crops"
+        ]  # [(B*num_locals), C, X_local_input_size,  Y_local_input_size,  Z_local_input_size ]
 
         aug_global_crops_A = aug_global_crops_A.to(self.device, non_blocking=True)
         global_crops_A = global_crops_A.to(self.device, non_blocking=True)
@@ -150,8 +148,9 @@ class PCRLv2Trainer(AbstractBaseTrainer):
             embeddings_B = self.network(aug_global_crops_B, embeddings_only=True)
             local_embeddings = self.network(aug_local_crops, embeddings_only=True)
 
-            rec_l, mid_rec_l, g_sim_l, l_sim_l = self.loss(reconstructions_A, mid_reconstructions_A, global_crops_A, embeddings_A, embeddings_B,
-                          local_embeddings)
+            rec_l, mid_rec_l, g_sim_l, l_sim_l = self.loss(
+                reconstructions_A, mid_reconstructions_A, global_crops_A, embeddings_A, embeddings_B, local_embeddings
+            )
             l = rec_l + mid_rec_l + g_sim_l + l_sim_l
 
             # l = self.loss(reconstructions_A, mid_reconstructions_A, global_crops_A, embeddings_A, embeddings_B,
@@ -173,7 +172,7 @@ class PCRLv2Trainer(AbstractBaseTrainer):
             rec_l.detach().cpu().numpy(),
             mid_rec_l.detach().cpu().numpy(),
             g_sim_l.detach().cpu().numpy(),
-            l_sim_l.detach().cpu().numpy()
+            l_sim_l.detach().cpu().numpy(),
         )
         # return {"loss": np.array(0)}
 
@@ -203,10 +202,12 @@ class PCRLv2Trainer(AbstractBaseTrainer):
 
                     # train_outputs.append(self.train_step(next(self.dataloader_train)))
 
-                self.print_to_log_file(f"Recon Loss: {np.mean(rec_ls).item()}",
-                                       f" | Mid Recon Loss: {np.mean(mid_rec_ls).item()}"
-                                       f" | Global Sim Loss: {np.mean(g_sim_ls).item()}"
-                                       f" | Local Sim Loss: {np.mean(l_sim_ls).item()}")
+                self.print_to_log_file(
+                    f"Recon Loss: {np.mean(rec_ls).item()}",
+                    f" | Mid Recon Loss: {np.mean(mid_rec_ls).item()}"
+                    f" | Global Sim Loss: {np.mean(g_sim_ls).item()}"
+                    f" | Local Sim Loss: {np.mean(l_sim_ls).item()}",
+                )
 
                 self.on_train_epoch_end(train_outputs)
 
@@ -235,10 +236,18 @@ class PCRLv2Trainer(AbstractBaseTrainer):
 
     @override
     def validation_step(self, batch: dict) -> dict:
-        aug_global_crops_A = batch["aug_global_crops_A"]    # [B,              C, X_global_input_size, Y_global_input_size, Z_global_input_size]
-        global_crops_A = batch["global_crops_A"]            # [B,              C, X_global_input_size, Y_global_input_size, Z_global_input_size]
-        aug_global_crops_B = batch["aug_global_crops_B"]    # [B,              C, X_global_input_size, Y_global_input_size, Z_global_input_size]
-        aug_local_crops = batch["aug_local_crops"]          # [(B*num_locals), C, X_local_input_size,  Y_local_input_size,  Z_local_input_size ]
+        aug_global_crops_A = batch[
+            "aug_global_crops_A"
+        ]  # [B,              C, X_global_input_size, Y_global_input_size, Z_global_input_size]
+        global_crops_A = batch[
+            "global_crops_A"
+        ]  # [B,              C, X_global_input_size, Y_global_input_size, Z_global_input_size]
+        aug_global_crops_B = batch[
+            "aug_global_crops_B"
+        ]  # [B,              C, X_global_input_size, Y_global_input_size, Z_global_input_size]
+        aug_local_crops = batch[
+            "aug_local_crops"
+        ]  # [(B*num_locals), C, X_local_input_size,  Y_local_input_size,  Z_local_input_size ]
 
         aug_global_crops_A = aug_global_crops_A.to(self.device, non_blocking=True)
         global_crops_A = global_crops_A.to(self.device, non_blocking=True)
@@ -250,25 +259,34 @@ class PCRLv2Trainer(AbstractBaseTrainer):
                 reconstructions_A, embeddings_A, mid_reconstructions_A = self.network(aug_global_crops_A)
                 embeddings_B = self.network(aug_global_crops_B, embeddings_only=True)
                 local_embeddings = self.network(aug_local_crops, embeddings_only=True)
-                rec_l, mid_rec_l, g_sim_l, l_sim_l = self.loss(reconstructions_A, mid_reconstructions_A, global_crops_A,
-                                                               embeddings_A, embeddings_B,
-                                                               local_embeddings)
+                rec_l, mid_rec_l, g_sim_l, l_sim_l = self.loss(
+                    reconstructions_A,
+                    mid_reconstructions_A,
+                    global_crops_A,
+                    embeddings_A,
+                    embeddings_B,
+                    local_embeddings,
+                )
                 l = rec_l + mid_rec_l + g_sim_l + l_sim_l
         return {"loss": l.detach().cpu().numpy()}
 
     def get_training_transforms(self) -> AbstractTransform:
-        tr_transforms = Compose([
-            PCLRv2Transform(
-                self.global_patch_sizes,
-                self.global_input_size,
-                self.local_patch_sizes,
-                self.local_input_size,
-                self.num_locals,
-                self.min_IoU,
-            ),
-            NumpyToTensor(keys=["aug_global_crops_A", "global_crops_A", "aug_global_crops_B", "aug_local_crops"],
-                          cast_to="float")
-        ])
+        tr_transforms = Compose(
+            [
+                PCLRv2Transform(
+                    self.global_patch_sizes,
+                    self.global_input_size,
+                    self.local_patch_sizes,
+                    self.local_input_size,
+                    self.num_locals,
+                    self.min_IoU,
+                ),
+                NumpyToTensor(
+                    keys=["aug_global_crops_A", "global_crops_A", "aug_global_crops_B", "aug_local_crops"],
+                    cast_to="float",
+                ),
+            ]
+        )
         return tr_transforms
 
     def get_validation_transforms(self) -> AbstractTransform:
@@ -286,15 +304,13 @@ class PCRLv2Trainer_test(PCRLv2Trainer):
         plan: Plan,
         configuration_name: str,
         fold: int,
-
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        super().__init__(plan, configuration_name, fold,  pretrain_json, device,
-                         global_input_size=(96, 96, 96))
+        super().__init__(plan, configuration_name, fold, pretrain_json, device, global_input_size=(96, 96, 96))
         self.total_batch_size = 2
-        self.num_iterations_per_epoch=20
-        self.num_val_iterations_per_epoch=5
+        self.num_iterations_per_epoch = 20
+        self.num_val_iterations_per_epoch = 5
         self.initial_lr = 1e-3
 
 
@@ -304,9 +320,8 @@ class PCRLv2Trainer_BS8(PCRLv2Trainer):
         plan: Plan,
         configuration_name: str,
         fold: int,
-
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        super().__init__(plan, configuration_name, fold,  pretrain_json, device)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.total_batch_size = 8

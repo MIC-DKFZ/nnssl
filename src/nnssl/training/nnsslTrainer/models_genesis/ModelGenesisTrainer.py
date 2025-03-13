@@ -3,7 +3,7 @@ import torch
 from torch import nn
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-from nnssl.architectures.build_architecture import build_network_architecture
+from nnssl.architectures.get_network_by_name import get_network_by_name
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.ssl_data.dataloading.model_genesis_transform import ModelGenesisTransform
 from nnssl.training.loss.mse_loss import LossMaskMSELoss
@@ -34,8 +34,13 @@ class ModelGenesisTrainer(AbstractBaseTrainer):
     def build_architecture(
         self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
     ) -> nn.Module:
-        architecture = build_network_architecture(config_plan, num_input_channels, num_output_channels)
-        return architecture
+        network = get_network_by_name(
+            config_plan,
+            "ResEncL",
+            num_input_channels,
+            num_output_channels,
+        )
+        return network
 
     def get_dataloaders(self):
         """

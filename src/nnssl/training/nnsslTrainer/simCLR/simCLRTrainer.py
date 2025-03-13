@@ -12,7 +12,7 @@ from einops import rearrange
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 
 from torch import autocast
-from nnssl.architectures.build_architecture import build_network_architecture
+from nnssl.architectures.get_network_by_name import get_network_by_name
 from nnssl.architectures.voco_architecture import VoCoArchitecture
 from nnssl.training.loss.contrastive_loss import NTXentLoss
 from nnssl.utilities.helpers import dummy_context
@@ -69,7 +69,6 @@ class SimCLRTrainer(AbstractBaseTrainer):
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.num_crops_per_image = num_crops_per_image
         self.min_crop_overlap = min_crop_overlap
-
 
     def build_loss(self) -> nn.Module:
         """Implements the standard contrastive loss."""
@@ -193,12 +192,7 @@ class SimCLRTrainer(AbstractBaseTrainer):
         num_input_channels: int,
         num_output_channels: int,
     ) -> nn.Module:
-        encoder = build_network_architecture(
-            config_plan,
-            num_input_channels,
-            num_output_channels,
-            encoder_only=True,
-        )
+        encoder = get_network_by_name("ResEncL", num_input_channels, num_output_channels, encoder_only=True)
         # Turns out VoCoArchitecture can be used for SimCLR purpose here.
         architecture = VoCoArchitecture(encoder, config_plan)
         return architecture

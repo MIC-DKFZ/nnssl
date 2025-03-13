@@ -6,7 +6,7 @@ from deprecated import deprecated
 
 
 import torch
-from nnssl.architectures.build_architecture import build_network_architecture
+from nnssl.architectures.get_network_by_name import get_network_by_name
 from nnssl.data.raw_dataset import Collection
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.ssl_data.configure_basic_dummyDA import configure_rotation_dummyDA_mirroring_and_inital_patch_size
@@ -81,8 +81,11 @@ class BaseMAETrainer(AbstractBaseTrainer):
 
     @staticmethod
     def mask_creation(
-            batch_size: int, patch_size: tuple[int, int, int], mask_percentage: float, rng_seed: int | None = None,
-            block_size: int = 16
+        batch_size: int,
+        patch_size: tuple[int, int, int],
+        mask_percentage: float,
+        rng_seed: int | None = None,
+        block_size: int = 16,
     ) -> torch.Tensor:
         """
         Creates a masking tensor with 1s (indicating no masking) and 0s (indicating masking).
@@ -112,7 +115,12 @@ class BaseMAETrainer(AbstractBaseTrainer):
     def build_architecture(
         self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
     ) -> nn.Module:
-        architecture = build_network_architecture(config_plan, num_input_channels, num_output_channels)
+        architecture = get_network_by_name(
+            config_plan,
+            "ResEncL",
+            num_input_channels,
+            num_output_channels,
+        )
         return architecture
 
     def get_dataloaders(self):
@@ -404,9 +412,9 @@ class BaseMAETrainer(AbstractBaseTrainer):
                     # if (self.current_epoch + 1) % self.save_imgs_every_n_epochs == 0:
                     #     if self.local_rank == 0:
                     #         self.log_qualitative_reconstruction_step()
-                            # self.save_checkpoint(
-                            #     join(self.output_folder, f"checkpoint_epoch_{self.current_epoch}.pth"), live_upload=True
-                            # )
+                    # self.save_checkpoint(
+                    #     join(self.output_folder, f"checkpoint_epoch_{self.current_epoch}.pth"), live_upload=True
+                    # )
 
                 self.on_epoch_end()
                 if self.exit_training_flag:
@@ -488,11 +496,13 @@ class BaseMAETrainer(AbstractBaseTrainer):
         val_transforms = Compose(val_transforms)
         return val_transforms
 
+
 ####################################################################
 ############################# VARIANTS #############################
 ####################################################################
 
 ############################# ANON & ANAT BASE CLASSES #############################
+
 
 class BaseMAETrainer_ANAT(BaseMAETrainer):
 
@@ -549,6 +559,7 @@ class BaseMAETrainer_ANAT(BaseMAETrainer):
                 wait_time=0.02,
             )
         return mt_gen_train, mt_gen_val
+
 
 class BaseMAETrainer_ANON(BaseMAETrainer):
 
@@ -621,11 +632,13 @@ class BaseMAETrainer_ANON(BaseMAETrainer):
 
         return {"loss": l.detach().cpu().numpy()}
 
+
 class BaseMAETrainer_ANAT_ANON(BaseMAETrainer_ANAT, BaseMAETrainer_ANON):
     pass
 
 
 ############################# TESTING #############################
+
 
 class BaseMAETrainer_test(BaseMAETrainer):
     def __init__(
@@ -640,6 +653,7 @@ class BaseMAETrainer_test(BaseMAETrainer):
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.total_batch_size = 2
 
+
 class BaseMAETrainer_ANAT_ANON_test(BaseMAETrainer_ANAT_ANON):
     def __init__(
         self,
@@ -652,6 +666,7 @@ class BaseMAETrainer_ANAT_ANON_test(BaseMAETrainer_ANAT_ANON):
         plan.configurations[configuration_name].patch_size = (128, 128, 128)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.total_batch_size = 2
+
 
 class BaseMAETrainer_BS8_IQS_test(BaseMAETrainer):
     def __init__(
@@ -667,7 +682,9 @@ class BaseMAETrainer_BS8_IQS_test(BaseMAETrainer):
         self.iimg_filter = OpenMindIQSFilter(Collection.from_dict(self.pretrain_json), 2.5)
         self.total_batch_size = 1
 
+
 ############################# BASELINE #############################
+
 
 class BaseMAETrainer_BS8(BaseMAETrainer):
     def __init__(
@@ -682,7 +699,9 @@ class BaseMAETrainer_BS8(BaseMAETrainer):
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.total_batch_size = 8
 
+
 ############################# MASKS & IQS #############################
+
 
 class BaseMAETrainer_ANAT_ANON_BS8(BaseMAETrainer_ANAT_ANON):
     def __init__(
@@ -696,6 +715,7 @@ class BaseMAETrainer_ANAT_ANON_BS8(BaseMAETrainer_ANAT_ANON):
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.total_batch_size = 8
+
 
 class BaseMAETrainer_BS8_IQS1_5(BaseMAETrainer):
     def __init__(
@@ -711,6 +731,7 @@ class BaseMAETrainer_BS8_IQS1_5(BaseMAETrainer):
         self.total_batch_size = 8
         self.iimg_filters.append(OpenMindIQSFilter(Collection.from_dict(self.pretrain_json), 1.5))
 
+
 class BaseMAETrainer_BS8_IQS2_5(BaseMAETrainer):
     def __init__(
         self,
@@ -724,6 +745,7 @@ class BaseMAETrainer_BS8_IQS2_5(BaseMAETrainer):
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.total_batch_size = 8
         self.iimg_filters.append(OpenMindIQSFilter(Collection.from_dict(self.pretrain_json), 2.5))
+
 
 class BaseMAETrainer_BS8_IQS3_0(BaseMAETrainer):
     def __init__(
@@ -739,6 +761,7 @@ class BaseMAETrainer_BS8_IQS3_0(BaseMAETrainer):
         self.total_batch_size = 8
         self.iimg_filters.append(OpenMindIQSFilter(Collection.from_dict(self.pretrain_json), 3.0))
 
+
 class BaseMAETrainer_BS8_T1w_T2w_FLAIR(BaseMAETrainer):
     def __init__(
         self,
@@ -753,6 +776,7 @@ class BaseMAETrainer_BS8_T1w_T2w_FLAIR(BaseMAETrainer):
         self.total_batch_size = 8
         self.iimg_filters.append(ModalityFilter(valid_modalities=["T1w", "T2w", "FLAIR"]))
 
+
 class BaseMAETrainer_BS8_IQS3_5_FA(BaseMAETrainer):
     def __init__(
         self,
@@ -765,13 +789,17 @@ class BaseMAETrainer_BS8_IQS3_5_FA(BaseMAETrainer):
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.total_batch_size = 8
-        self.iimg_filters.extend([
+        self.iimg_filters.extend(
+            [
                 ModalityFilter(valid_modalities=["FA"]),
-                OpenMindIQSFilter(Collection.from_dict(self.pretrain_json), 3.5)
-            ])
+                OpenMindIQSFilter(Collection.from_dict(self.pretrain_json), 3.5),
+            ]
+        )
         self.num_val_iterations_per_epoch = 5
 
+
 ############################# OTHERS #############################
+
 
 class BaseMAETrainer_BS8_100ep(BaseMAETrainer):
     def __init__(
