@@ -2,6 +2,7 @@ from typing import override
 import torch
 from torch import nn
 
+from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan
 from nnssl.architectures.get_network_by_name import get_network_by_name
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.ssl_data.dataloading.model_genesis_transform import ModelGenesisTransform
@@ -41,6 +42,18 @@ class ModelGenesisTrainer(AbstractBaseTrainer):
         :return:
         """
         return torch.nn.MSELoss()
+
+    @override
+    def create_adaptation_plans(self):
+        adapt_plan = AdaptationPlan(
+            architecture_name="ResEncL",
+            num_input_channels=1,
+            input_patch_size=self.config_plan.patch_size,
+            state_dict_key_to_encoder="encoder.stages",
+            state_dict_key_to_stem="encoder.stem",
+        )
+        save_json(adapt_plan.serialize(), self.adaptation_json_plan)
+        return adapt_plan
 
     def build_architecture(
         self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
