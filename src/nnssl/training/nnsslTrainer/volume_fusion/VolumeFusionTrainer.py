@@ -1,4 +1,4 @@
-from typing import Tuple, Union
+from typing import Tuple, Union, override
 import numpy as np
 from torch.nn.modules import Module
 from nnssl.architectures.get_network_by_name import get_network_by_name
@@ -24,6 +24,7 @@ from batchgenerators.transforms.resample_transforms import SimulateLowResolution
 from batchgenerators.transforms.spatial_transforms import  MirrorTransform
 from batchgenerators.transforms.utility_transforms import NumpyToTensor
 from batchgenerators.dataloading.single_threaded_augmenter import SingleThreadedAugmenter
+from batchgenerators.utilities.file_and_folder_operations import save_json
 from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
 from nnssl.utilities.default_n_proc_DA import get_allowed_n_proc_DA
 from nnssl.utilities.helpers import dummy_context
@@ -99,7 +100,7 @@ class VolumeFusionTrainer(AbstractBaseTrainer):
             6. Number of classes K is 4.
         """
         # MisFM specific parameters:
-        self.patch_size = plan.configurations[configuration_name].patch_size
+        self.config_plan.patch_size = (160, 160, 160)
         self.num_output_channels = foreground_classes
         # vf == volume fusion
         self.vf_mixing_coefficients = np.linspace(
@@ -108,7 +109,7 @@ class VolumeFusionTrainer(AbstractBaseTrainer):
         self.vf_subpatch_count = (10, 40)  # U(10, 40) upper bound is excluded in the range
 
         # Max depth, height, width patch scale.
-        self.vf_subpatch_size = [(8, int(0.625 * s) + 1) for s in self.patch_size]
+        self.vf_subpatch_size = [(8, int(0.625 * s) + 1) for s in self.config_plan.patch_size]
 
     def build_architecture(
         self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int, *args, **kwargs
@@ -118,7 +119,6 @@ class VolumeFusionTrainer(AbstractBaseTrainer):
             "ResEncL",
             num_input_channels,
             num_output_channels,
-            encoder_only=True,
         )
         return architecture
 

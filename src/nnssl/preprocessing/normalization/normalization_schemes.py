@@ -70,20 +70,6 @@ def rgb_to_01_normalization(image: np.ndarray, target_dtype: Type[Number]) -> np
     return image / 255.0
 
 
-def get_normalization_scheme(scheme: str) -> NormalizationScheme:
-    if isinstance(scheme, str):
-        scheme = NormalizationScheme(scheme)
-    if scheme == NormalizationScheme.Z_SCORE:
-        return z_score_normalization
-    elif scheme == NormalizationScheme.NO_NORMALIZATION:
-        return no_normalization
-    elif scheme == NormalizationScheme.RESCALE_TO_01:
-        return rescale_to_01_normalization
-    elif scheme == NormalizationScheme.RGB_TO_01:
-        return rgb_to_01_normalization
-    else:
-        raise ValueError("Unknown normalization scheme")
-
 
 def apply_normalization(
     scheme: NormalizationScheme | str,

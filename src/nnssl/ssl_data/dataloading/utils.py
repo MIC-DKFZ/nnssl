@@ -107,7 +107,8 @@ def get_subject_identifiers(folder: str, suffix: str = "npz") -> List[str]:
     """
     finds all npz files in the given folder and reconstructs the training case names from them
     """
-    pretrain_json = Path(folder).parent / "pretrain_data.json"
+    config = Path(folder).name.split("_")[1]  # Just the config
+    pretrain_json = Path(folder).parent / f"pretrain_data__{config}.json"
     assert pretrain_json.is_file(), f"pretrain_data.json not found in {folder}"
     pretrain_json = Collection.from_dict(load_json(pretrain_json))
     # all_subjects = []

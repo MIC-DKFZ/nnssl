@@ -5,16 +5,17 @@ from einops import rearrange
 from torch import nn, autocast
 from torch._dynamo import OptimizedModule
 
-from nnssl.architectures.voco_architecture import VoCoArchitecture, VoCoEvaArchitecture
+from nnssl.architectures.voco_architecture import VoCoEvaArchitecture
 from nnssl.training.nnsslTrainer.volume_contrastive.vocoTrainer import VoCoTrainer
+from batchgenerators.utilities.file_and_folder_operations import save_json
 
-
-from nnssl.experiment_planning.experiment_planners.plan import  Plan
+from nnssl.experiment_planning.experiment_planners.plan import Plan
 
 from torch.nn.parallel import DistributedDataParallel as DDP
 from nnssl.utilities.helpers import empty_cache, dummy_context
 from nnssl.training.lr_scheduler.warmup import Lin_incr_LRScheduler, PolyLRScheduler_offset
-from nnssl.training.nnsslTrainer.evaMAE.evaMAE_module import EvaMAE
+from nnssl.architectures.evaMAE_module import EvaMAE
+
 
 class VoCoEvaTrainer(VoCoTrainer):
 
@@ -27,9 +28,11 @@ class VoCoEvaTrainer(VoCoTrainer):
         device: torch.device = torch.device("cuda"),
         patch_size: tuple = (256, 256, 64),
         base_crop_count: tuple = (4, 4, 1),
-        target_crop_count: int = 4
+        target_crop_count: int = 4,
     ):
-        super().__init__(plan, configuration_name, fold, pretrain_json, device, patch_size, base_crop_count, target_crop_count)
+        super().__init__(
+            plan, configuration_name, fold, pretrain_json, device, patch_size, base_crop_count, target_crop_count
+        )
 
         self.drop_path_rate = 0.2
         self.attention_drop_rate = 0
@@ -50,14 +53,14 @@ class VoCoEvaTrainer(VoCoTrainer):
 
     def on_train_epoch_start(self):
         if self.current_epoch == 0:
-            self.optimizer, self.lr_scheduler = self.configure_optimizers('warmup_all')
+            self.optimizer, self.lr_scheduler = self.configure_optimizers("warmup_all")
         elif self.current_epoch == self.warmup_duration_whole_net:
-            self.optimizer, self.lr_scheduler = self.configure_optimizers('train')
+            self.optimizer, self.lr_scheduler = self.configure_optimizers("train")
 
         super().on_train_epoch_start()
 
-    def configure_optimizers(self, stage: str = 'warmup_all'):
-        assert stage in ['warmup_all', 'train']
+    def configure_optimizers(self, stage: str = "warmup_all"):
+        assert stage in ["warmup_all", "train"]
 
         if self.training_stage == stage:
             return self.optimizer, self.lr_scheduler
@@ -67,24 +70,31 @@ class VoCoEvaTrainer(VoCoTrainer):
         else:
             params = self.network.parameters()
 
-        if stage == 'warmup_all':
+        if stage == "warmup_all":
             self.print_to_log_file("train whole net, warmup")
-            optimizer = torch.optim.AdamW(params, self.initial_lr, weight_decay=self.weight_decay,
-                                          amsgrad=False, betas=(0.9, 0.98), fused=True)
+            optimizer = torch.optim.AdamW(
+                params, self.initial_lr, weight_decay=self.weight_decay, amsgrad=False, betas=(0.9, 0.98), fused=True
+            )
             lr_scheduler = Lin_incr_LRScheduler(optimizer, self.initial_lr, self.warmup_duration_whole_net)
             self.print_to_log_file(f"Initialized warmup_all optimizer and lr_scheduler at epoch {self.current_epoch}")
         else:
             self.print_to_log_file("train whole net, default schedule")
-            if self.training_stage == 'warmup_all':
+            if self.training_stage == "warmup_all":
                 # we can keep the existing optimizer and don't need to create a new one. This will allow us to keep
                 # the accumulated momentum terms which already point in a useful driection
                 optimizer = self.optimizer
             else:
-                optimizer = torch.optim.AdamW(params, self.initial_lr,
-                                              weight_decay=self.weight_decay,
-                                              amsgrad=False, betas=(0.9, 0.98), fused=True)
-            lr_scheduler = PolyLRScheduler_offset(optimizer, self.initial_lr, self.num_epochs,
-                                                  self.warmup_duration_whole_net)
+                optimizer = torch.optim.AdamW(
+                    params,
+                    self.initial_lr,
+                    weight_decay=self.weight_decay,
+                    amsgrad=False,
+                    betas=(0.9, 0.98),
+                    fused=True,
+                )
+            lr_scheduler = PolyLRScheduler_offset(
+                optimizer, self.initial_lr, self.num_epochs, self.warmup_duration_whole_net
+            )
             self.print_to_log_file(f"Initialized train optimizer and lr_scheduler at epoch {self.current_epoch}")
         self.training_stage = stage
         empty_cache(self.device)
@@ -107,11 +117,10 @@ class VoCoEvaTrainer(VoCoTrainer):
             attn_drop_rate=self.attention_drop_rate,
             init_values=self.init_value,
             scale_attn_inner=self.scale_attn_inner,
-            do_up_projection=False
+            do_up_projection=False,
         )
         architecture = VoCoEvaArchitecture(encoder, self.embed_dim)
         return architecture
-
 
     def load_checkpoint(self, filename_or_checkpoint: Union[dict, str]) -> None:
         if not self.was_initialized:
@@ -151,14 +160,14 @@ class VoCoEvaTrainer(VoCoTrainer):
         # it's fine to do this every time we load because configure_optimizers will be a no-op if the correct optimizer
         # and lr scheduler are already set up
         if self.current_epoch < self.warmup_duration_whole_net:
-            self.optimizer, self.lr_scheduler = self.configure_optimizers('warmup_all')
+            self.optimizer, self.lr_scheduler = self.configure_optimizers("warmup_all")
         else:
-            self.optimizer, self.lr_scheduler = self.configure_optimizers('train')
+            self.optimizer, self.lr_scheduler = self.configure_optimizers("train")
 
-        self.optimizer.load_state_dict(checkpoint['optimizer_state'])
+        self.optimizer.load_state_dict(checkpoint["optimizer_state"])
         if self.grad_scaler is not None:
-            if checkpoint['grad_scaler_state'] is not None:
-                self.grad_scaler.load_state_dict(checkpoint['grad_scaler_state'])
+            if checkpoint["grad_scaler_state"] is not None:
+                self.grad_scaler.load_state_dict(checkpoint["grad_scaler_state"])
 
     def train_step(self, batch: dict) -> dict:
         all_crops = batch["all_crops"]
@@ -189,6 +198,7 @@ class VoCoEvaTrainer(VoCoTrainer):
             self.optimizer.step()
         return {"loss": l.detach().cpu().numpy()}
 
+
 class VoCoEvaTrainer_BS8(VoCoEvaTrainer):
     def __init__(
         self,
@@ -211,8 +221,15 @@ class VoCoEvaTrainer_test(VoCoEvaTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        super().__init__(plan, configuration_name, fold, pretrain_json, device,
-                         patch_size=(128, 128, 64), base_crop_count=(2, 2, 1))
+        super().__init__(
+            plan,
+            configuration_name,
+            fold,
+            pretrain_json,
+            device,
+            patch_size=(128, 128, 64),
+            base_crop_count=(2, 2, 1),
+        )
         self.total_batch_size = 1
         self.num_iterations_per_epoch = 1
         self.num_val_iterations_per_epoch = 1

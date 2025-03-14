@@ -1,9 +1,10 @@
 from typing import Tuple
 
 import torch
-from nnssl.training.nnsslTrainer.evaMAE.dynamic_network.eva import Eva
-from nnssl.training.nnsslTrainer.evaMAE.dynamic_network.vit_embed_decode import PatchEmbed, PatchDecode, LayerNormNd
-from nnssl.training.nnsslTrainer.evaMAE.dynamic_network.weight_init import InitWeights_He
+from dynamic_network_architectures.building_blocks.eva import Eva
+from dynamic_network_architectures.building_blocks.patch_encode_decode import PatchEmbed, PatchDecode, LayerNormNd
+from dynamic_network_architectures.initialization.weight_init import InitWeights_He
+
 from einops import rearrange
 from timm.layers import RotaryEmbeddingCat
 from torch import nn
@@ -60,7 +61,6 @@ class EvaMAE(nn.Module):
             use_abs_pos_emb=use_abs_pos_emb,
             mlp_ratio=mlp_ratio,
             drop_path_rate=drop_path_rate,
-            drop_path_scale=drop_path_scale,
             patch_drop_rate=patch_drop_rate,
             proj_drop_rate=proj_drop_rate,
             attn_drop_rate=attn_drop_rate,
@@ -90,7 +90,6 @@ class EvaMAE(nn.Module):
                 use_abs_pos_emb=use_abs_pos_emb,
                 mlp_ratio=mlp_ratio,
                 drop_path_rate=drop_path_rate,
-                drop_path_scale=drop_path_scale,
                 patch_drop_rate=0, # No drop in the decoder
                 proj_drop_rate=proj_drop_rate,
                 attn_drop_rate=attn_drop_rate,

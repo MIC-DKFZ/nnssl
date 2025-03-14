@@ -1,22 +1,21 @@
 import torch
 import os
-import sys
 from torch import nn
 from torch._dynamo import OptimizedModule
 from typing import Tuple, Union
-from nnssl.training.nnsslTrainer.evaMAE.evaMAE_module import EvaMAE
+from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan
+from nnssl.architectures.evaMAE_module import EvaMAE
 from torch import autocast
 from nnssl.utilities.helpers import dummy_context
 from tqdm import tqdm
 from nnssl.experiment_planning.experiment_planners.plan import Plan
-from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
 from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import BaseMAETrainer
 from nnssl.training.lr_scheduler.warmup import Lin_incr_LRScheduler, PolyLRScheduler_offset
 import numpy as np
 from nnssl.paths import nnssl_results
 from torch import distributed as dist
 from nnssl.training.logging.nnssl_logger_wandb import nnSSLLogger_wandb
-from batchgenerators.utilities.file_and_folder_operations import join, isfile, save_json, maybe_mkdir_p, load_json
+from batchgenerators.utilities.file_and_folder_operations import join, save_json, maybe_mkdir_p
 from torch.nn.parallel import DistributedDataParallel as DDP
 from nnssl.utilities.helpers import empty_cache
 
@@ -270,6 +269,17 @@ class EvaMAETrainer(BaseMAETrainer):
         )
         mask = mask.unsqueeze(1)  # Add channel dimension (B, 1, D, H, W)
         return mask
+
+    def create_adaptation_plans(self):
+        adapt_plan = AdaptationPlan(
+            architecture_name="PrimusM",
+            num_input_channels=1,
+            num_output_channels=1,
+            input_patch_size=self.config_plan.patch_size,
+            state_dict_key_to_encoder="eva",
+            state_dict_key_to_stem="down_projection",
+        )
+        save_json(adapt_plan.serialize(), self.adaptation_json_plan)
 
     def build_architecture(self, config_plan, num_input_channels, num_output_channels) -> nn.Module:
         network = EvaMAE(

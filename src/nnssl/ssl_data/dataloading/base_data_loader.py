@@ -5,7 +5,7 @@ from batchgenerators.dataloading.data_loader import DataLoader
 import numpy as np
 from batchgenerators.utilities.file_and_folder_operations import *
 
-from nnssl.training.dataloading.dataset import nnSSLDatasetBlosc2
+from nnssl.data.dataloading.dataset import nnSSLDatasetBlosc2
 
 
 class nnsslDataLoaderBase(DataLoader, ABC):

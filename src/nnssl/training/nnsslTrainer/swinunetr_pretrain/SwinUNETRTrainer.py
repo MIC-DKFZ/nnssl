@@ -17,6 +17,7 @@ from nnssl.utilities.helpers import dummy_context
 
 from batchgenerators.transforms.abstract_transforms import AbstractTransform, Compose
 from batchgenerators.transforms.utility_transforms import NumpyToTensor
+from batchgenerators.utilities.file_and_folder_operations import save_json
 
 
 class SwinUNETRTrainer(AbstractBaseTrainer):
@@ -30,7 +31,7 @@ class SwinUNETRTrainer(AbstractBaseTrainer):
         device: torch.device = torch.device("cuda"),
     ):
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
-
+        self.config_plan.patch_size = (160, 160, 160)
         # from paper
         # self.initial_lr = 4e-4
         # self.weight_decay = 1e-5
@@ -123,8 +124,9 @@ class SwinUNETRTrainer(AbstractBaseTrainer):
 
         self.optimizer.zero_grad(set_to_none=True)
         with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
-            rotations_pred, contrast_pred, reconstructions = self.network(imgs_rotated_cutout)
-            l = self.loss(rotations_pred, rotations, contrast_pred, reconstructions, imgs_rotated)
+            with torch.no_grad():
+                rotations_pred, contrast_pred, reconstructions = self.network(imgs_rotated_cutout)
+                l = self.loss(rotations_pred, rotations, contrast_pred, reconstructions, imgs_rotated)
 
         if self.grad_scaler is not None:
             self.grad_scaler.scale(l).backward()

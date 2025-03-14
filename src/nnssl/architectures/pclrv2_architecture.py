@@ -6,7 +6,7 @@ import torch
 from torch import nn
 from torch.nn import Conv3d, BatchNorm3d, ReLU, Sequential, BatchNorm1d, Linear, ModuleList, AdaptiveAvgPool3d
 import torch.nn.functional as F
-from nnssl.architectures.backbones.utils.nsUNet import ResidualEncoderUNet_noskip
+from nnssl.architectures.noskipResEncUNet import ResidualEncoderUNet_noskip
 
 
 class PCRLv2Architecture(nn.Module):

@@ -2,32 +2,33 @@ from abc import ABC, abstractmethod
 from dataclasses import asdict
 from functools import partial
 import inspect
-import json
 from multiprocessing import Pool
 import os
 from random import sample
-import shutil
+
 import sys
+from types import FrameType
+from torch import nn
 from copy import deepcopy
 from datetime import datetime
-from time import time, sleep
+from time import time
 from typing import Union, Tuple, List
 from loguru import logger
 from tqdm import tqdm
-from nnssl.configuration import default_num_processes
+from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan
+from nnssl.architectures.get_network_by_name import get_network_by_name
 import signal
 
 import numpy as np
 import torch
 from batchgenerators.dataloading.single_threaded_augmenter import SingleThreadedAugmenter
-from batchgenerators.transforms.abstract_transforms import AbstractTransform, Compose
+from batchgenerators.transforms.abstract_transforms import AbstractTransform
 
-from batchgenerators.transforms.utility_transforms import NumpyToTensor
 from batchgenerators.utilities.file_and_folder_operations import join, isfile, save_json, maybe_mkdir_p, load_json
 from torch._dynamo import OptimizedModule
 
 
-from nnssl.data.raw_dataset import Collection, Dataset, IndependentImage
+from nnssl.data.raw_dataset import Collection
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.paths import nnssl_preprocessed, nnssl_results
 from nnssl.ssl_data.configure_basic_dummyDA import configure_rotation_dummyDA_mirroring_and_inital_patch_size
@@ -35,13 +36,14 @@ from nnssl.ssl_data.dataloading.data_loader_3d import nnsslDataLoader3D, nnsslAn
 from nnssl.ssl_data.dataloading.utils import get_subject_identifiers
 from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
 
-from nnssl.training.dataloading.dataset import nnSSLDatasetBlosc2
+from nnssl.data.dataloading.dataset import nnSSLDatasetBlosc2
 from nnssl.training.logging.nnssl_logger import nnSSLLogger
 from nnssl.training.lr_scheduler.polylr import PolyLRScheduler
 from nnssl.utilities.serialization import make_serializable
 from nnssl.utilities.collate_outputs import collate_outputs
 from nnssl.utilities.default_n_proc_DA import get_allowed_n_proc_DA
 from nnssl.utilities.helpers import empty_cache
+import torch
 from torch import distributed as dist
 from torch.cuda import device_count
 from torch.cuda.amp import GradScaler
@@ -96,8 +98,21 @@ class AbstractBaseTrainer(ABC):
         # would also pickle the network etc. Bad, bad. Instead we just reinstantiate and then load the checkpoint we
         # need. So let's save the init args
         self.my_init_kwargs = {}
-        for k in inspect.signature(self.__init__).parameters.keys():
-            self.my_init_kwargs[k] = locals()[k]
+        cur_frame = inspect.currentframe()
+        def prev_frame_is_trainer_class(frame: FrameType):
+            """Check if AbstractBaseTrainer child class is in previous frame."""
+            prev_frame = frame.f_back
+            if "self" in prev_frame.f_locals:
+                if isinstance(prev_frame.f_locals["self"], AbstractBaseTrainer): 
+                    return True
+            return False
+        # Find the highest level frame that is Child of AbstractBaseTrainer -- Holds original init args!
+        while prev_frame_is_trainer_class(cur_frame):
+            cur_frame = cur_frame.f_back
+
+        # Use the inspect module to get the init args and their values in highest frame
+        for k in inspect.signature(cur_frame.f_locals["self"].__init__).parameters.keys():
+            self.my_init_kwargs[k] = cur_frame.f_locals[k]
         self.my_init_kwargs = make_serializable(self.my_init_kwargs)
         # ------ Saving all the init args into class variables for later access ------ #
         self.plan: Plan = plan
@@ -413,7 +428,9 @@ class AbstractBaseTrainer(ABC):
         # care about distributing training cases across GPUs.
         collection = Collection.from_dict(self.pretrain_json)
         dataset_tr = nnSSLDatasetBlosc2(self.preprocessed_dataset_folder, collection, tr_subjects, self.iimg_filters)
-        dataset_val = nnSSLDatasetBlosc2(self.preprocessed_dataset_folder, collection, val_subjects, self.iimg_filters)
+        dataset_val = nnSSLDatasetBlosc2(
+            self.preprocessed_dataset_folder, collection, val_subjects, self.iimg_filters
+        )
 
         logger.info(f"Train dataset contains {len(dataset_tr.image_dataset)} images.")
         logger.info(f"Validation dataset contains {len(dataset_val.image_dataset)} images.")
@@ -550,7 +567,9 @@ class AbstractBaseTrainer(ABC):
         )
         return dl_tr, dl_val
 
-    def get_foreground_dataloaders(self, initial_patch_size: Tuple[int, ...], oversample_foreground_percent: float = 1.0):
+    def get_foreground_dataloaders(
+        self, initial_patch_size: Tuple[int, ...], oversample_foreground_percent: float = 1.0
+    ):
         dataset_tr, dataset_val = self.get_tr_and_val_datasets()
 
         dl_tr = nnsslAnatDataLoader3D(
@@ -560,7 +579,7 @@ class AbstractBaseTrainer(ABC):
             self.config_plan.patch_size,
             sampling_probabilities=None,
             pad_sides=None,
-            oversample_foreground_percent=oversample_foreground_percent
+            oversample_foreground_percent=oversample_foreground_percent,
         )
         dl_val = nnsslAnatDataLoader3D(
             dataset_val,
@@ -569,7 +588,7 @@ class AbstractBaseTrainer(ABC):
             self.config_plan.patch_size,
             sampling_probabilities=None,
             pad_sides=None,
-            oversample_foreground_percent=oversample_foreground_percent
+            oversample_foreground_percent=oversample_foreground_percent,
         )
         return dl_tr, dl_val
 
@@ -837,7 +856,9 @@ class AbstractBaseTrainer(ABC):
         # --------------------------- Remove broken images --------------------------- #
         pre_removal_len = len(dataset.image_identifiers)
         valid_image_names_set = set(valid_image_names)
-        dataset.image_dataset = {k: v for k, v in list(dataset.image_dataset.items()) if v.get_unique_id() in valid_image_names_set}
+        dataset.image_dataset = {
+            k: v for k, v in list(dataset.image_dataset.items()) if v.get_unique_id() in valid_image_names_set
+        }
         dataset.image_identifiers = list(dataset.image_dataset.keys())
         post_removal_len = len(dataset.image_identifiers)
         removed_images = pre_removal_len - post_removal_len
@@ -862,7 +883,7 @@ class AbstractBaseTrainer(ABC):
         splits_file_name = "splits_final.json"
         # DEBUG
         if self.plan.dataset_name != "Dataset745_OpenNeuro_v2":
-            splits_file_name = "splits_final_v2.json"   # for ABCD, since other branch uses different
+            splits_file_name = "splits_final_v2.json"  # for ABCD, since other branch uses different
             # subject_identifiers in splits_final.json
 
         splits_file = join(self.preprocessed_dataset_folder_base, splits_file_name)

@@ -11,7 +11,7 @@ from batchgenerators.utilities.file_and_folder_operations import join, load_pick
 import math
 
 from nnssl.data.raw_dataset import Collection, Dataset, IndependentImage, Subject
-from nnssl.training.dataloading.nnsslFilter.abstract_filter import AbstractFilter
+from nnssl.data.nnsslFilter.abstract_filter import AbstractFilter
 
 
 class nnSSLBaseDataset(ABC):

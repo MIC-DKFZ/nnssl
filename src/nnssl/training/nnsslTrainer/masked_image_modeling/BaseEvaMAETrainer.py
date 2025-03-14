@@ -3,7 +3,7 @@ from torch import nn
 from torch._dynamo import OptimizedModule
 from typing import Tuple, Union
 
-from nnssl.training.nnsslTrainer.evaMAE.evaMAE_module import EvaMAE
+from nnssl.architectures.evaMAE_module import EvaMAE
 from torch import autocast
 from nnssl.utilities.helpers import dummy_context
 from nnssl.experiment_planning.experiment_planners.plan import Plan
@@ -11,6 +11,7 @@ from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import Bas
 from nnssl.training.lr_scheduler.warmup import Lin_incr_LRScheduler, PolyLRScheduler_offset
 from torch.nn.parallel import DistributedDataParallel as DDP
 from nnssl.utilities.helpers import empty_cache
+from batchgenerators.utilities.file_and_folder_operations import save_json
 
 
 class BaseEvaMAETrainer(BaseMAETrainer):

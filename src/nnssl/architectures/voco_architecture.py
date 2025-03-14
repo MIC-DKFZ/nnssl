@@ -27,16 +27,13 @@ class VocoProjectionHead(nn.Module):
 
 
 class VoCoArchitecture(nn.Module):
-    def __init__(self, encoder: nn.Module,  config_plan: ConfigurationPlan):
+    def __init__(self, encoder: nn.Module,  features: list[int]):
         super(VoCoArchitecture, self).__init__()
         self.encoder = encoder
         self.adaptive_pool = nn.AdaptiveAvgPool3d((1, 1, 1))
 
-        base_features = config_plan.UNet_base_num_features
-        max_features = config_plan.unet_max_num_features
-        n_stages = len(config_plan.n_conv_per_stage_encoder)
 
-        total_features = sum([min(max_features, base_features * (2**i)) for i in range(n_stages)])
+        total_features = sum(features)
         self.projector = VocoProjectionHead(total_features, 2048, 2048, norm_op=nn.InstanceNorm1d)
 
     def forward(self, x):

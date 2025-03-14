@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import numpy as np
 from nnssl.ssl_data.dataloading.base_data_loader import nnsslDataLoaderBase
-from nnssl.training.dataloading.dataset import nnSSLDatasetBlosc2
+from nnssl.data.dataloading.dataset import nnSSLDatasetBlosc2
 
 
 class nnsslDataLoader3D(nnsslDataLoaderBase):

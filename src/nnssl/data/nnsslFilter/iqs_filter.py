@@ -1,5 +1,5 @@
 from nnssl.data.raw_dataset import IndependentImage, Collection
-from nnssl.training.dataloading.nnsslFilter.abstract_filter import AbstractFilter
+from nnssl.data.nnsslFilter.abstract_filter import AbstractFilter
 
 
 class OpenMindIQSFilter(AbstractFilter):

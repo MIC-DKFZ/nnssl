@@ -1,4 +1,4 @@
-from typing import Union, Tuple, List
+from typing import Union, Tuple, override
 
 import numpy as np
 import torch
@@ -13,6 +13,7 @@ from nnssl.architectures.get_network_by_name import get_network_by_name
 from nnssl.architectures.voco_architecture import VoCoArchitecture
 from nnssl.training.loss.voco_loss import VoCoLoss
 from nnssl.utilities.helpers import dummy_context
+from batchgenerators.utilities.file_and_folder_operations import save_json
 
 
 from einops import rearrange
@@ -221,7 +222,7 @@ class VoCoTrainer(AbstractBaseTrainer):
             num_output_channels,
             encoder_only=True,
         )
-        architecture = VoCoArchitecture(encoder, config_plan)
+        architecture = VoCoArchitecture(encoder, encoder.output_channels)
         return architecture
 
     def train_step(self, batch: dict) -> dict:

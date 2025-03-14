@@ -1,13 +1,12 @@
-import os
+from typing import override
 import torch
 from torch import nn
-from torch.nn.parallel import DistributedDataParallel as DDP
 
 from nnssl.architectures.get_network_by_name import get_network_by_name
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.ssl_data.dataloading.model_genesis_transform import ModelGenesisTransform
 from nnssl.training.loss.mse_loss import LossMaskMSELoss
-from nnssl.training.dataloading.nnsslFilter.modality_filter import ModalityFilter
+from nnssl.data.nnsslFilter.modality_filter import ModalityFilter
 
 from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
 from nnssl.utilities.default_n_proc_DA import get_allowed_n_proc_DA
@@ -18,9 +17,21 @@ from nnssl.utilities.helpers import dummy_context
 
 from batchgenerators.transforms.abstract_transforms import AbstractTransform, Compose
 from batchgenerators.transforms.utility_transforms import NumpyToTensor
+from batchgenerators.utilities.file_and_folder_operations import save_json
 
 
 class ModelGenesisTrainer(AbstractBaseTrainer):
+
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device,
+    ):
+        super(ModelGenesisTrainer, self).__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.config_plan.patch_size = (160, 160, 160)
 
     def build_loss(self):
         """

@@ -3,10 +3,14 @@ from typing import List, Tuple, Union
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from deprecated import deprecated
+from typing_extensions import override
 
 
 import torch
+from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan
 from nnssl.architectures.get_network_by_name import get_network_by_name
+from nnssl.data.nnsslFilter.iqs_filter import OpenMindIQSFilter
+from nnssl.data.nnsslFilter.modality_filter import ModalityFilter
 from nnssl.data.raw_dataset import Collection
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.ssl_data.configure_basic_dummyDA import configure_rotation_dummyDA_mirroring_and_inital_patch_size
@@ -14,8 +18,7 @@ from nnssl.ssl_data.data_augmentation.transforms_for_dummy_2d import Convert2DTo
 from nnssl.ssl_data.dataloading.data_loader_3d import nnsslIndexableCenterCropDataLoader3D
 from nnssl.ssl_data.dataloading.indexable_dataloader import IndexableSingleThreadedAugmenter
 from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
-from nnssl.training.dataloading.nnsslFilter.iqs_filter import OpenMindIQSFilter
-from nnssl.training.dataloading.nnsslFilter.modality_filter import ModalityFilter
+
 from nnssl.training.loss.mse_loss import MAEMSELoss, LossMaskMSELoss
 from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
 from torch import nn
@@ -28,6 +31,7 @@ from nnssl.utilities.helpers import dummy_context
 from torch.nn.parallel import DistributedDataParallel as DDP
 from batchgenerators.utilities.file_and_folder_operations import join
 import SimpleITK as sitk
+from batchgenerators.utilities.file_and_folder_operations import save_json
 
 from nnssl.utilities.default_n_proc_DA import get_allowed_n_proc_DA
 import numpy as np
@@ -69,6 +73,7 @@ class BaseMAETrainer(AbstractBaseTrainer):
     ):
         # plan.configurations[configuration_name].batch_size = 1
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.config_plan.patch_size = (160, 160, 160)
         self.mask_percentage: float = 0.75
 
         self.im_output_folder = os.path.join(self.output_folder, "img_log")

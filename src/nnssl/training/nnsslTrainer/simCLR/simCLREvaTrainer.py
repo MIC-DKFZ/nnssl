@@ -4,7 +4,7 @@ import numpy as np
 import torch
 
 from nnssl.training.lr_scheduler.warmup import Lin_incr_LRScheduler, PolyLRScheduler_offset
-from nnssl.training.nnsslTrainer.evaMAE.evaMAE_module import EvaMAE
+from nnssl.architectures.evaMAE_module import EvaMAE
 from nnssl.training.nnsslTrainer.simCLR.simCLRTrainer import SimCLRTrainer
 from torch import nn
 from torch.nn.parallel import DistributedDataParallel as DDP

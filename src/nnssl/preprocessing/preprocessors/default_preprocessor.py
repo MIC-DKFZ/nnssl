@@ -32,7 +32,7 @@ from nnssl.preprocessing.cropping.cropping import crop_to_nonzero
 from nnssl.preprocessing.preprocessors.normalize import normalize_arr
 from nnssl.preprocessing.preprocessors.no_resampling_preprocessor import no_resample_preprocess_case
 from nnssl.preprocessing.resampling.default_resampling import compute_new_shape, get_resampling_scheme
-from nnssl.training.dataloading.dataset import nnSSLDatasetBlosc2
+from nnssl.data.dataloading.dataset import nnSSLDatasetBlosc2
 from nnssl.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
 from nnssl.data.utils import get_train_collection
 

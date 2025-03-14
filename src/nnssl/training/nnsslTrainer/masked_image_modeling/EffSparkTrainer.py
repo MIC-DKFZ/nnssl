@@ -4,9 +4,8 @@ from nnssl.architectures.get_network_by_name import get_network_by_name
 from nnssl.architectures.spark_model import EfficientSpark3D
 from nnssl.architectures.spark_utils import convert_to_spark_cnn
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
-from nnssl.training.loss.spark_loss import SparkLoss
 from nnssl.training.nnsslTrainer.masked_image_modeling.SparkTrainer import SparkMAETrainer
-from dynamic_network_architectures.architectures.unet import ResidualEncoderUNet
+from batchgenerators.utilities.file_and_folder_operations import save_json
 
 
 class EffSparkMAETrainer(SparkMAETrainer):

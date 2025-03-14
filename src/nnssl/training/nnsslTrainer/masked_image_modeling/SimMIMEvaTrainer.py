@@ -6,7 +6,7 @@ from typing import Union
 
 from torch import autocast
 
-from nnssl.training.nnsslTrainer.evaSimMIM.evaSimMIM_module import EvaSimMIM
+from nnssl.architectures.evaSimMIM_module import EvaSimMIM
 from nnssl.utilities.helpers import dummy_context
 
 from nnssl.experiment_planning.experiment_planners.plan import Plan
@@ -14,6 +14,7 @@ from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import Bas
 from nnssl.training.lr_scheduler.warmup import Lin_incr_LRScheduler, PolyLRScheduler_offset
 from torch.nn.parallel import DistributedDataParallel as DDP
 from nnssl.utilities.helpers import empty_cache
+from batchgenerators.utilities.file_and_folder_operations import save_json
 
 
 class SimMIMEvaTrainer(BaseMAETrainer):
@@ -34,6 +35,7 @@ class SimMIMEvaTrainer(BaseMAETrainer):
             pretrain_json,
             device,
         )
+        self.config_plan.patch_size = (160, 160, 160)
 
         ###settings taken from fabi
         self.drop_path_rate = 0.2
