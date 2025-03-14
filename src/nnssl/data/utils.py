@@ -14,50 +14,13 @@
 #    limitations under the License.
 
 import os
-from pathlib import Path
-from typing import get_args
 
-from batchgenerators.utilities.file_and_folder_operations import *
-from loguru import logger
-import numpy as np
-import re
 
-from nnssl.data.raw_dataset import Collection, Dataset, Subject, Session, Image, associated_masks, AssociatedMasks
+from batchgenerators.utilities.file_and_folder_operations import load_json, join
+
+
+from nnssl.data.raw_dataset import Collection
 from nnssl.paths import nnssl_raw
-
-
-def get_dataset_from_pretrain_data(pretrain_data: dict, dataset_name: str, dataset_id: int) -> list[str]:
-    """
-    Read the `pretrain_data.json` and create a proper dataset from it.
-    This dataset will allow easy `fingerprinting`, `planning` and `preprocessing`.
-    """
-    all_subjects = []
-    for subject_id, subject_info in pretrain_data.items():
-        cur_subject: Subject = Subject(subject_id)
-        cur_subject.subject_info = {k: v for k, v in subject_info.items() if k != "sessions"}
-        # Sessions are ordered
-        all_sessions = []
-        for sess_id, sess_imgs in subject_info["sessions"].items():
-            cur_sess = Session(sess_id)
-            images = []
-            for image in sess_imgs["images"]:
-                img_path = image["path"]
-                modality = image["modality"]
-                assoc_masks = image.get("associated_masks", None)
-                associated_mask = None
-                if assoc_masks is not None:
-                    associated_mask = AssociatedMasks()
-                    for k in get_args(associated_masks):
-                        if k in assoc_masks:
-                            associated_mask[k] = assoc_masks[k]
-                img = Image(image_path=img_path, modality=modality, associated_masks=associated_mask)
-                images.append(img)
-            cur_sess.images = images
-            all_sessions.append(cur_sess)
-        cur_subject.sessions = all_sessions
-        all_subjects.append(cur_subject)
-    dataset = Dataset(name=dataset_name, id=dataset_id, subjects=all_subjects)
-    return dataset
 
 
 def get_pretrain_json_or_create_new(raw_dataset_folder: str) -> dict:
