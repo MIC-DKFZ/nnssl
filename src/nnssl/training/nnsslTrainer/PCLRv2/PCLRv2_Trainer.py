@@ -11,6 +11,7 @@ from torch import nn
 from tqdm import tqdm
 from typing_extensions import override
 
+from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan
 from nnssl.architectures.get_network_by_name import get_network_by_name
 from nnssl.architectures.pclrv2_architecture import PCRLv2Architecture
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
@@ -76,6 +77,10 @@ class PCRLv2Trainer(AbstractBaseTrainer):
     @override
     def build_loss(self):
         return PCRLv2Loss(self.num_mid_stages, self.num_locals)
+
+    def create_adaptation_plans(self):
+        raise NotImplementedError("Not yet implemented!")
+        return
 
     @override
     def build_architecture(

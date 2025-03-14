@@ -128,6 +128,18 @@ class BaseMAETrainer(AbstractBaseTrainer):
         )
         return architecture
 
+    @override
+    def create_adaptation_plans(self):
+        adapt_plan = AdaptationPlan(
+            architecture_name="ResEncL",
+            num_input_channels=1,
+            input_patch_size=self.config_plan.patch_size,
+            state_dict_key_to_encoder="encoder.stages",
+            state_dict_key_to_stem="encoder.stem",
+        )
+        save_json(adapt_plan.serialize(), self.adaptation_json_plan)
+        return adapt_plan
+
     def get_dataloaders(self):
         """
         Dataloader creation is very different depending on the use-case of training.

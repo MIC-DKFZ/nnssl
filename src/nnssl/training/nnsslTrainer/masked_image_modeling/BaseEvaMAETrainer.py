@@ -3,6 +3,7 @@ from torch import nn
 from torch._dynamo import OptimizedModule
 from typing import Tuple, Union
 
+from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan
 from nnssl.architectures.evaMAE_module import EvaMAE
 from torch import autocast
 from nnssl.utilities.helpers import dummy_context
@@ -32,6 +33,8 @@ class BaseEvaMAETrainer(BaseMAETrainer):
             pretrain_json,
             device,
         )
+        # Fix the input patch size
+        self.config_plan.patch_size = (160, 160, 160)
 
         ###settings taken from fabi
         self.drop_path_rate = 0.2
@@ -43,10 +46,12 @@ class BaseEvaMAETrainer(BaseMAETrainer):
         self.warmup_duration_whole_net = 50  # lin increase whole network
         self.training_stage = None
 
+        # This represents Primus-M 
         self.vit_patch_size = (8, 8, 8)
         self.embed_dim = 864
         self.encoder_eva_depth = 16
         self.encoder_eva_numheads = 12
+        # ---
         self.decoder_eva_depth = 2
         self.decoder_eva_numheads = 12
         self.init_value = 0.1
@@ -159,6 +164,16 @@ class BaseEvaMAETrainer(BaseMAETrainer):
         )
         return network
 
+    def create_adaptation_plans(self):
+        adapt_plan = AdaptationPlan(
+            architecture_name="PrimusM",
+            num_input_channels=1,
+            input_patch_size=self.config_plan.patch_size,
+            state_dict_key_to_encoder="eva",
+            state_dict_key_to_stem="down_projection",
+        )
+        save_json(adapt_plan.serialize(), self.adaptation_json_plan)
+
     def on_validation_epoch_start(self):
         # Make sure the masking is still on.
         #   If set to eval token_dropout will be turned off
@@ -267,6 +282,7 @@ class BaseEvaMAETrainer_BS8(BaseEvaMAETrainer):
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.total_batch_size = 8
+
 
 class BaseEvaMAETrainer_test(BaseEvaMAETrainer):
     def __init__(

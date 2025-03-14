@@ -6,6 +6,7 @@ from typing import Union
 
 from torch import autocast
 
+from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan
 from nnssl.architectures.evaSimMIM_module import EvaSimMIM
 from nnssl.utilities.helpers import dummy_context
 
@@ -102,6 +103,16 @@ class SimMIMEvaTrainer(BaseMAETrainer):
             self.optimizer, self.lr_scheduler = self.configure_optimizers("train")
 
         super().on_train_epoch_start()
+
+    def create_adaptation_plans(self):
+        adapt_plan = AdaptationPlan(
+            architecture_name="PrimusM",
+            num_input_channels=1,
+            input_patch_size=self.config_plan.patch_size,
+            state_dict_key_to_encoder="eva",
+            state_dict_key_to_stem="down_projection",
+        )
+        save_json(adapt_plan.serialize(), self.adaptation_json_plan)
 
     def build_architecture(self, config_plan, num_input_channels, num_output_channels) -> nn.Module:
         network = EvaSimMIM(

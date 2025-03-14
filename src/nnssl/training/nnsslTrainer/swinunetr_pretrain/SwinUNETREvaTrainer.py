@@ -4,6 +4,7 @@ import torch
 from torch import nn, autocast
 from torch._dynamo import OptimizedModule
 
+from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan
 from nnssl.architectures.swinunetr_architecture import SwinUNETREvaArchitecture
 from nnssl.experiment_planning.experiment_planners.plan import Plan
 
@@ -97,6 +98,16 @@ class SwinUNETREvaTrainer(SwinUNETRTrainer):
         self.training_stage = stage
         empty_cache(self.device)
         return optimizer, lr_scheduler
+
+    def create_adaptation_plans(self):
+        adapt_plan = AdaptationPlan(
+            architecture_name="PrimusM",
+            num_input_channels=1,
+            input_patch_size=self.config_plan.patch_size,
+            state_dict_key_to_encoder="encoder.eva",
+            state_dict_key_to_stem="encoder.down_projection",
+        )
+        save_json(adapt_plan.serialize(), self.adaptation_json_plan)
 
     def build_architecture(self, config_plan, num_input_channels, num_output_channels) -> nn.Module:
         encoder = EvaMAE(

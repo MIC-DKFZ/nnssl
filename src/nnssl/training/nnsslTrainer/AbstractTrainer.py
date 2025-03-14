@@ -137,6 +137,7 @@ class AbstractBaseTrainer(ABC):
             if nnssl_results is not None
             else None
         )
+        self.adaptation_json_plan = join(self.output_folder_base, "adaptation_plan.json")
         self.output_folder = join(self.output_folder_base, f"fold_{fold}")
 
         self.preprocessed_dataset_folder = join(
@@ -252,6 +253,82 @@ class AbstractBaseTrainer(ABC):
             self.batch_size = batch_sizes[my_rank]
 
     @abstractmethod
+    def create_adaptation_plans(self):
+        """
+        Define how to adapt the pre-trained model downstream.
+        Pre-training may contain additional blocks we don't need downstream when fine-tuning.
+        To not constrain upstream, each upstream defines which downstream architecture is intended for adaptation.
+        Moreover, it HAS to provide the module path e.g. "encoder.stage.0.whatever".
+        In the end the parameters at this location will be loaded into the encoder.
+        IMPORTANT: This is verified before pre-training starts, so you have to make sure this works.
+
+        There are several examples on how this happens for ResEncL and the PrimusM architectures throughout the codebase.
+        """
+        pass
+
+    @staticmethod
+    def _test_load_weight(
+        downstream_arch: nn.Module, pre_train_statedict: dict[str, torch.Tensor], adapt_plan: AdaptationPlan
+    ):
+        """
+        Tests if we can load the weights of the downstream arch given the pre-training statedict and the adaptation plan.
+        Downstream one will have to fetch the specific pre-trained checkpoint.
+        """
+        key_to_encoder = downstream_arch.key_to_encoder
+        key_to_stem = downstream_arch.key_to_stem
+
+        encoder = downstream_arch.get_submodule(key_to_encoder)
+        stem = downstream_arch.get_submodule(key_to_stem)
+
+        # ------------------------------- REMAP Weights ------------------------------ #
+        # We don't want to initialize the original architecture downstream, so we need to re-map the weights
+        #   of the old encoder to the new encoder (same with stem)
+        encoder_weights = {}
+        stem_weights = {}
+        for k, v in pre_train_statedict.items():
+            if k.startswith(adapt_plan.state_dict_key_to_encoder):
+                new_k = k.replace(adapt_plan.state_dict_key_to_encoder, "")
+                if new_k.startswith("."):
+                    new_k = new_k[1:]
+                encoder_weights[new_k] = v
+            elif k.startswith(adapt_plan.state_dict_key_to_stem):
+                new_k = k.replace(adapt_plan.state_dict_key_to_stem, "")
+                if new_k.startswith("."):
+                    new_k = new_k[1:]
+                stem_weights[new_k] = v
+        # ------------------------------ Verify loading ------------------------------ #
+        encoder.load_state_dict(encoder_weights)
+        stem.load_state_dict(stem_weights)
+        return
+
+    def verify_adaptation_plans(self):
+        if not isfile(self.adaptation_json_plan):
+            raise RuntimeError(
+                "Adaptation plan not found. Please make sure to create_adaptation_plans() during build_architecture."
+            )
+        # ------------- Simulate re-creating the architecture downstream ------------- #
+        # Pre-training architecture checkpoint
+        #   Has the `key_to_encoder` and `key_to_stem` attributes
+        pre_train_statedict = self.network.state_dict()
+        adapt_plan = AdaptationPlan(**load_json(self.adaptation_json_plan))
+        # Downstream Architecture derived from Pre-taining adaptation plan
+        config_plan_copy = deepcopy(self.config_plan)
+        # Override the patch size to match the input patch size the model received during pre-training
+        config_plan_copy.patch_size = adapt_plan.input_patch_size
+        downstream_arch = get_network_by_name(
+            config_plan_copy,
+            adapt_plan.architecture_name,
+            # This assures we can load the same weights -- May not be transferrable downstream because diff. in channels)
+            adapt_plan.num_input_channels,
+            2,  # Number of output channels -- Does not matter (like e.g. decoder)
+            encoder_only=False,
+            deep_supervision=False,
+            arch_kwargs=None,
+        )
+        # ------------------------- Simulate explicit loading ------------------------ #
+        self._test_load_weight(downstream_arch, pre_train_statedict, adapt_plan)
+
+    @abstractmethod
     def build_architecture(
         self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int, *args, **kwargs
     ) -> torch.nn.Module:
@@ -275,6 +352,8 @@ class AbstractBaseTrainer(ABC):
             self.network = self.build_architecture(
                 self.config_plan, self.num_input_channels, self.num_output_channels
             ).to(self.device)
+            self.create_adaptation_plans()
+            self.verify_adaptation_plans()
             # compile network for free speedup
             if self._do_i_compile():
                 self.print_to_log_file("Using torch.compile...")

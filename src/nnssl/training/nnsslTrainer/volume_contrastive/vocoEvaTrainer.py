@@ -5,6 +5,7 @@ from einops import rearrange
 from torch import nn, autocast
 from torch._dynamo import OptimizedModule
 
+from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan
 from nnssl.architectures.voco_architecture import VoCoEvaArchitecture
 from nnssl.training.nnsslTrainer.volume_contrastive.vocoTrainer import VoCoTrainer
 from batchgenerators.utilities.file_and_folder_operations import save_json
@@ -100,6 +101,15 @@ class VoCoEvaTrainer(VoCoTrainer):
         empty_cache(self.device)
         return optimizer, lr_scheduler
 
+    def create_adaptation_plans(self):
+        adapt_plan = AdaptationPlan(
+            architecture_name="PrimusM",
+            num_input_channels=1,
+            input_patch_size=self.voco_crop_size,  # This is the actual input patch size!
+            state_dict_key_to_encoder="encoder.eva",
+            state_dict_key_to_stem="encoder.down_projection",
+        )
+        save_json(adapt_plan.serialize(), self.adaptation_json_plan)
 
     def build_architecture(self, config_plan, num_input_channels, num_output_channels) -> nn.Module:
         encoder = EvaMAE(

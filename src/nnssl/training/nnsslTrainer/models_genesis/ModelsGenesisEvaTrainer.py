@@ -5,6 +5,7 @@ from torch import nn
 from torch._dynamo import OptimizedModule
 from torch.nn.parallel import DistributedDataParallel as DDP
 
+from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan
 from nnssl.experiment_planning.experiment_planners.plan import Plan
 from nnssl.training.lr_scheduler.warmup import Lin_incr_LRScheduler, PolyLRScheduler_offset
 from nnssl.architectures.evaMAE_module import EvaMAE
@@ -95,6 +96,16 @@ class ModelGenesisEvaTrainer(ModelGenesisTrainer):
         self.training_stage = stage
         empty_cache(self.device)
         return optimizer, lr_scheduler
+
+    def create_adaptation_plans(self):
+        adapt_plan = AdaptationPlan(
+            architecture_name="PrimusM",
+            num_input_channels=1,
+            input_patch_size=self.config_plan.patch_size,
+            state_dict_key_to_encoder="eva",
+            state_dict_key_to_stem="down_projection",
+        )
+        save_json(adapt_plan.serialize(), self.adaptation_json_plan)
 
     def build_architecture(self, config_plan, num_input_channels, num_output_channels) -> nn.Module:
         network = EvaMAE(

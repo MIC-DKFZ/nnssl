@@ -1,6 +1,7 @@
 from typing import Tuple, Union, override
 import numpy as np
 from torch.nn.modules import Module
+from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan
 from nnssl.architectures.get_network_by_name import get_network_by_name
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 import torch
@@ -110,6 +111,18 @@ class VolumeFusionTrainer(AbstractBaseTrainer):
 
         # Max depth, height, width patch scale.
         self.vf_subpatch_size = [(8, int(0.625 * s) + 1) for s in self.config_plan.patch_size]
+
+    @override
+    def create_adaptation_plans(self):
+        adapt_plan = AdaptationPlan(
+            architecture_name="ResEncL",
+            num_input_channels=1,
+            input_patch_size=self.config_plan.patch_size,
+            state_dict_key_to_encoder="encoder.stages",
+            state_dict_key_to_stem="encoder.stem",
+        )
+        save_json(adapt_plan.serialize(), self.adaptation_json_plan)
+        return adapt_plan
 
     def build_architecture(
         self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int, *args, **kwargs

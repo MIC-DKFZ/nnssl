@@ -3,7 +3,7 @@ import math
 import numpy as np
 from torch import nn
 
-from nnssl.training.nnsslTrainer.evaMAE.evaMAE_module import EvaMAE
+from nnssl.architectures.evaMAE_module import EvaMAE
 
 
 def _create_recon_proj_head(final_output_channel_size: int, features_per_stage: list[int] | tuple[int],
@@ -52,6 +52,7 @@ class SwinUNETRArchitecture(nn.Module):
         imgs_out = self.encoder(imgs)[-1]
         imgs_out_reshaped = imgs_out.flatten(start_dim=2, end_dim=4).transpose(1, 2)
 
+        # ToDo: Something is currently not right here after refactoring.
         # for the rotation and contrast projection head, only one slice/channel is used
         # https://github.com/Project-MONAI/research-contributions/issues/87
         rotations_pred = self.rotation_proj_head(imgs_out_reshaped[:, 0])

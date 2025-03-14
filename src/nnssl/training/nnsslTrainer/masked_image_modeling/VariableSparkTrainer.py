@@ -4,6 +4,7 @@ from batchgenerators.dataloading.single_threaded_augmenter import SingleThreaded
 from batchgenerators.utilities.file_and_folder_operations import save_json
 from torch import nn, autocast
 
+from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan
 from nnssl.architectures import spark_utils
 from nnssl.architectures.get_network_by_name import get_network_by_name
 from nnssl.architectures.spark_model import SparK3D
@@ -61,6 +62,17 @@ class BaseVariableSparkMAETrainer(SparkMAETrainer):
         mask = torch.stack(mask)[:, None, ...]  # Add channel dimension
         return mask
 
+    @override
+    def create_adaptation_plans(self):
+        adapt_plan = AdaptationPlan(
+            architecture_name="ResEncL",
+            num_input_channels=1,
+            input_patch_size=self.config_plan.patch_size,
+            state_dict_key_to_encoder="encoder.stages",
+            state_dict_key_to_stem="encoder.stem",
+        )
+        save_json(adapt_plan.serialize(), self.adaptation_json_plan)
+        return adapt_plan
 
     def build_architecture(
         self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
