@@ -35,10 +35,10 @@ class SwinUNETRArchitecture(nn.Module):
         self.encoder = encoder
         features_per_stage = encoder.output_channels[::-1]
         strides = encoder.strides[::-1]
-        num_output_channels = features_per_stage[-1]
+        num_bottleneck_features = features_per_stage[0]
 
-        self.rotation_proj_head = nn.Linear(num_output_channels, 4)
-        self.contrast_proj_head = nn.Linear(num_output_channels, 512)
+        self.rotation_proj_head = nn.Linear(num_bottleneck_features, 4)
+        self.contrast_proj_head = nn.Linear(num_bottleneck_features, 512)
 
         # The phrasing in Section 4.1 of the paper (https://arxiv.org/abs/2111.14791) suggests the use of a
         # single transpose convolution layer to rescale to the initial input spatial resolution as implemented here:
