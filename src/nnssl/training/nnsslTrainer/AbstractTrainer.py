@@ -960,24 +960,9 @@ class AbstractBaseTrainer(ABC):
         # There used to be a if/else for the case that we don't use all samples, but we only do self-supervised thingies,
         #   so we use all samples for training and validation
         splits_file_name = "splits_final.json"
-        # DEBUG
-        if self.plan.dataset_name != "Dataset745_OpenNeuro_v2":
-            splits_file_name = "splits_final_v2.json"  # for ABCD, since other branch uses different
-            # subject_identifiers in splits_final.json
-
         splits_file = join(self.preprocessed_dataset_folder_base, splits_file_name)
         if not isfile(splits_file):
-            # self.print_to_log_file("Creating new 5-fold cross-validation split...")
-            # subject_identifiers = get_subject_identifiers(self.preprocessed_dataset_folder)
-            # assert len(subject_identifiers) != 0, "No subjects found. Aborting"
-            # all_keys_sorted = sorted(list(np.sort(subject_identifiers)))
-            # n_val_subjects = min(50, int(len(subject_identifiers) / 100))
-            # val_subjects = sample(all_keys_sorted, n_val_subjects)
-            # train_subjects = list(set(all_keys_sorted) - set(val_subjects))
-            # splits = {"train": list(train_subjects), "val": list(val_subjects)}
-            # save_json(splits, splits_file)
-
-            self.print_to_log_file("Creating new 5-fold cross-validation split...")
+            self.print_to_log_file("Creating new train-val split...")
             subject_identifiers = get_subject_identifiers(self.preprocessed_dataset_folder)
             assert len(subject_identifiers) != 0, "No subjects found. Aborting"
             subject_identifiers = sorted(subject_identifiers)
