@@ -3,7 +3,7 @@ from collections import defaultdict
 from pathlib import Path
 
 import pandas as pd
-from batchgenerators.utilities.file_and_folder_operations import save_json, load_json, join
+from batchgenerators.utilities.file_and_folder_operations import save_json
 from tqdm import tqdm
 
 from nnssl.data.raw_dataset import Dataset, Image, Session, Subject, AssociatedMasks, Collection
@@ -12,27 +12,37 @@ from nnssl.paths import nnssl_raw
 sep = os.path.sep
 
 def _add_pretrain_json():
-    scans_lists_dir = Path("/home/j385i/cluster_data/j385i/data/openneuro/scans_lists")
-    scans_list_name = "scans_all.json"
-    iqs_csv_path = Path("/home/j385i/cluster_data/j385i/data/openneuro/iqs/image_quality_score.csv")
+    # path to OpenMind metadata file
+    data_csv_path = Path("/home/j385i/cluster_data/j385i/data/openneuro/openneuro_flat.csv")
 
-    scans_json = load_json(str(scans_lists_dir / scans_list_name))
-    iqs_csv = pd.read_csv(iqs_csv_path)
+    data_csv = pd.read_csv(data_csv_path)
+    data = data_csv.to_dict(orient="records")
 
-    openneuro_dir = Path(os.environ.get("openneuro")) # /mnt/E132-Rohdaten/...
+    # "openmind" environment variable holds the path to the OpenMind dataset download directory
+    openmind_dir = Path(os.environ.get("openmind"))
     collection = Collection(
-        collection_name="Dataset745_OpenNeuro_v2",
+        collection_name="Dataset745_OpenMind",
         collection_index=745
     )
 
     subject_info_keys = ["age", "sex", "handedness", "race", "weight", "bmi", "health_status"]
-    image_info_keys = ["derived_from", "is_brain_extract", "num_nonzero_gradients", "manufacturer", "model_name", "phase_encoding_direction", "repetition_time", "echo_time"]
+    image_info_keys = [
+        "derived_from",
+        "is_brain_extract",
+        "manufacturer",
+        "model_name",
+        "phase_encoding_direction",
+        "magnetic_field_strength",
+        "repetition_time",
+        "echo_time"
+    ]
 
-    for dic in tqdm(scans_json):
-        relative_scan_path = dic["img_path"]
+    # Iterate over every image and one by one extend the Collection
+    for dic in tqdm(data):
+        relative_scan_path = dic["image_path"]
         modality = dic["modality"]
-        subject_info = {k: dic[k] for k in subject_info_keys if k in dic}
-        image_info = {k: dic[k] for k in image_info_keys if k in dic}
+        subject_info = {k: dic[k] for k in subject_info_keys if k in dic if not pd.isna(dic[k])}
+        image_info = {k: dic[k] for k in image_info_keys if k in dic if not pd.isna(dic[k])}
 
         parts = relative_scan_path.split(sep)
         dataset_id, subject_id = parts[0], parts[1]
@@ -45,16 +55,16 @@ def _add_pretrain_json():
         else:
             image_name = parts[-1]
 
-        image_path = str(openneuro_dir / relative_scan_path)
+        image_path = str(openmind_dir / relative_scan_path)
 
-        relative_deface_mask_path = dic.get("deface_mask_path")
-        relative_fb_mask_path = dic.get("fb_mask_path")
+        relative_anon_mask_path = dic.get("anon_mask_path")
+        relative_anat_mask_path = dic.get("anat_mask_path")
 
         anonymization_mask_path = anatomy_mask_path = None
-        if relative_deface_mask_path:
-            anonymization_mask_path = str(openneuro_dir / relative_deface_mask_path)
-        if relative_fb_mask_path:
-            anatomy_mask_path = str(openneuro_dir / relative_fb_mask_path)
+        if relative_anon_mask_path:
+            anonymization_mask_path = str(openmind_dir / relative_anon_mask_path)
+        if relative_anat_mask_path:
+            anatomy_mask_path = str(openmind_dir / relative_anat_mask_path)
 
         associated_masks = AssociatedMasks(anonymization_mask=anonymization_mask_path,
                                            anatomy_mask=anatomy_mask_path)
@@ -81,8 +91,10 @@ def _add_pretrain_json():
             )
         )
 
+    data_csv["dataset_id"] = data_csv["unique_id"].apply(lambda uid: uid[:8])
+    grouped_iqs_csv = data_csv.groupby(["dataset_id", "modality", "derived_from"], dropna=False).first()["image_quality_score"].reset_index()
     dataset_id_tree = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: None)))
-    for _, row in iqs_csv.iterrows():
+    for _, row in grouped_iqs_csv.iterrows():
         dataset_id = row["dataset_id"]
         modality = row["modality"]
         derived_from = row["derived_from"] if not pd.isna(row["derived_from"]) else None
@@ -90,7 +102,8 @@ def _add_pretrain_json():
 
         dataset_id_tree[dataset_id][modality][derived_from] = iqs_value
 
-    # insert image quality score info into each dataset_info field
+    # insert image quality score info into each dataset_info field,
+    # later on this info is used for the entire IQS filtering
     for dataset_id, dataset in collection.datasets.items():
         dicts = []
         modality_tree = dataset_id_tree[dataset_id]
@@ -107,10 +120,11 @@ def _add_pretrain_json():
 
 
     pretrain_json = collection.to_dict(relative_paths=True)
-    save_json(pretrain_json, join(nnssl_raw, "Dataset745_OpenNeuro_v2", "pretrain_data.json"), indent=4, sort_keys=True)
-    print(join(nnssl_raw, "Dataset745_OpenNeuro_v2", "pretrain_data.json"))
+    pretrain_json_path = Path(nnssl_raw, "Dataset745_OpenMind", "pretrain_data.json")
+    pretrain_json_path.parent.mkdir(parents=True, exist_ok=True)
+    save_json(pretrain_json, pretrain_json_path, indent=4, sort_keys=True)
+    print(f"Successfully saved the OpenMind pretrain_data.json at {pretrain_json_path}")
 
 
 if __name__ == "__main__":
     _add_pretrain_json()
-    # _split_pretrain_json(num_chunks=20)
