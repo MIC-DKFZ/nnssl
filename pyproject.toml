@@ -32,7 +32,7 @@ keywords = [
 dependencies = [
     "torch>=2.0.0",
     "acvl-utils>=0.2",
-    "dynamic-network-architectures>=0.2",
+    "dynamic-network-architectures @ git+https://github.com/MIC-DKFZ/dynamic-network-architectures@main",
     "tqdm",
     "dicom2nifti",
     "scipy",
@@ -59,7 +59,8 @@ dependencies = [
     "deprecated",
     "pytorch-msssim",
     "lpips",
-    "wandb"
+    "wandb",
+    "torchio",
 ]
 
 [project.urls]

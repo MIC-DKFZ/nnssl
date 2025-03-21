@@ -17,7 +17,7 @@ Currently it includes the **ResEnc-L** [[a]((https://arxiv.org/abs/2410.23132)),
 -----
 ### Complimentary resources:
 
-**[OpenMind Dataset](https://huggingface.co/datasets/AnonRes/OpenMind)** (To be finalized)
+**[OpenMind Dataset](https://huggingface.co/datasets/AnonRes/OpenMind)**
 
 **Segmentation Fine-tuning Framework**: To be shared
 
