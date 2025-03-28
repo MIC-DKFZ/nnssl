@@ -182,7 +182,7 @@ class Dataset:
 
     def _absolute_to_relative_path(self, path) -> str:
         # Relevant paths are nnssl_raw, nnssl_pp, E132Rohdaten, E132Projekte
-        for env_path in ["nnssl_raw", "nnssl_preprocessed", "E132Rohdaten", "E132Projekte", "rocket_preprocessed"]:
+        for env_path in ["nnssl_raw", "nnssl_preprocessed"]:
             if path.startswith(os.environ[env_path]):
                 return path.replace(os.environ[env_path], f"${env_path}")
         return path
