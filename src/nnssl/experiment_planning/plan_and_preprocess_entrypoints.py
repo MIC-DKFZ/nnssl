@@ -142,7 +142,7 @@ def preprocess_entry():
         args.plans_name,
         part=args.part,
         total_parts=args.total_parts,
-        configurations="3d_fullres",
+        configurations=args.c,
         num_processes=np,
         verbose=args.verbose,
     )
