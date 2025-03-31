@@ -301,10 +301,10 @@ class Collection:
 
     def get_file_ending(self) -> str:
         example_path = str(self.get_all_image_paths()[0])
-        if example_path.endswith(".nii.gz"):
-            ext = ".nii.gz"
-        elif example_path.endswith(".nii"):
+        if example_path.endswith(".nii"):
             ext = ".nii"
+        elif example_path.endswith(".nii.gz"):
+            ext = ".nii.gz"
         elif example_path.endswith(".in.nrrd"):
             ext = ".in.nrrd"
         elif example_path.endswith(".nrrd"):
