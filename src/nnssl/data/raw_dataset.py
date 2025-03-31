@@ -314,9 +314,9 @@ class Collection:
         else:
             raise NotImplementedError("Only nii, nii.gz, nrrd, mha files are supported.")
 
-        all_others = [str(img) for img in self.get_all_image_paths() if not str(img).endswith(ext)]
-        if len(all_others) > 0:
-            raise ValueError(f"Found files with different file endings: {all_others}")
+        # all_others = [str(img) for img in self.get_all_image_paths() if not str(img).endswith(ext)]
+        # if len(all_others) > 0:
+        #     raise ValueError(f"Found files with different file endings: {all_others}")
         return ext
 
     def to_independent_images(self) -> list[IndependentImage]:

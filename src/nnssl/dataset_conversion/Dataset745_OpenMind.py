@@ -13,7 +13,7 @@ sep = os.path.sep
 
 def _add_pretrain_json():
     # path to OpenMind metadata file
-    data_csv_path = Path("/dkfz/cluster/gpu/data/OE0441/c306h/OpenMind/openneuro_metadata.csv")
+    data_csv_path = Path("/home/c306h/cluster-data/OpenMind/openneuro_metadata.csv")
 
     data_csv = pd.read_csv(data_csv_path)
     data = data_csv.to_dict(orient="records")
@@ -21,8 +21,8 @@ def _add_pretrain_json():
     # "openmind" environment variable holds the path to the OpenMind dataset download directory
     openmind_dir = Path(os.environ.get("openmind"))
     collection = Collection(
-        collection_name="Dataset746_OpenMind",
-        collection_index=746
+        collection_name="Dataset745_OpenMind",
+        collection_index=745
     )
 
     subject_info_keys = ["age", "sex", "handedness", "race", "weight", "bmi", "health_status"]
@@ -120,7 +120,7 @@ def _add_pretrain_json():
 
 
     pretrain_json = collection.to_dict(relative_paths=True)
-    pretrain_json_path = Path(nnssl_raw, "Dataset746_OpenMind", "pretrain_data.json")
+    pretrain_json_path = Path(nnssl_raw, "Dataset745_OpenMind", "pretrain_data.json")
     pretrain_json_path.parent.mkdir(parents=True, exist_ok=True)
     save_json(pretrain_json, pretrain_json_path, indent=4, sort_keys=True)
     print(f"Successfully saved the OpenMind pretrain_data.json at {pretrain_json_path}")
