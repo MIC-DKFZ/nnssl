@@ -22,7 +22,7 @@ def _add_pretrain_json():
     openmind_dir = Path(os.environ.get("openmind"))
     collection = Collection(
         collection_name="Dataset745_OpenMind",
-        collection_index=745
+        collection_index=746
     )
 
     subject_info_keys = ["age", "sex", "handedness", "race", "weight", "bmi", "health_status"]
@@ -120,7 +120,7 @@ def _add_pretrain_json():
 
 
     pretrain_json = collection.to_dict(relative_paths=True)
-    pretrain_json_path = Path(nnssl_raw, "Dataset745_OpenMind", "pretrain_data.json")
+    pretrain_json_path = Path(nnssl_raw, "Dataset747_OpenMind", "pretrain_data.json")
     pretrain_json_path.parent.mkdir(parents=True, exist_ok=True)
     save_json(pretrain_json, pretrain_json_path, indent=4, sort_keys=True)
     print(f"Successfully saved the OpenMind pretrain_data.json at {pretrain_json_path}")
