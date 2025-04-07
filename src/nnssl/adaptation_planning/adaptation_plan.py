@@ -24,6 +24,8 @@ def serialize_kwargs(arch_kwargs: dict[str, Any]) -> dict[str, Any]:
             serialized_kwargs[key] = int(value) if value.is_integer() else value
         elif isinstance(value, np.ndarray):
             serialized_kwargs[key] = value.tolist()
+        elif isinstance(value, dict):
+            serialized_kwargs[key] = serialize_kwargs(value)
         else:
             serialized_kwargs[key] = value
     return serialized_kwargs
@@ -36,6 +38,7 @@ class AdaptationPlan:
     input_patch_size: tuple[int, int, int]
     state_dict_key_to_encoder: str
     state_dict_key_to_stem: str
+    pretrain_spacing: tuple[float, float, float] | Literal["noresample"] = None
     architecture_kwargs: dict[str, Any] = None
 
     def serialize(self):
@@ -43,6 +46,7 @@ class AdaptationPlan:
             "architecture_name": self.architecture_name,
             "num_input_channels": self.num_input_channels,
             "input_patch_size": self.input_patch_size,
+            "pretrain_spacing": self.pretrain_spacing,
             "state_dict_key_to_encoder": self.state_dict_key_to_encoder,
             "state_dict_key_to_stem": self.state_dict_key_to_stem,
             "architecture_kwargs": serialize_kwargs(self.architecture_kwargs) if self.architecture_kwargs else None,
