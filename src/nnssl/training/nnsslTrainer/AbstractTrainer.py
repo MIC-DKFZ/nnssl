@@ -183,6 +183,7 @@ class AbstractBaseTrainer(ABC):
 
         ### placeholders
         self.dataloader_train = self.dataloader_val = None  # see on_train_start
+        self.adaptation_plan: AdaptationPlan = None  # see initialize
 
         ### initializing stuff for remembering things and such
         self._best_ema = None
@@ -190,11 +191,6 @@ class AbstractBaseTrainer(ABC):
         ### checkpoint saving stuff
         self.save_every = 50
         self.disable_checkpointing = False
-
-        ## DDP batch size and oversampling can differ between workers and needs adaptation
-        # we need to change the batch size in DDP because we don't use any of those distributed samplers
-        # Todo: Should likely be moved to initialize() call, since it's not needed during init at all.
-        #   This also allows overriding previous batch_size settings easily.
 
         self.was_initialized = False
 
@@ -253,7 +249,7 @@ class AbstractBaseTrainer(ABC):
             self.batch_size = batch_sizes[my_rank]
 
     @abstractmethod
-    def create_adaptation_plans(self):
+    def create_adaptation_plans(self) -> AdaptationPlan:
         """
         Define how to adapt the pre-trained model downstream.
         Pre-training may contain additional blocks we don't need downstream when fine-tuning.
@@ -352,7 +348,7 @@ class AbstractBaseTrainer(ABC):
             self.network = self.build_architecture(
                 self.config_plan, self.num_input_channels, self.num_output_channels
             ).to(self.device)
-            self.create_adaptation_plans()
+            self.adaptation_plan: AdaptationPlan = self.create_adaptation_plans()
             self.verify_adaptation_plans()
             # compile network for free speedup
             if self._do_i_compile():
@@ -822,6 +818,7 @@ class AbstractBaseTrainer(ABC):
                     "current_epoch": self.current_epoch + 1,
                     "init_args": self.my_init_kwargs,
                     "trainer_name": self.__class__.__name__,
+                    "nnssl_adaptation_plan": self.adaptation_plan.serialize(),
                 }
                 torch.save(checkpoint, filename)
             else:

@@ -32,6 +32,7 @@ class EffSparkMAETrainer(SparkMAETrainer):
             state_dict_key_to_stem="encoder.stem",
         )
         save_json(adapt_plan.serialize(), self.adaptation_json_plan)
+        return adapt_plan
 
     def build_architecture(
         self,

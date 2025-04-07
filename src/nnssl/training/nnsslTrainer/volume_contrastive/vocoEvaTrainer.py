@@ -110,6 +110,7 @@ class VoCoEvaTrainer(VoCoTrainer):
             state_dict_key_to_stem="encoder.down_projection",
         )
         save_json(adapt_plan.serialize(), self.adaptation_json_plan)
+        return adapt_plan
 
     def build_architecture(self, config_plan, num_input_channels, num_output_channels) -> nn.Module:
         encoder = EvaMAE(

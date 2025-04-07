@@ -113,6 +113,7 @@ class SimMIMEvaTrainer(BaseMAETrainer):
             state_dict_key_to_stem="down_projection",
         )
         save_json(adapt_plan.serialize(), self.adaptation_json_plan)
+        return adapt_plan
 
     def build_architecture(self, config_plan, num_input_channels, num_output_channels) -> nn.Module:
         network = EvaSimMIM(

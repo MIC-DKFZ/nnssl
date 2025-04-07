@@ -46,7 +46,7 @@ class BaseEvaMAETrainer(BaseMAETrainer):
         self.warmup_duration_whole_net = 50  # lin increase whole network
         self.training_stage = None
 
-        # This represents Primus-M 
+        # This represents Primus-M
         self.vit_patch_size = (8, 8, 8)
         self.embed_dim = 864
         self.encoder_eva_depth = 16
@@ -173,6 +173,7 @@ class BaseEvaMAETrainer(BaseMAETrainer):
             state_dict_key_to_stem="down_projection",
         )
         save_json(adapt_plan.serialize(), self.adaptation_json_plan)
+        return adapt_plan
 
     def on_validation_epoch_start(self):
         # Make sure the masking is still on.
