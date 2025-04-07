@@ -13,7 +13,7 @@ sep = os.path.sep
 
 def _add_pretrain_json():
     # path to OpenMind metadata file
-    data_csv_path = Path("/home/j385i/cluster_data/j385i/data/openneuro/openneuro_flat.csv")
+    data_csv_path = Path("/home/c306h/cluster-data/OpenMind/openneuro_metadata.csv")
 
     data_csv = pd.read_csv(data_csv_path)
     data = data_csv.to_dict(orient="records")
