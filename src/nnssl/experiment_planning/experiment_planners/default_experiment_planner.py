@@ -16,7 +16,7 @@ from nnssl.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_
 from nnssl.utilities.json_export import recursive_fix_for_json_export
 from nnssl.data.utils import get_train_collection
 
-configs = Literal["median", "onemmiso", "noresample"]
+data_spacing_config = Literal["median", "onemmiso", "noresample"]
 
 
 class ExperimentPlanner(object):
@@ -129,7 +129,7 @@ class ExperimentPlanner(object):
 
     def get_plans_for_configuration(
         self,
-        config: configs,
+        config: data_spacing_config,
         spacing: Union[np.ndarray, Tuple[float, ...], List[float]],
         data_identifier: str,
     ) -> ConfigurationPlan:
