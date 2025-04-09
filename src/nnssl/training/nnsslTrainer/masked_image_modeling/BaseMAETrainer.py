@@ -266,23 +266,6 @@ class BaseMAETrainer(AbstractBaseTrainer):
 
         return {"loss": l.detach().cpu().numpy()}
 
-    @deprecated
-    def log_image_and_reco(self, img, reco, mask, loss, index) -> None:
-        if self.local_rank == 0:
-            filename = f"epoch_{self.current_epoch}_{index}.png"
-            ax: list[plt.Axes]
-            _, ax = plt.subplots(nrows=1, ncols=4, figsize=(12, 4))
-            img_uint8 = (img * 255.0).astype(np.uint8)
-            mask_unint8 = (mask * 255.0).astype(np.uint8)
-            reco_uint8 = (reco * 255.0).astype(np.uint8)
-            ax[0].imshow(img_uint8, cmap="gray")
-            ax[1].imshow(mask_unint8, cmap="gray")
-            ax[2].imshow(reco_uint8, cmap="gray")
-            ax[3].imshow((np.abs(img - reco) * 255.0).astype(np.uint8), cmap="gray")
-
-            plt.title(f"Loss: {float(loss):.05f}")
-            plt.savefig(os.path.join(self.im_output_folder, filename))
-            plt.close()
 
     @deprecated
     @staticmethod
@@ -305,72 +288,6 @@ class BaseMAETrainer(AbstractBaseTrainer):
         sitk_img.SetOrigin(meta_info["sitk_stuff"]["origin"])
         sitk_img.SetDirection(meta_info["sitk_stuff"]["direction"])
         sitk.WriteImage(sitk_img, os.path.join(self.im_output_folder, filename))
-
-    @deprecated
-    def log_img_slices(self, imgs, recos, masks, losses, batch_id: int):
-        offset = batch_id
-        for i in range(recos.shape[0]):
-            img = torch.squeeze(imgs[i])
-            rec = torch.squeeze(recos[i])
-            msk = torch.squeeze(masks[i])
-            loss = torch.squeeze(losses[i])
-            slice_of_choice = int(msk.shape[0] // 2)
-            img, rec = self.rescale_images(
-                img[slice_of_choice], rec[slice_of_choice], float(img.min()), float(img.max())
-            )
-            img = img.detach().cpu().numpy()
-            rec = rec.detach().cpu().numpy()
-
-            msk = msk[slice_of_choice].detach().cpu().numpy()
-            self.log_image_and_reco(img, rec, msk, loss, offset + i)
-
-    def log_qualitative_reconstruction_step(
-        self,
-    ):
-        """For each sample in the validation dataloader,"""
-        with torch.no_grad():
-            for batch_id in range(len(self.recon_dataloader)):
-                if batch_id > 50:
-                    break
-                image = self.recon_dataloader[batch_id]
-                data = image["data"]
-                meta_info = image["properties"]
-                data = data.to(self.device, non_blocking=True)
-
-                mask = self.mask_creation(
-                    1, self.config_plan.patch_size, self.mask_percentage, rng_seed=123 + batch_id
-                ).to(self.device, non_blocking=True)
-                # Make the mask the same size as the data
-                rep_D, rep_H, rep_W = (
-                    data.shape[2] // mask.shape[2],
-                    data.shape[3] // mask.shape[3],
-                    data.shape[4] // mask.shape[4],
-                )
-                mask = (
-                    mask.repeat_interleave(rep_D, dim=2)
-                    .repeat_interleave(rep_H, dim=3)
-                    .repeat_interleave(rep_W, dim=4)
-                )
-                masked_data = data * mask
-
-                with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
-                    reconstruction = self.network(masked_data)
-
-                    l = [
-                        self.loss(reconstruction[i : i + 1], data[i : i + 1], mask[i : i + 1])
-                        for i in range(reconstruction.shape[0])
-                    ]
-                    uint8_mask = mask.detach().cpu().numpy().astype(np.uint8)
-                    self.log_img_volume(data, meta_info[0], f"ep_{self.current_epoch}_{batch_id}_data.nii.gz")
-                    self.log_img_volume(
-                        reconstruction, meta_info[0], f"ep_{self.current_epoch}_{batch_id}_recon.nii.gz"
-                    )
-                    self.log_img_volume(
-                        uint8_mask, meta_info[0], f"ep_{self.current_epoch}_{batch_id}_mask.nii.gz", dtype=np.uint8
-                    )
-                    self.log_img_volume(data - mask, meta_info[0], f"ep_{self.current_epoch}_{batch_id}_diff.nii.gz")
-
-        return
 
     def get_qual_recon_dataloader(self):
         # we use the patch size to determine whether we need 2D or 3D dataloaders. We also use it to determine whether
@@ -401,9 +318,6 @@ class BaseMAETrainer(AbstractBaseTrainer):
     def run_training(self):
         try:
             self.on_train_start()
-            if self.local_rank == 0:
-                pass
-                # self.log_qualitative_reconstruction_step()  # Do a quick test everything works.
             for epoch in range(self.current_epoch, self.num_epochs):
                 self.on_epoch_start()
 
@@ -424,14 +338,6 @@ class BaseMAETrainer(AbstractBaseTrainer):
                         val_batch = next(self.dataloader_val)
                         val_outputs.append(self.validation_step(val_batch))
                     self.on_validation_epoch_end(val_outputs)
-
-                    # ------------------------ Maybe Log qualitative recon ----------------------- #
-                    # if (self.current_epoch + 1) % self.save_imgs_every_n_epochs == 0:
-                    #     if self.local_rank == 0:
-                    #         self.log_qualitative_reconstruction_step()
-                    # self.save_checkpoint(
-                    #     join(self.output_folder, f"checkpoint_epoch_{self.current_epoch}.pth"), live_upload=True
-                    # )
 
                 self.on_epoch_end()
                 if self.exit_training_flag:
