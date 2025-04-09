@@ -50,7 +50,7 @@ class EffSparkMAETrainer(SparkMAETrainer):
 
         spark_architecture = convert_to_spark_cnn(network.encoder)
         network.encoder = spark_architecture
-        actual_network = EfficientSpark3D(network, (160, 160, 160))
+        actual_network = EfficientSpark3D(network)
 
         return actual_network
 

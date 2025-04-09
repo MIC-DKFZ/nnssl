@@ -27,7 +27,7 @@ class NoTokenSparkMAETrainer(SparkMAETrainer):
         self.use_mask_token: bool = True
         self.network: SparK3D = ...
 
-    def build_architecture(
+    def build_architecture_and_adaptation_plan(
         self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
     ) -> nn.Module:
         network = get_network_by_name(
@@ -39,8 +39,8 @@ class NoTokenSparkMAETrainer(SparkMAETrainer):
 
         spark_architecture = convert_to_spark_cnn(network.encoder)
         network.encoder = spark_architecture
-        actual_network = SparK3D(network, (160, 160, 160), use_mask_token=False)
-
+        actual_network = SparK3D(network, use_mask_token=False)
+        raise NotImplementedError("Missing adaptation plan")
         return actual_network
 
 
