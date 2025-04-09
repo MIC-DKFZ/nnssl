@@ -87,8 +87,8 @@ class BaseVariableSparkMAETrainer(SparkMAETrainer):
         spark_architecture = convert_to_spark_cnn(network.encoder)
         network.encoder = spark_architecture
 
-        actual_network = SparK3D(network, (160, 160, 160))
-
+        actual_network = SparK3D(network)
+        # ------------------------------ Adaptation Plan ----------------------------- #
         return actual_network
 
 
