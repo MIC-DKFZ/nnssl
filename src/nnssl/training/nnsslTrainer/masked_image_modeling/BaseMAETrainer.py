@@ -752,6 +752,20 @@ class BaseMAETrainer_BS1(BaseMAETrainer):
         self.num_epochs = 1000
 
 
+class BaseMAETrainer_Test(BaseMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.total_batch_size = 1
+        self.num_epochs = 2
+
+
 class BaseMAETrainer_BS2(BaseMAETrainer):
     def __init__(
         self,
