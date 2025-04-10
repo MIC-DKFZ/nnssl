@@ -47,7 +47,7 @@ class GVSLTrainer(AbstractBaseTrainer):
         return GVSLLoss()
 
     @override
-    def build_architecture(
+    def build_architecture_and_adaptation_plan(
         self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
     ) -> nn.Module:
         architecture = get_network_by_name(
@@ -57,7 +57,7 @@ class GVSLTrainer(AbstractBaseTrainer):
             num_output_channels,
         )
         architecture = GVSLArchitecture(architecture, num_input_channels)
-
+        raise NotImplementedError("Missing adaptation plan")
         return architecture
 
     @override
@@ -349,7 +349,7 @@ class GVSLTrainer_recon_only(GVSLTrainer_no_spatial):
         self.initial_lr = 1e-4
         self.num_iterations_per_epoch = 100
 
-    def build_architecture(
+    def build_architecture_and_adaptation_plan(
         self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
     ) -> nn.Module:
         backbone = get_network_by_name(
@@ -360,7 +360,7 @@ class GVSLTrainer_recon_only(GVSLTrainer_no_spatial):
             encoder_only=True,
         )
         architecture = GVSLArchitecture_recon_only(backbone, num_input_channels)
-
+        raise NotImplementedError("Missing adaptation plan")
         return architecture
 
     @override
@@ -457,7 +457,7 @@ class GVSLTrainer_recon_only_with_spatial(GVSLTrainer_do_spatial):
         self.initial_lr = 1e-4
         self.num_iterations_per_epoch = 100
 
-    def build_architecture(
+    def build_architecture_and_adaptation_plan(
         self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
     ) -> nn.Module:
         backbone = get_network_by_name(
@@ -467,7 +467,7 @@ class GVSLTrainer_recon_only_with_spatial(GVSLTrainer_do_spatial):
             num_output_channels,
         )
         architecture = GVSLArchitecture_recon_only(backbone, num_input_channels)
-
+        raise NotImplementedError("Missing adaptation plan")
         return architecture
 
     @override

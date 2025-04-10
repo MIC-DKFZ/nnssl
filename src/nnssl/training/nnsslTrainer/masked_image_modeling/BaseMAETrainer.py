@@ -4,11 +4,13 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from deprecated import deprecated
 from typing_extensions import override
+from dataclasses import asdict
 
 
 import torch
-from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan
+from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan, ArchitecturePlans, DynamicArchitecturePlans
 from nnssl.architectures.get_network_by_name import get_network_by_name
+from nnssl.architectures.get_network_from_plan import get_network_from_plans
 from nnssl.data.nnsslFilter.iqs_filter import OpenMindIQSFilter
 from nnssl.data.nnsslFilter.modality_filter import ModalityFilter
 from nnssl.data.raw_dataset import Collection
@@ -117,28 +119,28 @@ class BaseMAETrainer(AbstractBaseTrainer):
         """
         return MAEMSELoss()
 
-    def build_architecture(
+    @override
+    def build_architecture_and_adaptation_plan(
         self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
     ) -> nn.Module:
+        # ---------------------------- Create architecture --------------------------- #
         architecture = get_network_by_name(
             config_plan,
             "ResEncL",
             num_input_channels,
             num_output_channels,
         )
-        return architecture
-
-    @override
-    def create_adaptation_plans(self):
+        # --------------------- Build associated adaptation plan --------------------- #
+        arch_plans = ArchitecturePlans(arch_class_name="ResEncL")
         adapt_plan = AdaptationPlan(
-            architecture_name="ResEncL",
-            num_input_channels=1,
-            input_patch_size=self.config_plan.patch_size,
-            state_dict_key_to_encoder="encoder.stages",
-            state_dict_key_to_stem="encoder.stem",
+            architecture_plans=arch_plans,
+            pretrain_plan=self.plan,
+            pretrain_num_input_channels=num_input_channels,
+            key_to_encoder="encoder.stages",
+            key_to_stem="encoder.stem",
         )
         save_json(adapt_plan.serialize(), self.adaptation_json_plan)
-        return adapt_plan
+        return architecture, adapt_plan
 
     def get_dataloaders(self):
         """
@@ -265,7 +267,6 @@ class BaseMAETrainer(AbstractBaseTrainer):
             l = self.loss(output, data, mask)
 
         return {"loss": l.detach().cpu().numpy()}
-
 
     @deprecated
     @staticmethod
@@ -560,52 +561,6 @@ class BaseMAETrainer_ANAT_ANON(BaseMAETrainer_ANAT, BaseMAETrainer_ANON):
     pass
 
 
-############################# TESTING #############################
-
-
-class BaseMAETrainer_test(BaseMAETrainer):
-    def __init__(
-        self,
-        plan: Plan,
-        configuration_name: str,
-        fold: int,
-        pretrain_json: dict,
-        device: torch.device = torch.device("cuda"),
-    ):
-        plan.configurations[configuration_name].patch_size = (96, 96, 96)
-        super().__init__(plan, configuration_name, fold, pretrain_json, device)
-        self.total_batch_size = 2
-
-
-class BaseMAETrainer_ANAT_ANON_test(BaseMAETrainer_ANAT_ANON):
-    def __init__(
-        self,
-        plan: Plan,
-        configuration_name: str,
-        fold: int,
-        pretrain_json: dict,
-        device: torch.device = torch.device("cuda"),
-    ):
-        plan.configurations[configuration_name].patch_size = (128, 128, 128)
-        super().__init__(plan, configuration_name, fold, pretrain_json, device)
-        self.total_batch_size = 2
-
-
-class BaseMAETrainer_BS8_IQS_test(BaseMAETrainer):
-    def __init__(
-        self,
-        plan: Plan,
-        configuration_name: str,
-        fold: int,
-        pretrain_json: dict,
-        device: torch.device = torch.device("cuda"),
-    ):
-        plan.configurations[configuration_name].patch_size = (160, 160, 160)
-        super().__init__(plan, configuration_name, fold, pretrain_json, device)
-        self.iimg_filter = OpenMindIQSFilter(Collection.from_dict(self.pretrain_json), 2.5)
-        self.total_batch_size = 1
-
-
 ############################# BASELINE #############################
 
 
@@ -752,20 +707,6 @@ class BaseMAETrainer_BS1(BaseMAETrainer):
         self.num_epochs = 1000
 
 
-class BaseMAETrainer_Test(BaseMAETrainer):
-    def __init__(
-        self,
-        plan: Plan,
-        configuration_name: str,
-        fold: int,
-        pretrain_json: dict,
-        device: torch.device = torch.device("cuda"),
-    ):
-        super().__init__(plan, configuration_name, fold, pretrain_json, device)
-        self.total_batch_size = 1
-        self.num_epochs = 2
-
-
 class BaseMAETrainer_BS2(BaseMAETrainer):
     def __init__(
         self,
@@ -792,3 +733,107 @@ class BaseMAETrainer_BS8_1000ep(BaseMAETrainer):
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.total_batch_size = 8
         self.num_epochs = 1000
+
+
+############################# TESTING #############################
+
+
+class BaseMAETrainer_Test(BaseMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.config_plan.patch_size = (96, 96, 96)
+        assert self.plan.configurations[configuration_name].patch_size == (
+            96,
+            96,
+            96,
+        ), "Patch size not preserved to downsteam"
+        self.total_batch_size = 2
+        self.num_epochs = 3
+
+
+class BaseMAETrainer_ANAT_ANON_test(BaseMAETrainer_ANAT_ANON):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.plan.configurations[configuration_name].patch_size = (128, 128, 128)
+        self.total_batch_size = 2
+
+
+class BaseMAETrainer_BS8_IQS_test(BaseMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].patch_size = (160, 160, 160)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.iimg_filter = OpenMindIQSFilter(Collection.from_dict(self.pretrain_json), 2.5)
+        self.total_batch_size = 1
+
+
+class NonResEncL_BaseMAETrainer_Test(BaseMAETrainer_Test):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.architecture_kwargs: DynamicArchitecturePlans = DynamicArchitecturePlans(
+            **{
+                "n_stages": 6,
+                "features_per_stage": [32, 64, 128, 256, 512, 512],
+                "conv_op": "torch.nn.modules.conv.Conv3d",
+                "kernel_sizes": [[3, 3, 3], [3, 3, 3], [3, 3, 3], [3, 3, 3], [3, 3, 3], [3, 3, 3]],
+                "strides": [[1, 1, 1], [2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2]],
+                "n_blocks_per_stage": [1, 3, 4, 6, 6, 6],
+                "n_conv_per_stage_decoder": [1, 1, 1, 1, 1],
+                "conv_bias": True,
+                "norm_op": "torch.nn.modules.instancenorm.InstanceNorm3d",
+                "norm_op_kwargs": {"eps": 1e-05, "affine": True},
+                "dropout_op": None,
+                "dropout_op_kwargs": None,
+                "nonlin": "torch.nn.LeakyReLU",
+                "nonlin_kwargs": {"inplace": True},
+            }
+        )
+
+    @override
+    def build_architecture_and_adaptation_plan(
+        self, config_plan: ConfigurationPlan, num_input_channels, num_output_channels
+    ):
+        architecture = get_network_from_plans(
+            arch_class_name="ResidualEncoderUNet",
+            arch_kwargs=asdict(self.architecture_kwargs),
+            arch_kwargs_req_import=["conv_op", "norm_op", "nonlin"],
+            input_channels=num_input_channels,
+            output_channels=num_output_channels,
+            deep_supervision=False,
+        )
+        arch_plans = ArchitecturePlans(arch_class_name="ResidualEncoderUNet", arch_kwargs=self.architecture_kwargs)
+        adapt_plan = AdaptationPlan(
+            architecture_plans=arch_plans,
+            pretrain_plan=self.plan,
+            pretrain_num_input_channels=1,
+            key_to_encoder="encoder.stages",
+            key_to_stem="encoder.stem",
+        )
+        return architecture, adapt_plan

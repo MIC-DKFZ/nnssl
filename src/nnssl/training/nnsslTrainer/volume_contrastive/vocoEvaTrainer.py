@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import Union
 
 import torch
@@ -5,7 +6,7 @@ from einops import rearrange
 from torch import nn, autocast
 from torch._dynamo import OptimizedModule
 
-from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan
+from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan, ArchitecturePlans
 from nnssl.architectures.voco_architecture import VoCoEvaArchitecture
 from nnssl.training.nnsslTrainer.volume_contrastive.vocoTrainer import VoCoTrainer
 from batchgenerators.utilities.file_and_folder_operations import save_json
@@ -101,18 +102,9 @@ class VoCoEvaTrainer(VoCoTrainer):
         empty_cache(self.device)
         return optimizer, lr_scheduler
 
-    def create_adaptation_plans(self):
-        adapt_plan = AdaptationPlan(
-            architecture_name="PrimusM",
-            num_input_channels=1,
-            input_patch_size=self.voco_crop_size,  # This is the actual input patch size!
-            state_dict_key_to_encoder="encoder.eva",
-            state_dict_key_to_stem="encoder.down_projection",
-        )
-        save_json(adapt_plan.serialize(), self.adaptation_json_plan)
-        return adapt_plan
-
-    def build_architecture(self, config_plan, num_input_channels, num_output_channels) -> nn.Module:
+    def build_architecture_and_adaptation_plan(
+        self, config_plan, num_input_channels, num_output_channels
+    ) -> nn.Module:
         encoder = EvaMAE(
             input_channels=1,
             embed_dim=self.embed_dim,
@@ -130,8 +122,20 @@ class VoCoEvaTrainer(VoCoTrainer):
             scale_attn_inner=self.scale_attn_inner,
             do_up_projection=False,
         )
+
+        # We need to set the patch size to the one the model saw during training
+        plan = deepcopy(self.plan)
+        plan.configurations[self.configuration_name].patch_size = self.voco_crop_size
+
+        adapt_plan = AdaptationPlan(
+            architecture_plans=ArchitecturePlans("PrimusM"),
+            pretrain_plan=plan,
+            pretrain_num_input_channels=1, # This is the actual input patch size!
+            key_to_encoder="encoder.eva",
+            key_to_stem="encoder.down_projection",
+        )
         architecture = VoCoEvaArchitecture(encoder, self.embed_dim)
-        return architecture
+        return architecture, adapt_plan
 
     def load_checkpoint(self, filename_or_checkpoint: Union[dict, str]) -> None:
         if not self.was_initialized:

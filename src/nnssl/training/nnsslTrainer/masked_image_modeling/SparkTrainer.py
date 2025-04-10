@@ -1,6 +1,6 @@
 from typing import Union
 import torch
-from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan
+from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan, ArchitecturePlans
 from nnssl.architectures.get_network_by_name import get_network_by_name
 from nnssl.architectures.spark_model import SparK3D
 from nnssl.architectures.spark_utils import convert_to_spark_cnn
@@ -44,21 +44,7 @@ class SparkMAETrainer(BaseMAETrainer):
 
         return SparkLoss()
 
-    def create_adaptation_plans(self):
-        from batchgenerators.utilities.file_and_folder_operations import save_json
-
-        adapt_plan = AdaptationPlan(
-            architecture_name="ResEncL",
-            num_input_channels=1,
-            num_output_channels=1,
-            input_patch_size=self.config_plan.patch_size,
-            state_dict_key_to_encoder="encoder.stages",
-            state_dict_key_to_stem="encoder.stem",
-        )
-        save_json(adapt_plan.serialize(), self.adaptation_json_plan)
-        return adapt_plan
-
-    def build_architecture(
+    def build_architecture_and_adaptation_plan(
         self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
     ) -> nn.Module:
         network = get_network_by_name(
@@ -73,7 +59,14 @@ class SparkMAETrainer(BaseMAETrainer):
         network.encoder = spark_architecture
         actual_network = SparK3D(network, self.use_mask_token)
 
-        return actual_network
+        adapt_plan = AdaptationPlan(
+            architecture_plans=ArchitecturePlans("ResEncL"),
+            pretrain_plan=self.plan,
+            pretrain_num_input_channels=1,
+            key_to_encoder="encoder.stages",
+            key_to_stem="encoder.stem",
+        )
+        return actual_network, adapt_plan
 
     def train_step(self, batch: dict) -> dict:
         data = batch["data"]

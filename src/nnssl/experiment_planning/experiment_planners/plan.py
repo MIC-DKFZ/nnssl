@@ -1,6 +1,6 @@
 from dataclasses import dataclass, asdict, is_dataclass
 import os
-from typing import Any, Type
+from typing import Any, Literal, Type
 
 import json
 import numpy as np
@@ -8,6 +8,8 @@ import numpy as np
 
 from nnssl.imageio.reader_writer_registry import recursive_find_reader_writer_by_name
 from nnssl.utilities.json_export import recursive_fix_for_json_export
+
+PREPROCESS_SPACING_STYLES = Literal["onemmiso", "median", "noresample"]
 
 
 def dataclass_to_dict(data):
@@ -21,15 +23,15 @@ def dataclass_to_dict(data):
 class ConfigurationPlan:
     data_identifier: str
     preprocessor_name: str
-    spacing_style: str
+    spacing_style: PREPROCESS_SPACING_STYLES
     normalization_schemes: list[str]
     use_mask_for_norm: list[str]
     resampling_fn_data: str
     resampling_fn_data_kwargs: dict[str, Any]
     resampling_fn_mask: str
     resampling_fn_mask_kwargs: dict[str, Any]
-    spacing: np.ndarray | None = None
-    patch_size: np.ndarray = None
+    spacing: np.ndarray | list[float] | None = None
+    patch_size: np.ndarray | list[float] | None = None
 
     def __getitem__(self, key):
         return getattr(self, key)
@@ -54,6 +56,21 @@ class ConfigurationPlan:
 
     def items(self):
         return [(key, getattr(self, key)) for key in self.keys()]
+
+    def serialize(self) -> dict:
+        if self.spacing_style != "noresample":
+            assert (
+                self.spacing is not None
+            ), "Spacing is None in the ConfigurationPlan. Please set in init for reproducibility!"
+        assert (
+            self.patch_size is not None
+        ), "Patch size is None in the ConfigurationPlan. Please set in init for reproducibility!"
+        for norm in self.normalization_schemes:
+            assert norm is not None, (
+                "At least one Normalization scheme is None in the ConfigurationPlan."
+                + f"Please set in init for reproducibility!\n Current value: {self.normalization_schemes}"
+            )
+        return asdict(self)
 
 
 @dataclass
@@ -116,9 +133,19 @@ class Plan:
     @staticmethod
     def load_from_file(path: str):
         json_dict: dict = json.load(open(path, "r"))
+        return Plan.from_dict(json_dict)
+
+    @staticmethod
+    def from_dict(json_dict: dict):
         configs = {k: ConfigurationPlan(**v) for k, v in json_dict["configurations"].items()}
+
         json_dict["configurations"] = configs
         return Plan(**json_dict)
 
     def image_reader_writer_class(self) -> "Type[BaseReaderWriter]":
         return recursive_find_reader_writer_by_name(self.image_reader_writer)
+
+    def serialize(self) -> dict:
+        res = asdict(self)
+        res["configurations"] = {k: v.serialize() for k, v in self.configurations.items()}
+        return res

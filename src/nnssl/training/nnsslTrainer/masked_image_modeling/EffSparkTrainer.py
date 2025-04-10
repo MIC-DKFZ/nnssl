@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan
+from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan, ArchitecturePlans
 from nnssl.architectures.get_network_by_name import get_network_by_name
 from nnssl.architectures.spark_model import EfficientSpark3D
 from nnssl.architectures.spark_utils import convert_to_spark_cnn
@@ -22,24 +22,13 @@ class EffSparkMAETrainer(SparkMAETrainer):
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.network: EfficientSpark3D = ...
 
-    def create_adaptation_plans(self):
-        adapt_plan = AdaptationPlan(
-            architecture_name="ResEncL",
-            num_input_channels=1,
-            num_output_channels=1,
-            input_patch_size=self.config_plan.patch_size,
-            state_dict_key_to_encoder="encoder.stages",
-            state_dict_key_to_stem="encoder.stem",
-        )
-        save_json(adapt_plan.serialize(), self.adaptation_json_plan)
-        return adapt_plan
-
-    def build_architecture(
+    def build_architecture_and_adaptation_plan(
         self,
         config_plan: ConfigurationPlan,
         num_input_channels: int,
         num_output_channels: int,
     ) -> nn.Module:
+        # ----------------------------- Network creation ----------------------------- #
         network = get_network_by_name(
             config_plan,
             "ResEncL",
@@ -51,8 +40,17 @@ class EffSparkMAETrainer(SparkMAETrainer):
         spark_architecture = convert_to_spark_cnn(network.encoder)
         network.encoder = spark_architecture
         actual_network = EfficientSpark3D(network)
+        # ------------------------------ Adaptation Plan ----------------------------- #
 
-        return actual_network
+        adapt_plan = AdaptationPlan(
+            architecture_plans=ArchitecturePlans("ResEncL"),
+            pretrain_plan=self.plan,
+            pretrain_num_input_channels=1,
+            key_to_encoder="encoder.stages",
+            key_to_stem="encoder.stem",
+        )
+
+        return actual_network, adapt_plan
 
 
 class EffSparkMAETrainer_BS8_1000ep(EffSparkMAETrainer):

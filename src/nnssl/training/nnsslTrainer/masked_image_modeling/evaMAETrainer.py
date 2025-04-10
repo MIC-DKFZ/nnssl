@@ -3,7 +3,7 @@ import os
 from torch import nn
 from torch._dynamo import OptimizedModule
 from typing import Tuple, Union
-from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan
+from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan, ArchitecturePlans
 from nnssl.architectures.evaMAE_module import EvaMAE
 from torch import autocast
 from nnssl.utilities.helpers import dummy_context
@@ -270,19 +270,9 @@ class EvaMAETrainer(BaseMAETrainer):
         mask = mask.unsqueeze(1)  # Add channel dimension (B, 1, D, H, W)
         return mask
 
-    def create_adaptation_plans(self):
-        adapt_plan = AdaptationPlan(
-            architecture_name="PrimusM",
-            num_input_channels=1,
-            num_output_channels=1,
-            input_patch_size=self.config_plan.patch_size,
-            state_dict_key_to_encoder="eva",
-            state_dict_key_to_stem="down_projection",
-        )
-        save_json(adapt_plan.serialize(), self.adaptation_json_plan)
-        return adapt_plan
-
-    def build_architecture(self, config_plan, num_input_channels, num_output_channels) -> nn.Module:
+    def build_architecture_and_adaptation_plan(
+        self, config_plan, num_input_channels, num_output_channels
+    ) -> nn.Module:
         network = EvaMAE(
             input_channels=1,
             embed_dim=self.embed_dim,
@@ -297,7 +287,15 @@ class EvaMAETrainer(BaseMAETrainer):
             drop_path_rate=self.drop_path_rate,
             attn_drop_rate=self.attention_drop_rate,
         )
-        return network
+        adapt_plan = AdaptationPlan(
+            arch_class_name=ArchitecturePlans("PrimusM"),
+            num_input_channels=1,
+            input_patch_size=self.config_plan.patch_size,
+            key_to_encoder="eva",
+            key_to_stem="down_projection",
+        )
+        raise NotImplementedError("Current AdaptationPlan is not correct")
+        return network, adapt_plan
 
     def on_validation_epoch_start(self):
         # self.network.eval()
@@ -348,8 +346,6 @@ class EvaMAETrainer(BaseMAETrainer):
     def run_training(self):
         try:
             self.on_train_start()
-            if self.local_rank == 0:
-                self.log_qualitative_reconstruction_step()  # Do a quick test everything works.
             for epoch in range(self.current_epoch, self.num_epochs):
                 self.on_epoch_start()
 
@@ -370,14 +366,6 @@ class EvaMAETrainer(BaseMAETrainer):
                         val_outputs.append(self.validation_step(next(self.dataloader_val)))
                     self.on_validation_epoch_end(val_outputs)
 
-                    # ------------------------ Maybe Log qualitative recon ----------------------- #
-                    if (self.current_epoch + 1) % self.save_imgs_every_n_epochs == 0:
-                        if self.local_rank == 0:
-                            self.log_qualitative_reconstruction_step()
-                            # self.save_checkpoint(
-                            #     join(self.output_folder, f"checkpoint_epoch_{self.current_epoch}.pth"), live_upload=True
-                            # )
-
                 if self.exit_training_flag:
                     # This is a signal that we need to resubmit, so we break the loop and exit gracefully
                     print("Finished last epoch before restart.")
@@ -390,30 +378,6 @@ class EvaMAETrainer(BaseMAETrainer):
             self.print_to_log_file("Keyboard interrupt. Exiting gracefully.")
             self.save_checkpoint(join(self.output_folder, "checkpoint_latest.pth"))
             raise KeyboardInterrupt
-
-    def log_qualitative_reconstruction_step(self):
-        """Log qualitative reconstructions for each sample in the validation dataloader."""
-        with torch.no_grad():
-            for batch_id in range(10):
-                data = self.recon_dataloader[batch_id]["data"]
-                data = data.to(self.device, non_blocking=True)
-
-                # Forward pass with PatchDropout to get reconstruction and keep_indices
-                with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
-                    reconstruction, keep_indices = self.network(data)
-
-                mask = self.create_mask(keep_indices, self.config_plan.patch_size, self.vit_patch_size)
-
-                # Compute loss for each sample in the batch
-                losses = [
-                    self.loss(reconstruction[i : i + 1], data[i : i + 1], mask[i : i + 1])
-                    for i in range(reconstruction.shape[0])
-                ]
-
-                # Log the images with slices, reconstruction, and losses
-                self.log_img_slices(data, reconstruction, mask, losses, batch_id)
-
-        return
 
     def load_checkpoint(self, filename_or_checkpoint: Union[dict, str]) -> None:
         if not self.was_initialized:

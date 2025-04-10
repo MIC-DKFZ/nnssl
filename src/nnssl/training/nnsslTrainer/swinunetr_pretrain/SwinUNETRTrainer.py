@@ -2,7 +2,7 @@ import torch
 from torch import nn
 from typing_extensions import override
 
-from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan
+from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan, ArchitecturePlans
 from nnssl.architectures.get_network_by_name import get_network_by_name
 from nnssl.architectures.swinunetr_architecture import SwinUNETRArchitecture
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
@@ -48,19 +48,7 @@ class SwinUNETRTrainer(AbstractBaseTrainer):
         )
 
     @override
-    def create_adaptation_plans(self):
-        adapt_plan = AdaptationPlan(
-            architecture_name="ResEncL",
-            num_input_channels=1,
-            input_patch_size=self.config_plan.patch_size,
-            state_dict_key_to_encoder="encoder.stages",
-            state_dict_key_to_stem="encoder.stem",
-        )
-        save_json(adapt_plan.serialize(), self.adaptation_json_plan)
-        return adapt_plan
-
-    @override
-    def build_architecture(
+    def build_architecture_and_adaptation_plan(
         self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
     ) -> nn.Module:
         encoder = get_network_by_name(
@@ -71,7 +59,15 @@ class SwinUNETRTrainer(AbstractBaseTrainer):
             encoder_only=True,
         )
         architecture = SwinUNETRArchitecture(encoder, self.num_output_channels)
-        return architecture
+        # ------------------------------ Adaptation Plan ----------------------------- #
+        adapt_plan = AdaptationPlan(
+            architecture_plans=ArchitecturePlans("ResEncL"),
+            pretrain_plan=self.plan,
+            pretrain_num_input_channels=num_input_channels,
+            key_to_encoder="encoder.stages",
+            key_to_stem="encoder.stem",
+        )
+        return architecture, adapt_plan
 
     @override
     def get_dataloaders(self):
@@ -137,9 +133,8 @@ class SwinUNETRTrainer(AbstractBaseTrainer):
 
         self.optimizer.zero_grad(set_to_none=True)
         with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
-            with torch.no_grad():
-                rotations_pred, contrast_pred, reconstructions = self.network(imgs_rotated_cutout)
-                l = self.loss(rotations_pred, rotations, contrast_pred, reconstructions, imgs_rotated)
+            rotations_pred, contrast_pred, reconstructions = self.network(imgs_rotated_cutout)
+            l = self.loss(rotations_pred, rotations, contrast_pred, reconstructions, imgs_rotated)
 
         if self.grad_scaler is not None:
             self.grad_scaler.scale(l).backward()

@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import Union, Tuple, override
 
 import numpy as np
@@ -9,7 +10,7 @@ from batchgenerators.transforms.abstract_transforms import AbstractTransform, Co
 from batchgenerators.transforms.utility_transforms import NumpyToTensor
 
 from torch import autocast
-from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan
+from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan, ArchitecturePlans
 from nnssl.architectures.get_network_by_name import get_network_by_name
 from nnssl.architectures.voco_architecture import VoCoArchitecture
 from nnssl.training.loss.voco_loss import VoCoLoss
@@ -87,7 +88,6 @@ class VoCoTrainer(AbstractBaseTrainer):
             patch_size[1] // self.voco_base_crop_count[1],
             patch_size[2] // self.voco_base_crop_count[2],
         )
-
     # def configure_optimizers(self):
     #     optimizer = AdamW(
     #         params=self.network.parameters(),
@@ -213,19 +213,7 @@ class VoCoTrainer(AbstractBaseTrainer):
             )
         return mt_gen_train, mt_gen_val
 
-    @override
-    def create_adaptation_plans(self):
-        adapt_plan = AdaptationPlan(
-            architecture_name="ResEncL",
-            num_input_channels=1,
-            input_patch_size=self.voco_crop_size,
-            state_dict_key_to_encoder="encoder.stages",
-            state_dict_key_to_stem="encoder.stem",
-        )
-        save_json(adapt_plan.serialize(), self.adaptation_json_plan)
-        return adapt_plan
-
-    def build_architecture(
+    def build_architecture_and_adaptation_plan(
         self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
     ) -> nn.Module:
         encoder = get_network_by_name(
@@ -236,7 +224,19 @@ class VoCoTrainer(AbstractBaseTrainer):
             encoder_only=True,
         )
         architecture = VoCoArchitecture(encoder, encoder.output_channels)
-        return architecture
+
+        # We need to set the patch size to the one the model saw during training
+        plan = deepcopy(self.plan)
+        plan.configurations[self.configuration_name].patch_size = self.voco_crop_size
+
+        adapt_plan = AdaptationPlan(
+            architecture_plans=ArchitecturePlans("ResEncL"),
+            pretrain_plan=plan,
+            pretrain_num_input_channels=num_input_channels,
+            key_to_encoder="encoder.stages",
+            key_to_stem="encoder.stem",
+        )
+        return architecture, adapt_plan
 
     def train_step(self, batch: dict) -> dict:
         all_crops = batch["all_crops"]

@@ -1,9 +1,9 @@
 import torch
 from torch import nn
 from torch._dynamo import OptimizedModule
-from typing import Tuple, Union
+from typing import Tuple, Union, override
 
-from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan
+from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan, ArchitecturePlans
 from nnssl.architectures.evaMAE_module import EvaMAE
 from torch import autocast
 from nnssl.utilities.helpers import dummy_context
@@ -145,7 +145,10 @@ class BaseEvaMAETrainer(BaseMAETrainer):
         mask = mask.unsqueeze(1)  # Add channel dimension (B, 1, D, H, W)
         return mask
 
-    def build_architecture(self, config_plan, num_input_channels, num_output_channels) -> nn.Module:
+    @override
+    def build_architecture_and_adaptation_plan(
+        self, config_plan, num_input_channels, num_output_channels
+    ) -> nn.Module:
         network = EvaMAE(
             input_channels=1,
             embed_dim=self.embed_dim,
@@ -162,18 +165,16 @@ class BaseEvaMAETrainer(BaseMAETrainer):
             init_values=self.init_value,
             scale_attn_inner=self.scale_attn_inner,
         )
-        return network
 
-    def create_adaptation_plans(self):
         adapt_plan = AdaptationPlan(
-            architecture_name="PrimusM",
-            num_input_channels=1,
-            input_patch_size=self.config_plan.patch_size,
-            state_dict_key_to_encoder="eva",
-            state_dict_key_to_stem="down_projection",
+            architecture_plans=ArchitecturePlans("PrimusM"),
+            pretrain_plan=self.plan,
+            pretrain_num_input_channels=1,
+            key_to_encoder="eva",
+            key_to_stem="down_projection",
         )
         save_json(adapt_plan.serialize(), self.adaptation_json_plan)
-        return adapt_plan
+        return network, adapt_plan
 
     def on_validation_epoch_start(self):
         # Make sure the masking is still on.

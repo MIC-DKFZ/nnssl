@@ -5,7 +5,7 @@ from torch import nn
 from torch._dynamo import OptimizedModule
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan
+from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan, ArchitecturePlans
 from nnssl.experiment_planning.experiment_planners.plan import Plan
 from nnssl.training.lr_scheduler.warmup import Lin_incr_LRScheduler, PolyLRScheduler_offset
 from nnssl.architectures.evaMAE_module import EvaMAE
@@ -97,18 +97,9 @@ class ModelGenesisEvaTrainer(ModelGenesisTrainer):
         empty_cache(self.device)
         return optimizer, lr_scheduler
 
-    def create_adaptation_plans(self):
-        adapt_plan = AdaptationPlan(
-            architecture_name="PrimusM",
-            num_input_channels=1,
-            input_patch_size=self.config_plan.patch_size,
-            state_dict_key_to_encoder="eva",
-            state_dict_key_to_stem="down_projection",
-        )
-        save_json(adapt_plan.serialize(), self.adaptation_json_plan)
-        return adapt_plan
-
-    def build_architecture(self, config_plan, num_input_channels, num_output_channels) -> nn.Module:
+    def build_architecture_and_adaptation_plan(
+        self, config_plan, num_input_channels, num_output_channels
+    ) -> nn.Module:
         network = EvaMAE(
             input_channels=1,
             embed_dim=self.embed_dim,
@@ -125,7 +116,14 @@ class ModelGenesisEvaTrainer(ModelGenesisTrainer):
             init_values=self.init_value,
             scale_attn_inner=self.scale_attn_inner,
         )
-        return network
+        adapt_plan = AdaptationPlan(
+            architecture_plans=ArchitecturePlans("PrimusM"),
+            pretrain_plan=self.plan,
+            pretrain_num_input_channels=1,
+            key_to_encoder="eva",
+            key_to_stem="down_projection",
+        )
+        return network, adapt_plan
 
     def load_checkpoint(self, filename_or_checkpoint: Union[dict, str]) -> None:
         if not self.was_initialized:
@@ -213,8 +211,8 @@ class ModelGenesisEvaTrainer_BS8(ModelGenesisEvaTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.plan.configurations[configuration_name].patch_size = (160, 160, 160)
         self.total_batch_size = 8
 
 
@@ -227,6 +225,6 @@ class ModelGenesisEvaTrainer_test(ModelGenesisEvaTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].patch_size = (128, 128, 128)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.plan.configurations[configuration_name].patch_size = (128, 128, 128)
         self.total_batch_size = 1

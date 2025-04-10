@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import Union, Tuple, List
 
 import numpy as np
@@ -12,6 +13,7 @@ from einops import rearrange
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 
 from torch import autocast
+from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan, ArchitecturePlans
 from nnssl.architectures.get_network_by_name import get_network_by_name
 from nnssl.architectures.voco_architecture import VoCoArchitecture
 from nnssl.training.loss.contrastive_loss import NTXentLoss
@@ -61,7 +63,7 @@ class SimCLRTrainer(AbstractBaseTrainer):
         patch_size: tuple = (192, 192, 64),
         crop_size: tuple = (64, 64, 64),
         num_crops_per_image: int = 2,
-        min_crop_overlap: float = 0.5
+        min_crop_overlap: float = 0.5,
     ):
         plan.configurations[configuration_name].patch_size = patch_size
         self.crop_size = crop_size
@@ -186,16 +188,33 @@ class SimCLRTrainer(AbstractBaseTrainer):
             )
         return mt_gen_train, mt_gen_val
 
-    def build_architecture(
+    def build_architecture_and_adaptation_plan(
         self,
         config_plan: ConfigurationPlan,
         num_input_channels: int,
         num_output_channels: int,
     ) -> nn.Module:
-        encoder = get_network_by_name("ResEncL", num_input_channels, num_output_channels, encoder_only=True)
+        encoder = get_network_by_name(
+            config_plan,
+            "ResEncL",
+            num_input_channels,
+            num_output_channels,
+            encoder_only=True,
+        )
         # Turns out VoCoArchitecture can be used for SimCLR purpose here.
-        architecture = VoCoArchitecture(encoder, config_plan)
-        return architecture
+        architecture = VoCoArchitecture(encoder, encoder.output_channels)
+
+        plan = deepcopy(self.plan)
+        plan.configurations[self.configuration_name].patch_size = self.crop_size
+
+        adapt_plan = AdaptationPlan(
+            architecture_plans=ArchitecturePlans("ResEncL"),
+            pretrain_plan=self.plan,
+            pretrain_num_input_channels=1,
+            key_to_encoder="encoder.stages",
+            key_to_stem="encoder.stem",
+        )
+        return architecture, adapt_plan
 
     def train_step(self, batch: Tuple[dict, dict]) -> dict:
 

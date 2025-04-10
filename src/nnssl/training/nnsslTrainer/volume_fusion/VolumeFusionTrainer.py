@@ -1,7 +1,7 @@
 from typing import Tuple, Union, override
 import numpy as np
 from torch.nn.modules import Module
-from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan
+from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan, ArchitecturePlans
 from nnssl.architectures.get_network_by_name import get_network_by_name
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 import torch
@@ -22,7 +22,7 @@ from batchgenerators.transforms.color_transforms import (
 )
 from batchgenerators.transforms.noise_transforms import GaussianNoiseTransform, GaussianBlurTransform
 from batchgenerators.transforms.resample_transforms import SimulateLowResolutionTransform
-from batchgenerators.transforms.spatial_transforms import  MirrorTransform
+from batchgenerators.transforms.spatial_transforms import MirrorTransform
 from batchgenerators.transforms.utility_transforms import NumpyToTensor
 from batchgenerators.dataloading.single_threaded_augmenter import SingleThreadedAugmenter
 from batchgenerators.utilities.file_and_folder_operations import save_json
@@ -113,18 +113,7 @@ class VolumeFusionTrainer(AbstractBaseTrainer):
         self.vf_subpatch_size = [(8, int(0.625 * s) + 1) for s in self.config_plan.patch_size]
 
     @override
-    def create_adaptation_plans(self):
-        adapt_plan = AdaptationPlan(
-            architecture_name="ResEncL",
-            num_input_channels=1,
-            input_patch_size=self.config_plan.patch_size,
-            state_dict_key_to_encoder="encoder.stages",
-            state_dict_key_to_stem="encoder.stem",
-        )
-        save_json(adapt_plan.serialize(), self.adaptation_json_plan)
-        return adapt_plan
-
-    def build_architecture(
+    def build_architecture_and_adaptation_plan(
         self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int, *args, **kwargs
     ) -> Module:
         architecture = get_network_by_name(
@@ -133,7 +122,14 @@ class VolumeFusionTrainer(AbstractBaseTrainer):
             num_input_channels,
             num_output_channels,
         )
-        return architecture
+        adapt_plan = AdaptationPlan(
+            architecture_plans=ArchitecturePlans("ResEncL"),
+            pretrain_plan=self.plan,
+            pretrain_num_input_channels=num_input_channels,
+            key_to_encoder="encoder.stages",
+            key_to_stem="encoder.stem",
+        )
+        return architecture, adapt_plan
 
     def get_plain_dataloaders(self, initial_patch_size: Tuple[int, ...]):
         dataset_tr, dataset_val = self.get_tr_and_val_datasets()
@@ -384,6 +380,7 @@ class VolumeFusionTrainer_BS8(VolumeFusionTrainer):
 
 
 ############################# LEARNING RATE #############################
+
 
 class VolumeFusionTrainer_BS8_lr_1e3(VolumeFusionTrainer):
 
