@@ -151,6 +151,7 @@ class AdaptationPlan:
         recommended_downstream_patchsize = data["recommended_downstream_patchsize"]
         key_to_encoder = data["key_to_encoder"]
         key_to_stem = data["key_to_stem"]
+        keys_to_in_proj = data["keys_to_in_proj"]
         return AdaptationPlan(
             architecture_plans=architecture_plans,
             pretrain_plan=pretrain_plan,
@@ -158,6 +159,7 @@ class AdaptationPlan:
             pretrain_num_input_channels=pretrain_num_input_channels,
             key_to_encoder=key_to_encoder,
             key_to_stem=key_to_stem,
+            keys_to_in_proj=tuple(keys_to_in_proj),
         )
 
 
