@@ -56,7 +56,7 @@ class ModelGenesisTrainer(AbstractBaseTrainer):
         adapt_plan = AdaptationPlan(
             architecture_plans=ArchitecturePlans("ResEncL"),
             pretrain_plan=self.plan,
-            recommended_downsteam_patchsize=self.recommended_downstream_patchsize,
+            recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             pretrain_num_input_channels=1,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",

@@ -43,7 +43,7 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B(BaseMAETrainer_BS8_1000ep):
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plan,
             pretrain_plan=self.plan,
-            recommended_downsteam_patchsize=self.recommended_downstream_patchsize,
+            recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             pretrain_num_input_channels=1,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
@@ -111,7 +111,7 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_M_Depth_B(BaseMAETrainer_BS8_1000ep):
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plan,
             pretrain_plan=self.plan,
-            recommended_downsteam_patchsize=self.recommended_downstream_patchsize,
+            recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             pretrain_num_input_channels=1,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
@@ -179,7 +179,7 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_L_Depth_B(BaseMAETrainer_BS8_1000ep):
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plan,
             pretrain_plan=self.plan,
-            recommended_downsteam_patchsize=self.recommended_downstream_patchsize,
+            recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             pretrain_num_input_channels=1,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
@@ -247,7 +247,7 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_M(BaseMAETrainer_BS8_1000ep):
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plan,
             pretrain_plan=self.plan,
-            recommended_downsteam_patchsize=self.recommended_downstream_patchsize,
+            recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             pretrain_num_input_channels=1,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
@@ -314,7 +314,7 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_L(BaseMAETrainer_BS8_1000ep):
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plan,
             pretrain_plan=self.plan,
-            recommended_downsteam_patchsize=self.recommended_downstream_patchsize,
+            recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             pretrain_num_input_channels=1,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
@@ -382,7 +382,7 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_M_Depth_M(BaseMAETrainer_BS8_1000ep):
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plan,
             pretrain_plan=self.plan,
-            recommended_downsteam_patchsize=self.recommended_downstream_patchsize,
+            recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             pretrain_num_input_channels=1,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
@@ -450,7 +450,7 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_LayerNorm(BaseMAETrainer_BS
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plan,
             pretrain_plan=self.plan,
-            recommended_downsteam_patchsize=self.recommended_downstream_patchsize,
+            recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             pretrain_num_input_channels=1,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
@@ -518,7 +518,7 @@ class BaseMAETrainer_BS1_ep1000_Arch_Width_B_Depth_B_LayerNorm(BaseMAETrainer_BS
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plan,
             pretrain_plan=self.plan,
-            recommended_downsteam_patchsize=self.recommended_downstream_patchsize,
+            recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             pretrain_num_input_channels=1,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
@@ -586,7 +586,7 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_BatchNorm(BaseMAETrainer_BS
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plan,
             pretrain_plan=self.plan,
-            recommended_downsteam_patchsize=self.recommended_downstream_patchsize,
+            recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             pretrain_num_input_channels=1,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
@@ -654,7 +654,7 @@ class BaseMAETrainer_BS1_ep1000_Arch_Width_B_Depth_B_BatchNorm(BaseMAETrainer_BS
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plan,
             pretrain_plan=self.plan,
-            recommended_downsteam_patchsize=self.recommended_downstream_patchsize,
+            recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             pretrain_num_input_channels=1,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
@@ -723,7 +723,7 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop005(BaseMAETrainer_BS8_
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plan,
             pretrain_plan=self.plan,
-            recommended_downsteam_patchsize=self.recommended_downstream_patchsize,
+            recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             pretrain_num_input_channels=1,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
@@ -794,7 +794,7 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop01(BaseMAETrainer_BS8_e
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plan,
             pretrain_plan=self.plan,
-            recommended_downsteam_patchsize=self.recommended_downstream_patchsize,
+            recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             pretrain_num_input_channels=1,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
@@ -866,7 +866,7 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop015(BaseMAETrainer_BS8_
             architecture_plans=arch_plan,
             pretrain_plan=self.plan,
             pretrain_num_input_channels=1,
-            recommended_downsteam_patchsize=self.recommended_downstream_patchsize,
+            recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
         )
@@ -936,7 +936,7 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop02(BaseMAETrainer_BS8_e
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plan,
             pretrain_plan=self.plan,
-            recommended_downsteam_patchsize=self.recommended_downstream_patchsize,
+            recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             pretrain_num_input_channels=1,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
@@ -1006,7 +1006,7 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Bneck(BaseMAETrainer_BS8_ep
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plan,
             pretrain_plan=self.plan,
-            recommended_downsteam_patchsize=self.recommended_downstream_patchsize,
+            recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             pretrain_num_input_channels=1,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
