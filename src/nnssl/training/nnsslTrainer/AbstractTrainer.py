@@ -254,6 +254,21 @@ class AbstractBaseTrainer(ABC):
             self.batch_size = batch_sizes[my_rank]
 
     @staticmethod
+    def _convert_numpy(obj: dict) -> dict:
+        if isinstance(obj, dict):
+            return {k: AbstractBaseTrainer._convert_numpy(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [AbstractBaseTrainer._convert_numpy(v) for v in obj]
+        elif isinstance(obj, tuple):
+            return tuple(AbstractBaseTrainer._convert_numpy(v) for v in obj)
+        elif isinstance(obj, np.generic):  # NumPy scalar (e.g., np.float32, np.int64, etc.)
+            return obj.item()  # Convert to native Python type
+        elif isinstance(obj, np.ndarray):
+            return torch.from_numpy(obj)
+        else:
+            return obj
+
+    @staticmethod
     def _test_load_weight(
         downstream_arch: nn.Module, pre_train_statedict: dict[str, torch.Tensor], adapt_plan: AdaptationPlan
     ):
@@ -838,6 +853,7 @@ class AbstractBaseTrainer(ABC):
                     "trainer_name": self.__class__.__name__,
                     "nnssl_adaptation_plan": self.adaptation_plan.serialize(),
                 }
+                checkpoint = self._convert_numpy(checkpoint)
                 torch.save(checkpoint, filename)
             else:
                 self.print_to_log_file("No checkpoint written, checkpointing is disabled")
