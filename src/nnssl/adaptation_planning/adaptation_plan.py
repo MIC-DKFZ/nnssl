@@ -87,7 +87,7 @@ class DynamicArchitecturePlans:
     def get_kwargs_requiring_import(self):
         kwargs_requiring_import = []
         for key, value in self.__dict__.items():
-            if (isinstance(value, type) and (issubclass(value, nn.Module)) or isinstance(value, str)):
+            if isinstance(value, type) and (issubclass(value, nn.Module)) or isinstance(value, str):
                 kwargs_requiring_import.append(key)
         return kwargs_requiring_import
 
@@ -125,6 +125,7 @@ class AdaptationPlan:
     architecture_plans: ArchitecturePlans
     pretrain_plan: Plan
     pretrain_num_input_channels: int
+    recommended_downsteam_patchsize: tuple[int, int, int]
     key_to_encoder: str
     key_to_stem: str
 
@@ -212,6 +213,7 @@ if __name__ == "__main__":
         architecture_plans=arch_plans,
         pretrain_plan=plan,
         pretrain_num_input_channels=1,
+        recommended_downsteam_patchsize=(160, 160, 160),
         key_to_encoder="encoder.stages",
         key_to_stem="encoder.stem",
     )

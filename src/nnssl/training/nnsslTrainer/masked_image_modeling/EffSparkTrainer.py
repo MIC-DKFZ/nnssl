@@ -46,6 +46,7 @@ class EffSparkMAETrainer(SparkMAETrainer):
             architecture_plans=ArchitecturePlans("ResEncL"),
             pretrain_plan=self.plan,
             pretrain_num_input_channels=1,
+            recommended_downsteam_patchsize=self.recommended_downstream_patchsize,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
         )

@@ -288,9 +288,10 @@ class EvaMAETrainer(BaseMAETrainer):
             attn_drop_rate=self.attention_drop_rate,
         )
         adapt_plan = AdaptationPlan(
-            arch_class_name=ArchitecturePlans("PrimusM"),
-            num_input_channels=1,
-            input_patch_size=self.config_plan.patch_size,
+            architecture_plans=ArchitecturePlans("PrimusM"),
+            pretrain_plan=self.plan,
+            pretrain_num_input_channels=1,
+            recommended_downsteam_patchsize=self.recommended_downstream_patchsize,
             key_to_encoder="eva",
             key_to_stem="down_projection",
         )

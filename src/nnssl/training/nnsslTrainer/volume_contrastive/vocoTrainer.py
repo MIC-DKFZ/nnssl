@@ -232,6 +232,7 @@ class VoCoTrainer(AbstractBaseTrainer):
         adapt_plan = AdaptationPlan(
             architecture_plans=ArchitecturePlans("ResEncL"),
             pretrain_plan=plan,
+            recommended_downsteam_patchsize=self.recommended_downstream_patchsize,
             pretrain_num_input_channels=num_input_channels,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
