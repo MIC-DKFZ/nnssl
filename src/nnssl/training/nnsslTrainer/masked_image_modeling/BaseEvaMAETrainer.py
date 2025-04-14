@@ -173,6 +173,7 @@ class BaseEvaMAETrainer(BaseMAETrainer):
             recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             key_to_encoder="eva",
             key_to_stem="down_projection",
+            keys_to_in_proj=("down_projection.proj",),
         )
         save_json(adapt_plan.serialize(), self.adaptation_json_plan)
         return network, adapt_plan

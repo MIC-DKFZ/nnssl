@@ -129,6 +129,7 @@ class VolumeFusionTrainer(AbstractBaseTrainer):
             pretrain_num_input_channels=num_input_channels,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
+            keys_to_in_proj=("encoder.stem.convs.0.conv", "encoder.stem.convs.0.all_modules.0"),
         )
         return architecture, adapt_plan
 

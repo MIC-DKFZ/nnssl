@@ -86,6 +86,7 @@ class BaseVariableSparkMAETrainer(SparkMAETrainer):
             recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
+            keys_to_in_proj=("encoder.stem.convs.0.conv", "encoder.stem.convs.0.all_modules.0"),
         )
 
         return actual_network, adapt_plan

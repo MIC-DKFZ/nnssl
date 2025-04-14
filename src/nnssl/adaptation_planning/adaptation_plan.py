@@ -1,6 +1,6 @@
 from dataclasses import dataclass, asdict, is_dataclass
 from dataclasses import field
-from typing import Any, Literal, Type, get_args
+from typing import Any, Literal, Sequence, Type, get_args
 import numpy as np
 from torch import nn
 import io
@@ -128,6 +128,7 @@ class AdaptationPlan:
     recommended_downstream_patchsize: tuple[int, int, int]
     key_to_encoder: str
     key_to_stem: str
+    keys_to_in_proj: Sequence[str]
 
     def serialize(self):
         serialized_plan = asdict(self)
@@ -218,6 +219,7 @@ if __name__ == "__main__":
         recommended_downstream_patchsize=(160, 160, 160),
         key_to_encoder="encoder.stages",
         key_to_stem="encoder.stem",
+        keys_to_in_proj=("encoder.stem.convs.0.conv", "encoder.stem.convs.0.all_modules.0"),
     )
     serialized_adaptation_plan = adaptation_plan.serialize()
     # Write the serialized adaptation plan to an IO buffer

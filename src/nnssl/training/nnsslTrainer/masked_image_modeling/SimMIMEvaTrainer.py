@@ -127,6 +127,7 @@ class SimMIMEvaTrainer(BaseMAETrainer):
             recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             key_to_encoder="eva",
             key_to_stem="down_projection",
+            key_to_in_proj=("down_projection.proj",),
         )
         return network, adapt_plan
 

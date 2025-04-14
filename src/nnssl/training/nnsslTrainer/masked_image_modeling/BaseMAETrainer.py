@@ -139,6 +139,7 @@ class BaseMAETrainer(AbstractBaseTrainer):
             recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
+            keys_to_in_proj=("encoder.stem.convs.0.conv", "encoder.stem.convs.0.all_modules.0"),
         )
         save_json(adapt_plan.serialize(), self.adaptation_json_plan)
         return architecture, adapt_plan
@@ -837,5 +838,6 @@ class NonResEncL_BaseMAETrainer_Test(BaseMAETrainer_Test):
             recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
+            keys_to_in_proj=("encoder.stem.convs.0.conv", "encoder.stem.convs.0.all_modules.0"),
         )
         return architecture, adapt_plan

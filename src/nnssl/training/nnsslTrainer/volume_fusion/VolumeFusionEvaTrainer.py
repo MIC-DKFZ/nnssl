@@ -122,6 +122,7 @@ class VolumeFusionEvaTrainer(VolumeFusionTrainer):
             pretrain_num_input_channels=1,
             key_to_encoder="eva",
             key_to_stem="down_projection",
+            key_to_in_proj=("down_projection.proj",),
         )
         return network, adapt_plan
 

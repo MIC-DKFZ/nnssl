@@ -142,6 +142,7 @@ class SimCLREvaTrainer(SimCLRTrainer):
             pretrain_num_input_channels=1,  # This is the actual input patch size!
             key_to_encoder="encoder.eva",
             key_to_stem="encoder.down_projection",
+            key_to_in_proj=("encoder.down_projection.proj",),
         )
 
         return architecture, adapt_plan
