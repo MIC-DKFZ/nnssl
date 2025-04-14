@@ -124,7 +124,7 @@ class SwinUNETREvaTrainer(SwinUNETRTrainer):
         adapt_plan = AdaptationPlan(
             architecture_plans=ArchitecturePlans("PrimusM"),
             pretrain_plan=self.plan,
-            recommended_downsteam_patchsize=self.recommended_downstream_patchsize,
+            recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             pretrain_num_input_channels=1,
             key_to_encoder="encoder.eva",
             key_to_stem="encoder.down_projection",

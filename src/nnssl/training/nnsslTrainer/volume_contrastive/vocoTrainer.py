@@ -88,6 +88,7 @@ class VoCoTrainer(AbstractBaseTrainer):
             patch_size[1] // self.voco_base_crop_count[1],
             patch_size[2] // self.voco_base_crop_count[2],
         )
+
     # def configure_optimizers(self):
     #     optimizer = AdamW(
     #         params=self.network.parameters(),
@@ -232,7 +233,7 @@ class VoCoTrainer(AbstractBaseTrainer):
         adapt_plan = AdaptationPlan(
             architecture_plans=ArchitecturePlans("ResEncL"),
             pretrain_plan=plan,
-            recommended_downsteam_patchsize=self.recommended_downstream_patchsize,
+            recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             pretrain_num_input_channels=num_input_channels,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",

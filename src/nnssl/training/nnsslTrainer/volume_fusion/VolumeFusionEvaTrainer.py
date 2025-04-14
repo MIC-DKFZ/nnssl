@@ -15,6 +15,7 @@ from nnssl.architectures.evaMAE_module import EvaMAE
 from nnssl.training.nnsslTrainer.volume_fusion.VolumeFusionTrainer import VolumeFusionTrainer
 from batchgenerators.utilities.file_and_folder_operations import save_json
 
+
 class VolumeFusionEvaTrainer(VolumeFusionTrainer):
 
     def __init__(
@@ -95,7 +96,9 @@ class VolumeFusionEvaTrainer(VolumeFusionTrainer):
         empty_cache(self.device)
         return optimizer, lr_scheduler
 
-    def build_architecture_and_adaptation_plan(self, config_plan, num_input_channels, num_output_channels) -> nn.Module:
+    def build_architecture_and_adaptation_plan(
+        self, config_plan, num_input_channels, num_output_channels
+    ) -> nn.Module:
         network = EvaMAE(
             input_channels=1,
             embed_dim=self.embed_dim,
@@ -115,7 +118,7 @@ class VolumeFusionEvaTrainer(VolumeFusionTrainer):
         adapt_plan = AdaptationPlan(
             architecture_plans=ArchitecturePlans("PrimusM"),
             pretrain_plan=self.plan,
-            recommended_downsteam_patchsize=self.recommended_downstream_patchsize,
+            recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             pretrain_num_input_channels=1,
             key_to_encoder="eva",
             key_to_stem="down_projection",

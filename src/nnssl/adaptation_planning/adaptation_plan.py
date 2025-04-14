@@ -125,7 +125,7 @@ class AdaptationPlan:
     architecture_plans: ArchitecturePlans
     pretrain_plan: Plan
     pretrain_num_input_channels: int
-    recommended_downsteam_patchsize: tuple[int, int, int]
+    recommended_downstream_patchsize: tuple[int, int, int]
     key_to_encoder: str
     key_to_stem: str
 
@@ -147,11 +147,13 @@ class AdaptationPlan:
         )
         pretrain_plan = Plan.from_dict(data["pretrain_plan"])
         pretrain_num_input_channels = data["pretrain_num_input_channels"]
+        recommended_downstream_patchsize = data["recommended_downstream_patchsize"]
         key_to_encoder = data["key_to_encoder"]
         key_to_stem = data["key_to_stem"]
         return AdaptationPlan(
             architecture_plans=architecture_plans,
             pretrain_plan=pretrain_plan,
+            recommended_downstream_patchsize=recommended_downstream_patchsize,
             pretrain_num_input_channels=pretrain_num_input_channels,
             key_to_encoder=key_to_encoder,
             key_to_stem=key_to_stem,
@@ -213,7 +215,7 @@ if __name__ == "__main__":
         architecture_plans=arch_plans,
         pretrain_plan=plan,
         pretrain_num_input_channels=1,
-        recommended_downsteam_patchsize=(160, 160, 160),
+        recommended_downstream_patchsize=(160, 160, 160),
         key_to_encoder="encoder.stages",
         key_to_stem="encoder.stem",
     )

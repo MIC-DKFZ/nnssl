@@ -136,7 +136,7 @@ class BaseMAETrainer(AbstractBaseTrainer):
             architecture_plans=arch_plans,
             pretrain_plan=self.plan,
             pretrain_num_input_channels=num_input_channels,
-            recommended_downsteam_patchsize=self.recommended_downstream_patchsize,
+            recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
         )
@@ -834,7 +834,7 @@ class NonResEncL_BaseMAETrainer_Test(BaseMAETrainer_Test):
             architecture_plans=arch_plans,
             pretrain_plan=self.plan,
             pretrain_num_input_channels=1,
-            recommended_downsteam_patchsize=self.recommended_downstream_patchsize,
+            recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
         )
