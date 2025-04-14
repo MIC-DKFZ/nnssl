@@ -199,6 +199,7 @@ class AbstractBaseTrainer(ABC):
 
         self.was_initialized = False
 
+        self.recommended_downstream_patchsize = (160, 160, 160)
         self.exit_training_flag = False  # This is a signal flag that can be raised to exit gracefully
 
         signal.signal(signal.SIGUSR1, self.exit_training)

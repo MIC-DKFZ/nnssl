@@ -124,6 +124,7 @@ class SimMIMEvaTrainer(BaseMAETrainer):
             architecture_plans=ArchitecturePlans("PrimusM"),
             pretrain_plan=self.plan,
             pretrain_num_input_channels=1,
+            recommended_downsteam_patchsize=self.recommended_downstream_patchsize,
             key_to_encoder="eva",
             key_to_stem="down_projection",
         )

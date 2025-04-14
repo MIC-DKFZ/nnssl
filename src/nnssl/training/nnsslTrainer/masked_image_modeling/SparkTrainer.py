@@ -63,6 +63,7 @@ class SparkMAETrainer(BaseMAETrainer):
             architecture_plans=ArchitecturePlans("ResEncL"),
             pretrain_plan=self.plan,
             pretrain_num_input_channels=1,
+            recommended_downsteam_patchsize=self.recommended_downstream_patchsize,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
         )
@@ -126,6 +127,7 @@ class SparkMAETrainer(BaseMAETrainer):
                     "init_args": self.my_init_kwargs,
                     "trainer_name": self.__class__.__name__,
                 }
+                checkpoint = self._convert_numpy(checkpoint)
                 torch.save(checkpoint, filename)
             else:
                 self.print_to_log_file("No checkpoint written, checkpointing is disabled")
