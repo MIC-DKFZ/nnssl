@@ -4,7 +4,7 @@ from batchgenerators.dataloading.single_threaded_augmenter import SingleThreaded
 from batchgenerators.utilities.file_and_folder_operations import save_json
 from torch import nn, autocast
 
-from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan
+from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan, ArchitecturePlans
 from nnssl.architectures import spark_utils
 from nnssl.architectures.get_network_by_name import get_network_by_name
 from nnssl.architectures.spark_model import SparK3D
@@ -34,6 +34,7 @@ class BaseVariableSparkMAETrainer(SparkMAETrainer):
         device: torch.device = torch.device("cuda"),
     ):
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.config_plan.patch_size = (160, 160, 160)
         self.mask_percentage = (0.6, 0.9)
         # self.num_epochs = 52
         self.mask_random_seed = np.random.RandomState(123)
@@ -63,18 +64,7 @@ class BaseVariableSparkMAETrainer(SparkMAETrainer):
         return mask
 
     @override
-    def create_adaptation_plans(self):
-        adapt_plan = AdaptationPlan(
-            architecture_name="ResEncL",
-            num_input_channels=1,
-            input_patch_size=self.config_plan.patch_size,
-            state_dict_key_to_encoder="encoder.stages",
-            state_dict_key_to_stem="encoder.stem",
-        )
-        save_json(adapt_plan.serialize(), self.adaptation_json_plan)
-        return adapt_plan
-
-    def build_architecture(
+    def build_architecture_and_adaptation_plan(
         self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
     ) -> nn.Module:
         network = get_network_by_name(
@@ -87,9 +77,19 @@ class BaseVariableSparkMAETrainer(SparkMAETrainer):
         spark_architecture = convert_to_spark_cnn(network.encoder)
         network.encoder = spark_architecture
 
-        actual_network = SparK3D(network, (160, 160, 160))
+        actual_network = SparK3D(network)
+        # ------------------------------ Adaptation Plan ----------------------------- #
+        adapt_plan = AdaptationPlan(
+            architecture_plans=ArchitecturePlans("ResEncL"),
+            pretrain_plan=self.plan,
+            pretrain_num_input_channels=1,
+            recommended_downstream_patchsize=self.recommended_downstream_patchsize,
+            key_to_encoder="encoder.stages",
+            key_to_stem="encoder.stem",
+            keys_to_in_proj=("encoder.stem.convs.0.conv", "encoder.stem.convs.0.all_modules.0"),
+        )
 
-        return actual_network
+        return actual_network, adapt_plan
 
 
 class BaseVariableSparkMAETrainer_ANAT(BaseVariableSparkMAETrainer):
@@ -232,7 +232,6 @@ class VariableSparkMAETrainer_BS8(BaseVariableSparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.total_batch_size = 8
 
@@ -246,7 +245,6 @@ class VariableSparkMAETrainer_ANAT_ANON_BS8(BaseVariableSparkMAETrainer_ANAT_ANO
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.total_batch_size = 8
 
@@ -260,7 +258,6 @@ class VariableSparkMAETrainer_ANAT_ANON_test(BaseVariableSparkMAETrainer_ANAT_AN
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.total_batch_size = 1
 
@@ -274,7 +271,6 @@ class VariableSparkMAETrainer_BS1(BaseVariableSparkMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.total_batch_size = 1
 

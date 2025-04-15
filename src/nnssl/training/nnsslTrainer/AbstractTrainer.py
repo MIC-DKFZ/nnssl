@@ -12,10 +12,10 @@ from torch import nn
 from copy import deepcopy
 from datetime import datetime
 from time import time
-from typing import Union, Tuple, List
+from typing import Union, Tuple, List, get_args
 from loguru import logger
 from tqdm import tqdm
-from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan
+from nnssl.adaptation_planning.adaptation_plan import DYN_ARCHITECTURE_PRESETS, AdaptationPlan
 from nnssl.architectures.get_network_by_name import get_network_by_name
 import signal
 
@@ -28,6 +28,7 @@ from batchgenerators.utilities.file_and_folder_operations import join, isfile, s
 from torch._dynamo import OptimizedModule
 
 
+from nnssl.architectures.get_network_from_plan import get_network_from_plans
 from nnssl.data.raw_dataset import Collection
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.paths import nnssl_preprocessed, nnssl_results
@@ -99,13 +100,15 @@ class AbstractBaseTrainer(ABC):
         # need. So let's save the init args
         self.my_init_kwargs = {}
         cur_frame = inspect.currentframe()
+
         def prev_frame_is_trainer_class(frame: FrameType):
             """Check if AbstractBaseTrainer child class is in previous frame."""
             prev_frame = frame.f_back
             if "self" in prev_frame.f_locals:
-                if isinstance(prev_frame.f_locals["self"], AbstractBaseTrainer): 
+                if isinstance(prev_frame.f_locals["self"], AbstractBaseTrainer):
                     return True
             return False
+
         # Find the highest level frame that is Child of AbstractBaseTrainer -- Holds original init args!
         while prev_frame_is_trainer_class(cur_frame):
             cur_frame = cur_frame.f_back
@@ -116,6 +119,8 @@ class AbstractBaseTrainer(ABC):
         self.my_init_kwargs = make_serializable(self.my_init_kwargs)
         # ------ Saving all the init args into class variables for later access ------ #
         self.plan: Plan = plan
+        # Just keep the configuration we are using. The rest just confuses downstream.
+        self.plan.configurations = {configuration_name: plan.configurations[configuration_name]}
         self.config_plan: ConfigurationPlan = plan.configurations[configuration_name]
         self.configuration_name = configuration_name
         self.pretrain_json = pretrain_json
@@ -183,6 +188,7 @@ class AbstractBaseTrainer(ABC):
 
         ### placeholders
         self.dataloader_train = self.dataloader_val = None  # see on_train_start
+        self.adaptation_plan: AdaptationPlan = None  # see initialize
 
         ### initializing stuff for remembering things and such
         self._best_ema = None
@@ -191,13 +197,9 @@ class AbstractBaseTrainer(ABC):
         self.save_every = 50
         self.disable_checkpointing = False
 
-        ## DDP batch size and oversampling can differ between workers and needs adaptation
-        # we need to change the batch size in DDP because we don't use any of those distributed samplers
-        # Todo: Should likely be moved to initialize() call, since it's not needed during init at all.
-        #   This also allows overriding previous batch_size settings easily.
-
         self.was_initialized = False
 
+        self.recommended_downstream_patchsize = (160, 160, 160)
         self.exit_training_flag = False  # This is a signal flag that can be raised to exit gracefully
 
         signal.signal(signal.SIGUSR1, self.exit_training)
@@ -252,19 +254,20 @@ class AbstractBaseTrainer(ABC):
 
             self.batch_size = batch_sizes[my_rank]
 
-    @abstractmethod
-    def create_adaptation_plans(self):
-        """
-        Define how to adapt the pre-trained model downstream.
-        Pre-training may contain additional blocks we don't need downstream when fine-tuning.
-        To not constrain upstream, each upstream defines which downstream architecture is intended for adaptation.
-        Moreover, it HAS to provide the module path e.g. "encoder.stage.0.whatever".
-        In the end the parameters at this location will be loaded into the encoder.
-        IMPORTANT: This is verified before pre-training starts, so you have to make sure this works.
-
-        There are several examples on how this happens for ResEncL and the PrimusM architectures throughout the codebase.
-        """
-        pass
+    @staticmethod
+    def _convert_numpy(obj: dict) -> dict:
+        if isinstance(obj, dict):
+            return {k: AbstractBaseTrainer._convert_numpy(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [AbstractBaseTrainer._convert_numpy(v) for v in obj]
+        elif isinstance(obj, tuple):
+            return tuple(AbstractBaseTrainer._convert_numpy(v) for v in obj)
+        elif isinstance(obj, np.generic):  # NumPy scalar (e.g., np.float32, np.int64, etc.)
+            return obj.item()  # Convert to native Python type
+        elif isinstance(obj, np.ndarray):
+            return torch.from_numpy(obj)
+        else:
+            return obj
 
     @staticmethod
     def _test_load_weight(
@@ -274,6 +277,7 @@ class AbstractBaseTrainer(ABC):
         Tests if we can load the weights of the downstream arch given the pre-training statedict and the adaptation plan.
         Downstream one will have to fetch the specific pre-trained checkpoint.
         """
+        # We simulate a user knowing where the to be loaded weight are located!
         key_to_encoder = downstream_arch.key_to_encoder
         key_to_stem = downstream_arch.key_to_stem
 
@@ -286,13 +290,13 @@ class AbstractBaseTrainer(ABC):
         encoder_weights = {}
         stem_weights = {}
         for k, v in pre_train_statedict.items():
-            if k.startswith(adapt_plan.state_dict_key_to_encoder):
-                new_k = k.replace(adapt_plan.state_dict_key_to_encoder, "")
+            if k.startswith(adapt_plan.key_to_encoder):
+                new_k = k.replace(adapt_plan.key_to_encoder, "")
                 if new_k.startswith("."):
                     new_k = new_k[1:]
                 encoder_weights[new_k] = v
-            elif k.startswith(adapt_plan.state_dict_key_to_stem):
-                new_k = k.replace(adapt_plan.state_dict_key_to_stem, "")
+            elif k.startswith(adapt_plan.key_to_stem):
+                new_k = k.replace(adapt_plan.key_to_stem, "")
                 if new_k.startswith("."):
                     new_k = new_k[1:]
                 stem_weights[new_k] = v
@@ -310,28 +314,51 @@ class AbstractBaseTrainer(ABC):
         # Pre-training architecture checkpoint
         #   Has the `key_to_encoder` and `key_to_stem` attributes
         pre_train_statedict = self.network.state_dict()
-        adapt_plan = AdaptationPlan(**load_json(self.adaptation_json_plan))
+        adapt_plan = AdaptationPlan.from_dict(load_json(self.adaptation_json_plan))
         # Downstream Architecture derived from Pre-taining adaptation plan
-        config_plan_copy = deepcopy(self.config_plan)
+        pretrain_config_plan_copy = deepcopy(adapt_plan.pretrain_plan.configurations[self.configuration_name])
         # Override the patch size to match the input patch size the model received during pre-training
-        config_plan_copy.patch_size = adapt_plan.input_patch_size
-        downstream_arch = get_network_by_name(
-            config_plan_copy,
-            adapt_plan.architecture_name,
-            # This assures we can load the same weights -- May not be transferrable downstream because diff. in channels)
-            adapt_plan.num_input_channels,
-            2,  # Number of output channels -- Does not matter (like e.g. decoder)
-            encoder_only=False,
-            deep_supervision=False,
-            arch_kwargs=None,
-        )
+        if adapt_plan.architecture_plans.arch_class_name in get_args(DYN_ARCHITECTURE_PRESETS):
+            downstream_arch = get_network_from_plans(
+                adapt_plan.architecture_plans.arch_class_name,
+                arch_kwargs=asdict(adapt_plan.architecture_plans.arch_kwargs),
+                arch_kwargs_req_import=adapt_plan.architecture_plans.arch_kwargs_requiring_import,
+                input_channels=adapt_plan.pretrain_num_input_channels,
+                output_channels=2,  # Some arbitrary choice
+                deep_supervision=False,
+                allow_init=False,  # Will be loaded from pre-trained weights, so does not matter!
+            )
+            # -------------------- Add info where we find the encoder -------------------- #
+            downstream_arch.key_to_encoder = "encoder.stages"
+            downstream_arch.key_to_stem = "encoder.stem"
+        else:
+            downstream_arch = get_network_by_name(
+                pretrain_config_plan_copy,
+                adapt_plan.architecture_plans.arch_class_name,
+                # This assures we can load the same weights -- May not be transferrable downstream because diff. in channels)
+                adapt_plan.pretrain_num_input_channels,
+                2,  # Number of output channels -- Does not matter (like e.g. decoder)
+                encoder_only=False,
+                deep_supervision=False,
+                arch_kwargs=None,
+            )
         # ------------------------- Simulate explicit loading ------------------------ #
         self._test_load_weight(downstream_arch, pre_train_statedict, adapt_plan)
 
     @abstractmethod
-    def build_architecture(
+    def build_architecture_and_adaptation_plan(
         self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int, *args, **kwargs
-    ) -> torch.nn.Module:
+    ) -> tuple[torch.nn.Module, AdaptationPlan]:
+        """
+        Define the architecture and provide details on how to adapt the pre-trained model to downstream applications.
+        Pre-training may contain additional blocks we don't need downstream when fine-tuning.
+        To not constrain upstream, each upstream defines which downstream architecture is intended for adaptation.
+        Moreover, it HAS to provide the module path e.g. "encoder.stage.0.whatever".
+        In the end the parameters at this location will be loaded into the encoder.
+        IMPORTANT: This is verified before pre-training starts, so you have to make sure this works.
+
+        There are several examples on how this happens for ResEncL and the PrimusM architectures throughout the codebase.
+        """
         pass
 
     @abstractmethod
@@ -349,10 +376,13 @@ class AbstractBaseTrainer(ABC):
     def initialize(self):
         if not self.was_initialized:
             self._set_batch_size()
-            self.network = self.build_architecture(
+            self.network: nn.Module
+            self.adaptation_plan: AdaptationPlan
+            self.network, self.adaptation_plan = self.build_architecture_and_adaptation_plan(
                 self.config_plan, self.num_input_channels, self.num_output_channels
-            ).to(self.device)
-            self.create_adaptation_plans()
+            )
+            save_json(self.adaptation_plan.serialize(), self.adaptation_json_plan)
+            self.network.to(self.device)
             self.verify_adaptation_plans()
             # compile network for free speedup
             if self._do_i_compile():
@@ -446,7 +476,7 @@ class AbstractBaseTrainer(ABC):
 
     def print_plans(self):
         if self.local_rank == 0:
-            dct = deepcopy(asdict(self.plan))
+            dct = deepcopy(self.plan.serialize())
             del dct["configurations"]
             self.print_to_log_file(
                 f"\nThis is the configuration used by this "
@@ -707,7 +737,7 @@ class AbstractBaseTrainer(ABC):
         # Guarantee to only use data that is readable and not inf or nan
 
         # copy plans and dataset.json so that they can be used for restoring everything we need for inference
-        save_json(asdict(self.plan), join(self.output_folder_base, "plans.json"), sort_keys=False)
+        save_json(self.plan.serialize(), join(self.output_folder_base, "plans.json"), sort_keys=False)
 
         # self._save_debug_information()
 
@@ -822,7 +852,9 @@ class AbstractBaseTrainer(ABC):
                     "current_epoch": self.current_epoch + 1,
                     "init_args": self.my_init_kwargs,
                     "trainer_name": self.__class__.__name__,
+                    "nnssl_adaptation_plan": self.adaptation_plan.serialize(),
                 }
+                checkpoint = self._convert_numpy(checkpoint)
                 torch.save(checkpoint, filename)
             else:
                 self.print_to_log_file("No checkpoint written, checkpointing is disabled")

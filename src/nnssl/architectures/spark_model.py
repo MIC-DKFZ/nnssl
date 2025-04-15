@@ -24,7 +24,6 @@ class SparK3D(nn.Module):
     def __init__(
         self,
         architecture: ResidualEncoderUNet,
-        input_size: tuple[int, int, int],
         use_mask_token: bool = True,
     ):
         super().__init__()
@@ -48,10 +47,6 @@ class SparK3D(nn.Module):
 
             downsample_raito = absolute_reduction_factor
             self.downsample_raito = downsample_raito
-            all_fmaps = []
-            for i in [0, 1, 2]:
-                all_fmaps.append([input_size[i] // down_rt[i] for down_rt in downsample_raito])
-            self.fmap_h, self.fmap_w, self.fmap_d = all_fmaps
 
             self.hierarchy = len(features_per_stage)
 
@@ -140,7 +135,6 @@ class EfficientSpark3D(nn.Module):
     def __init__(
         self,
         architecture: ResidualEncoderUNet,
-        input_size: tuple[int, int, int],
         **kwargs,
     ):
         super().__init__()
@@ -163,10 +157,6 @@ class EfficientSpark3D(nn.Module):
 
         downsample_raito = absolute_reduction_factor
         self.downsample_raito = downsample_raito
-        all_fmaps = []
-        for i in [0, 1, 2]:
-            all_fmaps.append([input_size[i] // down_rt[i] for down_rt in downsample_raito])
-        self.fmap_h, self.fmap_w, self.fmap_d = all_fmaps
 
         self.hierarchy = len(features_per_stage)
 

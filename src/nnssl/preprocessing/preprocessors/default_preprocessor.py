@@ -25,7 +25,7 @@ from batchgenerators.utilities.file_and_folder_operations import *
 
 
 from nnssl.data.raw_dataset import Collection, IndependentImage
-from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
+from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan, PREPROCESS_SPACING_STYLES
 from nnssl.paths import nnssl_preprocessed, nnssl_raw
 from nnssl.preprocessing.cropping.cropping import crop_to_nonzero
 
@@ -35,9 +35,6 @@ from nnssl.preprocessing.resampling.default_resampling import compute_new_shape,
 from nnssl.data.dataloading.dataset import nnSSLDatasetBlosc2
 from nnssl.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
 from nnssl.data.utils import get_train_collection
-
-
-PREPROCESS_SPACING_STYLES = Literal["onemmiso", "median", "noresample"]
 
 
 def preprocess_case(

@@ -2,7 +2,7 @@ from typing import override
 import torch
 from torch import nn
 
-from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan
+from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan, ArchitecturePlans
 from nnssl.architectures.get_network_by_name import get_network_by_name
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.ssl_data.dataloading.model_genesis_transform import ModelGenesisTransform
@@ -44,18 +44,7 @@ class ModelGenesisTrainer(AbstractBaseTrainer):
         return torch.nn.MSELoss()
 
     @override
-    def create_adaptation_plans(self):
-        adapt_plan = AdaptationPlan(
-            architecture_name="ResEncL",
-            num_input_channels=1,
-            input_patch_size=self.config_plan.patch_size,
-            state_dict_key_to_encoder="encoder.stages",
-            state_dict_key_to_stem="encoder.stem",
-        )
-        save_json(adapt_plan.serialize(), self.adaptation_json_plan)
-        return adapt_plan
-
-    def build_architecture(
+    def build_architecture_and_adaptation_plan(
         self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
     ) -> nn.Module:
         network = get_network_by_name(
@@ -64,7 +53,16 @@ class ModelGenesisTrainer(AbstractBaseTrainer):
             num_input_channels,
             num_output_channels,
         )
-        return network
+        adapt_plan = AdaptationPlan(
+            architecture_plans=ArchitecturePlans("ResEncL"),
+            pretrain_plan=self.plan,
+            recommended_downstream_patchsize=self.recommended_downstream_patchsize,
+            pretrain_num_input_channels=1,
+            key_to_encoder="encoder.stages",
+            key_to_stem="encoder.stem",
+            keys_to_in_proj=("encoder.stem.convs.0.conv", "encoder.stem.convs.0.all_modules.0"),
+        )
+        return network, adapt_plan
 
     def get_dataloaders(self):
         """
