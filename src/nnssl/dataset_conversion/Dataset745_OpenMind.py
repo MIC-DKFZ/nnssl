@@ -11,9 +11,8 @@ from nnssl.paths import nnssl_raw
 
 sep = os.path.sep
 
-def _add_pretrain_json():
-    # path to OpenMind metadata file
-    data_csv_path = Path("/dkfz/cluster/gpu/data/OE0441/c306h/OpenMind/openneuro_metadata.csv")
+def _add_pretrain_json(csv_path: str):
+    data_csv_path = Path(csv_path)
 
     data_csv = pd.read_csv(data_csv_path)
     data = data_csv.to_dict(orient="records")
@@ -138,13 +137,7 @@ def remove_images_by_suffix_list(data, target_suffixes):
 
 
 if __name__ == "__main__":
-    # _add_pretrain_json()
-    corrupted_files = ['ds003097/sub-0827/dwi/sub-0827_run-3_dwi__Data/FA.nii.gz','ds004146/sub-0271/ses-02/anat/sub-0271_ses-02_UNIT1_denoised.nii.gz', 'ds004795/sub-171967/anat/sub-171967_acq-rot0to15nnods10_T1w.nii.gz']
+    # path to OpenMind metadata file
+    csv_path = "" # adapt
+    _add_pretrain_json()
 
-    with open("/home/c306h/cluster-data/nnssl/nnssl_raw/Dataset746_OpenMind/pretrain_data.json", "r") as f:
-        data = json.load(f)
-
-    updated_data = remove_images_by_suffix_list(data, corrupted_files)
-    # Save the updated JSON if needed
-    with open("/home/c306h/cluster-data/nnssl/nnssl_raw/Dataset746_OpenMind/pretrain_data.json", "w") as f:
-        json.dump(updated_data, f, indent=4)

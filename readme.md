@@ -1,6 +1,8 @@
 ![OpenMind](assets/images/OpenMindDataset.png)
 
 ## An OpenMind for 3D medical vision self-supervised learning
+<sub>Copyright German Cancer Research Center (DKFZ) and contributors. Please make sure that your usage of this code is in compliance with its license.<sub>
+
 This is the main repository associated for the paper `An OpenMind for 3D medical vision self-supervised learning`, intended for the Review.
 It holds the code for the self-supervised pre-trainings conducted in the Benchmark study.
 
@@ -143,4 +145,3 @@ This can be done via the associated [adaptation frameworks](#complimentary-resou
 
 ## Extending and Contributing
 Due to the lack of established frameworks in the domain of 3D SSL, we are open to code contributions and extensions of the current framework.
-If you are interested in contributing, please refer to the `WIP_Contributing.md` file.

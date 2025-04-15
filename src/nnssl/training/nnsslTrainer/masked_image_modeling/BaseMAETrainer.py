@@ -759,6 +759,24 @@ class BaseMAETrainer_Test(BaseMAETrainer):
         self.total_batch_size = 2
         self.num_epochs = 3
 
+class BaseMAETrainer_Test_defaultpatch(BaseMAETrainer):
+    def __init__(
+            self,
+            plan: Plan,
+            configuration_name: str,
+            fold: int,
+            pretrain_json: dict,
+            device: torch.device = torch.device("cuda"),
+    ):
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.config_plan.patch_size = (160, 160, 160)
+        assert self.plan.configurations[configuration_name].patch_size == (
+            160,
+            160,
+            160,
+        ), "Patch size not preserved to downsteam"
+        self.total_batch_size = 2
+        self.num_epochs = 3
 
 class BaseMAETrainer_ANAT_ANON_test(BaseMAETrainer_ANAT_ANON):
     def __init__(
