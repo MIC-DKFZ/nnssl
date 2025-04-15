@@ -1,6 +1,6 @@
 from typing import Union
 import torch
-from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan
+from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan, ArchitecturePlans
 from nnssl.architectures.get_network_by_name import get_network_by_name
 from nnssl.architectures.spark_model import SparK3D
 from nnssl.architectures.spark_utils import convert_to_spark_cnn
@@ -44,20 +44,7 @@ class SparkMAETrainer(BaseMAETrainer):
 
         return SparkLoss()
 
-    def create_adaptation_plans(self):
-        from batchgenerators.utilities.file_and_folder_operations import save_json
-
-        adapt_plan = AdaptationPlan(
-            architecture_name="ResEncL",
-            num_input_channels=1,
-            num_output_channels=1,
-            input_patch_size=self.config_plan.patch_size,
-            state_dict_key_to_encoder="encoder.stages",
-            state_dict_key_to_stem="encoder.stem",
-        )
-        save_json(adapt_plan.serialize(), self.adaptation_json_plan)
-
-    def build_architecture(
+    def build_architecture_and_adaptation_plan(
         self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
     ) -> nn.Module:
         network = get_network_by_name(
@@ -70,9 +57,18 @@ class SparkMAETrainer(BaseMAETrainer):
 
         spark_architecture = convert_to_spark_cnn(network.encoder)
         network.encoder = spark_architecture
-        actual_network = SparK3D(network, (160, 160, 160), self.use_mask_token)
+        actual_network = SparK3D(network, self.use_mask_token)
 
-        return actual_network
+        adapt_plan = AdaptationPlan(
+            architecture_plans=ArchitecturePlans("ResEncL"),
+            pretrain_plan=self.plan,
+            pretrain_num_input_channels=1,
+            recommended_downstream_patchsize=self.recommended_downstream_patchsize,
+            key_to_encoder="encoder.stages",
+            key_to_stem="encoder.stem",
+            keys_to_in_proj=("encoder.stem.convs.0.conv", "encoder.stem.convs.0.all_modules.0"),
+        )
+        return actual_network, adapt_plan
 
     def train_step(self, batch: dict) -> dict:
         data = batch["data"]
@@ -132,6 +128,7 @@ class SparkMAETrainer(BaseMAETrainer):
                     "init_args": self.my_init_kwargs,
                     "trainer_name": self.__class__.__name__,
                 }
+                checkpoint = self._convert_numpy(checkpoint)
                 torch.save(checkpoint, filename)
             else:
                 self.print_to_log_file("No checkpoint written, checkpointing is disabled")
@@ -194,46 +191,6 @@ class SparkMAETrainer(BaseMAETrainer):
                 # del data
                 l = self.loss(prediction=output, groundtruth=target, mask=mask)
             return {"loss": l.detach().cpu().numpy()}
-
-    def log_qualitative_reconstruction_step(
-        self,
-    ):
-        """For each sample in the validation dataloader,"""
-        with torch.no_grad():
-            for batch_id in range(len(self.recon_dataloader)):
-                data = self.recon_dataloader[batch_id]["data"]
-                data = data.to(self.device, non_blocking=True)
-
-                mask = self.mask_creation(
-                    1,
-                    self.config_plan.patch_size,
-                    self.mask_percentage,
-                    rng_seed=123 + batch_id,
-                ).to(self.device, non_blocking=True)
-                spark_utils._cur_active = mask
-
-                # Make the mask the same size as the data
-                rep_D, rep_H, rep_W = (
-                    data.shape[2] // mask.shape[2],
-                    data.shape[3] // mask.shape[3],
-                    data.shape[4] // mask.shape[4],
-                )
-                full_mask = (
-                    mask.repeat_interleave(rep_D, dim=2)
-                    .repeat_interleave(rep_H, dim=3)
-                    .repeat_interleave(rep_W, dim=4)
-                )
-
-                with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
-                    reconstruction = self.network(data)  # Doesn't need to be masked as it happens inside.
-
-                    l = [
-                        self.loss(reconstruction[i : i + 1], data[i : i + 1], mask[i : i + 1])
-                        for i in range(reconstruction.shape[0])
-                    ]
-                    self.log_img_slices(data, reconstruction, full_mask, l, batch_id)
-
-        return
 
 
 class SparkMAETrainer5ep(SparkMAETrainer):

@@ -4,11 +4,13 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from deprecated import deprecated
 from typing_extensions import override
+from dataclasses import asdict
 
 
 import torch
-from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan
+from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan, ArchitecturePlans, DynamicArchitecturePlans
 from nnssl.architectures.get_network_by_name import get_network_by_name
+from nnssl.architectures.get_network_from_plan import get_network_from_plans
 from nnssl.data.nnsslFilter.iqs_filter import OpenMindIQSFilter
 from nnssl.data.nnsslFilter.modality_filter import ModalityFilter
 from nnssl.data.raw_dataset import Collection
@@ -117,28 +119,30 @@ class BaseMAETrainer(AbstractBaseTrainer):
         """
         return MAEMSELoss()
 
-    def build_architecture(
+    @override
+    def build_architecture_and_adaptation_plan(
         self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
     ) -> nn.Module:
+        # ---------------------------- Create architecture --------------------------- #
         architecture = get_network_by_name(
             config_plan,
             "ResEncL",
             num_input_channels,
             num_output_channels,
         )
-        return architecture
-
-    @override
-    def create_adaptation_plans(self):
+        # --------------------- Build associated adaptation plan --------------------- #
+        arch_plans = ArchitecturePlans(arch_class_name="ResEncL")
         adapt_plan = AdaptationPlan(
-            architecture_name="ResEncL",
-            num_input_channels=1,
-            input_patch_size=self.config_plan.patch_size,
-            state_dict_key_to_encoder="encoder.stages",
-            state_dict_key_to_stem="encoder.stem",
+            architecture_plans=arch_plans,
+            pretrain_plan=self.plan,
+            pretrain_num_input_channels=num_input_channels,
+            recommended_downstream_patchsize=self.recommended_downstream_patchsize,
+            key_to_encoder="encoder.stages",
+            key_to_stem="encoder.stem",
+            keys_to_in_proj=("encoder.stem.convs.0.conv", "encoder.stem.convs.0.all_modules.0"),
         )
         save_json(adapt_plan.serialize(), self.adaptation_json_plan)
-        return adapt_plan
+        return architecture, adapt_plan
 
     def get_dataloaders(self):
         """
@@ -267,24 +271,6 @@ class BaseMAETrainer(AbstractBaseTrainer):
         return {"loss": l.detach().cpu().numpy()}
 
     @deprecated
-    def log_image_and_reco(self, img, reco, mask, loss, index) -> None:
-        if self.local_rank == 0:
-            filename = f"epoch_{self.current_epoch}_{index}.png"
-            ax: list[plt.Axes]
-            _, ax = plt.subplots(nrows=1, ncols=4, figsize=(12, 4))
-            img_uint8 = (img * 255.0).astype(np.uint8)
-            mask_unint8 = (mask * 255.0).astype(np.uint8)
-            reco_uint8 = (reco * 255.0).astype(np.uint8)
-            ax[0].imshow(img_uint8, cmap="gray")
-            ax[1].imshow(mask_unint8, cmap="gray")
-            ax[2].imshow(reco_uint8, cmap="gray")
-            ax[3].imshow((np.abs(img - reco) * 255.0).astype(np.uint8), cmap="gray")
-
-            plt.title(f"Loss: {float(loss):.05f}")
-            plt.savefig(os.path.join(self.im_output_folder, filename))
-            plt.close()
-
-    @deprecated
     @staticmethod
     def rescale_images(
         img_arr: torch.Tensor, recon_arr: torch.Tensor, full_img_min: float, full_img_max: float
@@ -305,72 +291,6 @@ class BaseMAETrainer(AbstractBaseTrainer):
         sitk_img.SetOrigin(meta_info["sitk_stuff"]["origin"])
         sitk_img.SetDirection(meta_info["sitk_stuff"]["direction"])
         sitk.WriteImage(sitk_img, os.path.join(self.im_output_folder, filename))
-
-    @deprecated
-    def log_img_slices(self, imgs, recos, masks, losses, batch_id: int):
-        offset = batch_id
-        for i in range(recos.shape[0]):
-            img = torch.squeeze(imgs[i])
-            rec = torch.squeeze(recos[i])
-            msk = torch.squeeze(masks[i])
-            loss = torch.squeeze(losses[i])
-            slice_of_choice = int(msk.shape[0] // 2)
-            img, rec = self.rescale_images(
-                img[slice_of_choice], rec[slice_of_choice], float(img.min()), float(img.max())
-            )
-            img = img.detach().cpu().numpy()
-            rec = rec.detach().cpu().numpy()
-
-            msk = msk[slice_of_choice].detach().cpu().numpy()
-            self.log_image_and_reco(img, rec, msk, loss, offset + i)
-
-    def log_qualitative_reconstruction_step(
-        self,
-    ):
-        """For each sample in the validation dataloader,"""
-        with torch.no_grad():
-            for batch_id in range(len(self.recon_dataloader)):
-                if batch_id > 50:
-                    break
-                image = self.recon_dataloader[batch_id]
-                data = image["data"]
-                meta_info = image["properties"]
-                data = data.to(self.device, non_blocking=True)
-
-                mask = self.mask_creation(
-                    1, self.config_plan.patch_size, self.mask_percentage, rng_seed=123 + batch_id
-                ).to(self.device, non_blocking=True)
-                # Make the mask the same size as the data
-                rep_D, rep_H, rep_W = (
-                    data.shape[2] // mask.shape[2],
-                    data.shape[3] // mask.shape[3],
-                    data.shape[4] // mask.shape[4],
-                )
-                mask = (
-                    mask.repeat_interleave(rep_D, dim=2)
-                    .repeat_interleave(rep_H, dim=3)
-                    .repeat_interleave(rep_W, dim=4)
-                )
-                masked_data = data * mask
-
-                with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
-                    reconstruction = self.network(masked_data)
-
-                    l = [
-                        self.loss(reconstruction[i : i + 1], data[i : i + 1], mask[i : i + 1])
-                        for i in range(reconstruction.shape[0])
-                    ]
-                    uint8_mask = mask.detach().cpu().numpy().astype(np.uint8)
-                    self.log_img_volume(data, meta_info[0], f"ep_{self.current_epoch}_{batch_id}_data.nii.gz")
-                    self.log_img_volume(
-                        reconstruction, meta_info[0], f"ep_{self.current_epoch}_{batch_id}_recon.nii.gz"
-                    )
-                    self.log_img_volume(
-                        uint8_mask, meta_info[0], f"ep_{self.current_epoch}_{batch_id}_mask.nii.gz", dtype=np.uint8
-                    )
-                    self.log_img_volume(data - mask, meta_info[0], f"ep_{self.current_epoch}_{batch_id}_diff.nii.gz")
-
-        return
 
     def get_qual_recon_dataloader(self):
         # we use the patch size to determine whether we need 2D or 3D dataloaders. We also use it to determine whether
@@ -401,9 +321,6 @@ class BaseMAETrainer(AbstractBaseTrainer):
     def run_training(self):
         try:
             self.on_train_start()
-            if self.local_rank == 0:
-                pass
-                # self.log_qualitative_reconstruction_step()  # Do a quick test everything works.
             for epoch in range(self.current_epoch, self.num_epochs):
                 self.on_epoch_start()
 
@@ -424,14 +341,6 @@ class BaseMAETrainer(AbstractBaseTrainer):
                         val_batch = next(self.dataloader_val)
                         val_outputs.append(self.validation_step(val_batch))
                     self.on_validation_epoch_end(val_outputs)
-
-                    # ------------------------ Maybe Log qualitative recon ----------------------- #
-                    # if (self.current_epoch + 1) % self.save_imgs_every_n_epochs == 0:
-                    #     if self.local_rank == 0:
-                    #         self.log_qualitative_reconstruction_step()
-                    # self.save_checkpoint(
-                    #     join(self.output_folder, f"checkpoint_epoch_{self.current_epoch}.pth"), live_upload=True
-                    # )
 
                 self.on_epoch_end()
                 if self.exit_training_flag:
@@ -654,52 +563,6 @@ class BaseMAETrainer_ANAT_ANON(BaseMAETrainer_ANAT, BaseMAETrainer_ANON):
     pass
 
 
-############################# TESTING #############################
-
-
-class BaseMAETrainer_test(BaseMAETrainer):
-    def __init__(
-        self,
-        plan: Plan,
-        configuration_name: str,
-        fold: int,
-        pretrain_json: dict,
-        device: torch.device = torch.device("cuda"),
-    ):
-        plan.configurations[configuration_name].patch_size = (96, 96, 96)
-        super().__init__(plan, configuration_name, fold, pretrain_json, device)
-        self.total_batch_size = 2
-
-
-class BaseMAETrainer_ANAT_ANON_test(BaseMAETrainer_ANAT_ANON):
-    def __init__(
-        self,
-        plan: Plan,
-        configuration_name: str,
-        fold: int,
-        pretrain_json: dict,
-        device: torch.device = torch.device("cuda"),
-    ):
-        plan.configurations[configuration_name].patch_size = (128, 128, 128)
-        super().__init__(plan, configuration_name, fold, pretrain_json, device)
-        self.total_batch_size = 2
-
-
-class BaseMAETrainer_BS8_IQS_test(BaseMAETrainer):
-    def __init__(
-        self,
-        plan: Plan,
-        configuration_name: str,
-        fold: int,
-        pretrain_json: dict,
-        device: torch.device = torch.device("cuda"),
-    ):
-        plan.configurations[configuration_name].patch_size = (160, 160, 160)
-        super().__init__(plan, configuration_name, fold, pretrain_json, device)
-        self.iimg_filter = OpenMindIQSFilter(Collection.from_dict(self.pretrain_json), 2.5)
-        self.total_batch_size = 1
-
-
 ############################# BASELINE #############################
 
 
@@ -872,3 +735,109 @@ class BaseMAETrainer_BS8_1000ep(BaseMAETrainer):
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.total_batch_size = 8
         self.num_epochs = 1000
+
+
+############################# TESTING #############################
+
+
+class BaseMAETrainer_Test(BaseMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.config_plan.patch_size = (96, 96, 96)
+        assert self.plan.configurations[configuration_name].patch_size == (
+            96,
+            96,
+            96,
+        ), "Patch size not preserved to downsteam"
+        self.total_batch_size = 2
+        self.num_epochs = 3
+
+
+class BaseMAETrainer_ANAT_ANON_test(BaseMAETrainer_ANAT_ANON):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.plan.configurations[configuration_name].patch_size = (128, 128, 128)
+        self.total_batch_size = 2
+
+
+class BaseMAETrainer_BS8_IQS_test(BaseMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        plan.configurations[configuration_name].patch_size = (160, 160, 160)
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.iimg_filter = OpenMindIQSFilter(Collection.from_dict(self.pretrain_json), 2.5)
+        self.total_batch_size = 1
+
+
+class NonResEncL_BaseMAETrainer_Test(BaseMAETrainer_Test):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.architecture_kwargs: DynamicArchitecturePlans = DynamicArchitecturePlans(
+            **{
+                "n_stages": 6,
+                "features_per_stage": [32, 64, 128, 256, 512, 512],
+                "conv_op": "torch.nn.modules.conv.Conv3d",
+                "kernel_sizes": [[3, 3, 3], [3, 3, 3], [3, 3, 3], [3, 3, 3], [3, 3, 3], [3, 3, 3]],
+                "strides": [[1, 1, 1], [2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2]],
+                "n_blocks_per_stage": [1, 3, 4, 6, 6, 6],
+                "n_conv_per_stage_decoder": [1, 1, 1, 1, 1],
+                "conv_bias": True,
+                "norm_op": "torch.nn.modules.instancenorm.InstanceNorm3d",
+                "norm_op_kwargs": {"eps": 1e-05, "affine": True},
+                "dropout_op": None,
+                "dropout_op_kwargs": None,
+                "nonlin": "torch.nn.LeakyReLU",
+                "nonlin_kwargs": {"inplace": True},
+            }
+        )
+
+    @override
+    def build_architecture_and_adaptation_plan(
+        self, config_plan: ConfigurationPlan, num_input_channels, num_output_channels
+    ):
+        architecture = get_network_from_plans(
+            arch_class_name="ResidualEncoderUNet",
+            arch_kwargs=asdict(self.architecture_kwargs),
+            arch_kwargs_req_import=["conv_op", "norm_op", "nonlin"],
+            input_channels=num_input_channels,
+            output_channels=num_output_channels,
+            deep_supervision=False,
+        )
+        arch_plans = ArchitecturePlans(arch_class_name="ResidualEncoderUNet", arch_kwargs=self.architecture_kwargs)
+        adapt_plan = AdaptationPlan(
+            architecture_plans=arch_plans,
+            pretrain_plan=self.plan,
+            pretrain_num_input_channels=1,
+            recommended_downstream_patchsize=self.recommended_downstream_patchsize,
+            key_to_encoder="encoder.stages",
+            key_to_stem="encoder.stem",
+            keys_to_in_proj=("encoder.stem.convs.0.conv", "encoder.stem.convs.0.all_modules.0"),
+        )
+        return architecture, adapt_plan

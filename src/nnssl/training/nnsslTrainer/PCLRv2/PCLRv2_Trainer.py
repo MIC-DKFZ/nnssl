@@ -78,17 +78,14 @@ class PCRLv2Trainer(AbstractBaseTrainer):
     def build_loss(self):
         return PCRLv2Loss(self.num_mid_stages, self.num_locals)
 
-    def create_adaptation_plans(self):
-        raise NotImplementedError("Not yet implemented!")
-        return
-
     @override
-    def build_architecture(
+    def build_architecture_and_adaptation_plan(
         self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
     ) -> nn.Module:
         network = get_network_by_name(config_plan, "NoSkipResEncL", num_input_channels, num_output_channels)
         architecture = PCRLv2Architecture(network)
         self.num_mid_stages = len(architecture.features_per_mid_stage)
+        raise NotImplementedError("Missing adaptation plan")
         return architecture
 
     @override

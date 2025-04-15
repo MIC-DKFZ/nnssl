@@ -6,7 +6,7 @@ from typing import Union
 
 from torch import autocast
 
-from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan
+from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan, ArchitecturePlans
 from nnssl.architectures.evaSimMIM_module import EvaSimMIM
 from nnssl.utilities.helpers import dummy_context
 
@@ -104,17 +104,9 @@ class SimMIMEvaTrainer(BaseMAETrainer):
 
         super().on_train_epoch_start()
 
-    def create_adaptation_plans(self):
-        adapt_plan = AdaptationPlan(
-            architecture_name="PrimusM",
-            num_input_channels=1,
-            input_patch_size=self.config_plan.patch_size,
-            state_dict_key_to_encoder="eva",
-            state_dict_key_to_stem="down_projection",
-        )
-        save_json(adapt_plan.serialize(), self.adaptation_json_plan)
-
-    def build_architecture(self, config_plan, num_input_channels, num_output_channels) -> nn.Module:
+    def build_architecture_and_adaptation_plan(
+        self, config_plan, num_input_channels, num_output_channels
+    ) -> nn.Module:
         network = EvaSimMIM(
             input_channels=1,
             embed_dim=self.embed_dim,
@@ -128,7 +120,17 @@ class SimMIMEvaTrainer(BaseMAETrainer):
             init_values=self.init_value,
             scale_attn_inner=self.scale_attn_inner,
         )
-        return network
+        adapt_plan = AdaptationPlan(
+            architecture_plans=ArchitecturePlans("PrimusM"),
+            pretrain_plan=self.plan,
+            pretrain_num_input_channels=1,
+            recommended_downstream_patchsize=self.recommended_downstream_patchsize,
+            key_to_encoder="eva",
+            key_to_stem="down_projection",
+            key_to_in_proj=("down_projection.proj",),
+            key_to_lpe="eva.pos_embed",
+        )
+        return network, adapt_plan
 
     def train_step(self, batch: dict) -> dict:
         data = batch["data"]
@@ -252,8 +254,8 @@ class SimMIMEvaTrainer_BS8(SimMIMEvaTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.plan.configurations[configuration_name].patch_size = (160, 160, 160)
         self.total_batch_size = 8
 
 
@@ -266,10 +268,10 @@ class SimMIMEvaTrainer_test(SimMIMEvaTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].patch_size = (128, 128, 128)
         self.num_iterations_per_epoch = 10
         self.num_val_iterations_per_epoch = 10
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.plan.configurations[configuration_name].patch_size = (128, 128, 128)
         self.total_batch_size = 1
 
 
