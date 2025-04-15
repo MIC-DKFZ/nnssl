@@ -123,6 +123,7 @@ class VolumeFusionEvaTrainer(VolumeFusionTrainer):
             key_to_encoder="eva",
             key_to_stem="down_projection",
             key_to_in_proj=("down_projection.proj",),
+            key_to_lpe="eva.pos_embed",
         )
         return network, adapt_plan
 

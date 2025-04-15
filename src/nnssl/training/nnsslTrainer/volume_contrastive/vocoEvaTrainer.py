@@ -135,6 +135,7 @@ class VoCoEvaTrainer(VoCoTrainer):
             key_to_encoder="encoder.eva",
             key_to_stem="encoder.down_projection",
             key_to_in_proj=("encoder.down_projection.proj",),
+            key_to_lpe="encoder.eva.pos_embed",
         )
         architecture = VoCoEvaArchitecture(encoder, self.embed_dim)
         return architecture, adapt_plan
