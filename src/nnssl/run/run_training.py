@@ -5,7 +5,7 @@ import shutil
 import signal
 import socket
 from typing import Type, Union, Optional
-
+from typing import get_args
 from loguru import logger
 
 import nnssl
@@ -13,7 +13,7 @@ import torch.cuda
 import torch.distributed as dist
 import torch.multiprocessing as mp
 from batchgenerators.utilities.file_and_folder_operations import join, isfile, load_json
-from nnssl.experiment_planning.experiment_planners.plan import Plan
+from nnssl.experiment_planning.experiment_planners.plan import Plan, PREPROCESS_SPACING_STYLES
 from nnssl.paths import nnssl_preprocessed
 from nnssl.run.load_pretrained_weights import load_pretrained_weights
 from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
@@ -290,7 +290,7 @@ def run_training_entry():
     parser = argparse.ArgumentParser()
     
     parser.add_argument("dataset_name_or_id", type=str, help="Dataset name or ID to train with")
-    parser.add_argument("configuration", type=str, help="Configuration that should be trained")
+    parser.add_argument("configuration", type=str, help="Configuration that should be trained", choices=get_args(PREPROCESS_SPACING_STYLES))
     parser.add_argument(
         "-tr",
         type=str,

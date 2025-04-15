@@ -302,3 +302,16 @@ class BaseEvaMAETrainer_test(BaseEvaMAETrainer):
         self.config_plan.patch_size = (96, 96, 96)
         self.total_batch_size = 2
         self.num_epochs = 2
+class BaseEvaMAETrainer_Test_defaultpatch(BaseEvaMAETrainer):
+    def __init__(
+            self,
+            plan: Plan,
+            configuration_name: str,
+            fold: int,
+            pretrain_json: dict,
+            device: torch.device = torch.device("cuda"),
+    ):
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.config_plan.patch_size = (160, 160, 160)
+        self.total_batch_size = 2
+        self.num_epochs = 3

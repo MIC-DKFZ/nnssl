@@ -132,9 +132,9 @@ Given the preprocessed data we can now pre-train the models. This is done by sel
 The `trainer` determines pre-training method and architecture, the `dataset` the data to use and the `plan` the preprocessing of the data.  
 
 An exemplary pre-training call for a 4xGPU ResEnc-L MAE pre-training would be:
-`python ./nnssl/run/run_training.py -tr BaseMAETrainer_BS8 -p nnsslPlans -num_gpus 4`
+`python ./nnssl/run/run_training.py ID CONFIG -tr BaseMAETrainer_BS8 -p nnsslPlans -num_gpus 4`
 or 
-`nnssl_train -tr BaseMAETrainer_BS8 -p nnsslPlans -num_gpus 4`
+`nnssl_train ID CONFIG -tr BaseMAETrainer_BS8 -p nnsslPlans -num_gpus 4`
 
 Note: Due to the lack of e.g. linear-probing for segmentation, no metrics aside from the train and validation loss are tracked during pre-training.
 
