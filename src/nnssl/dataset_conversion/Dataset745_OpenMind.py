@@ -1,7 +1,7 @@
 import os
 from collections import defaultdict
 from pathlib import Path
-
+import json
 import pandas as pd
 from batchgenerators.utilities.file_and_folder_operations import save_json
 from tqdm import tqdm
@@ -120,11 +120,31 @@ def _add_pretrain_json():
 
 
     pretrain_json = collection.to_dict(relative_paths=True)
-    pretrain_json_path = Path(nnssl_raw, "Dataset747_OpenMind", "pretrain_data.json")
+    pretrain_json_path = Path(nnssl_raw, "Dataset746_OpenMind", "pretrain_data.json")
     pretrain_json_path.parent.mkdir(parents=True, exist_ok=True)
     save_json(pretrain_json, pretrain_json_path, indent=4, sort_keys=True)
     print(f"Successfully saved the OpenMind pretrain_data.json at {pretrain_json_path}")
 
 
+def remove_images_by_suffix_list(data, target_suffixes):
+    for dataset in data.get("datasets", {}).values():
+        for subject in dataset.get("subjects", {}).values():
+            for session in subject.get("sessions", {}).values():
+                session["images"] = [
+                    image for image in session.get("images", [])
+                    if all(not image["image_path"].endswith(suffix) for suffix in target_suffixes)
+                ]
+    return data
+
+
 if __name__ == "__main__":
-    _add_pretrain_json()
+    # _add_pretrain_json()
+    corrupted_files = ['ds003097/sub-0827/dwi/sub-0827_run-3_dwi__Data/FA.nii.gz','ds004146/sub-0271/ses-02/anat/sub-0271_ses-02_UNIT1_denoised.nii.gz', 'ds004795/sub-171967/anat/sub-171967_acq-rot0to15nnods10_T1w.nii.gz']
+
+    with open("/home/c306h/cluster-data/nnssl/nnssl_raw/Dataset746_OpenMind/pretrain_data.json", "r") as f:
+        data = json.load(f)
+
+    updated_data = remove_images_by_suffix_list(data, corrupted_files)
+    # Save the updated JSON if needed
+    with open("/home/c306h/cluster-data/nnssl/nnssl_raw/Dataset746_OpenMind/pretrain_data.json", "w") as f:
+        json.dump(updated_data, f, indent=4)
