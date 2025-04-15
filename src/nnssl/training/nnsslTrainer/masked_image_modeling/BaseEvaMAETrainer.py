@@ -174,6 +174,7 @@ class BaseEvaMAETrainer(BaseMAETrainer):
             key_to_encoder="eva",
             key_to_stem="down_projection",
             keys_to_in_proj=("down_projection.proj",),
+            key_to_lpe="eva.pos_embed",
         )
         save_json(adapt_plan.serialize(), self.adaptation_json_plan)
         return network, adapt_plan
@@ -283,8 +284,8 @@ class BaseEvaMAETrainer_BS8(BaseEvaMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.config_plan.patch_size = (160, 160, 160)
         self.total_batch_size = 8
 
 
@@ -297,6 +298,7 @@ class BaseEvaMAETrainer_test(BaseEvaMAETrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        plan.configurations[configuration_name].patch_size = (128, 128, 128)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.config_plan.patch_size = (96, 96, 96)
         self.total_batch_size = 2
+        self.num_epochs = 2

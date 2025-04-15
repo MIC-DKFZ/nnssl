@@ -129,6 +129,7 @@ class AdaptationPlan:
     key_to_encoder: str
     key_to_stem: str
     keys_to_in_proj: Sequence[str]
+    key_to_lpe: str | None = None
 
     def serialize(self):
         serialized_plan = asdict(self)
@@ -160,6 +161,7 @@ class AdaptationPlan:
             key_to_encoder=key_to_encoder,
             key_to_stem=key_to_stem,
             keys_to_in_proj=tuple(keys_to_in_proj),
+            key_to_lpe=data.get("key_to_lpe", None),
         )
 
 
