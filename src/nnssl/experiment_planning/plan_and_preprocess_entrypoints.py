@@ -1,7 +1,9 @@
+from time import sleep
 from nnssl.configuration import default_num_processes
 from nnssl.experiment_planning.plan_and_preprocess_api import extract_fingerprints, plan_experiments, preprocess
 from nnssl.preprocessing.preprocessors.default_preprocessor import PREPROCESS_SPACING_STYLES
 from typing import get_args
+from loguru import logger
 
 
 def extract_fingerprint_entry():
@@ -201,20 +203,6 @@ def plan_and_preprocess_entry():
         "It's an all in one solution now. Wuch. Such amazing.",
     )
     parser.add_argument(
-        "-part",
-        type=int,
-        default=0,
-        required=False,
-        help="[OPTIONAL] Defines which of the evenly sized chunks to process. Must be < `-total_parts`",
-    )
-    parser.add_argument(
-        "-total_parts",
-        type=int,
-        default=1,
-        required=False,
-        help="[OPTIONAL] This is used for parallelization. Allows to split preprocessing in non-overlapping evenly chunked parts.",
-    )
-    parser.add_argument(
         "-np",
         type=int,
         nargs="+",
@@ -241,6 +229,16 @@ def plan_and_preprocess_entry():
     )
     args = parser.parse_args()
 
+    logger.warning(
+        "You are currently using the joint `plan_and_preprocess` entrypoint. \n"
+        + "This entrypoint only supports processing the entire dataset jointly. This is not recommended for large datasets. \n"
+        + "Instead we recommend:\n"
+        + " 1) Calling `nnssl_extract_fingerprint` on your machine to extract the fingerprint. \n"
+        + " 2) Calling `nnssl_plan_experiment` on your machine to define the plans. \n"
+        + " 3) Calling `nnssl_preprocess` and splitting it across multiple parts to preprocess the dataset in parallel. (i.e. on a CPU cluster) \n"
+        + " Feel free to proceed as normal if your dataset is small enough, but if it's large you may wait weeks! "
+    )
+    sleep(5)
     dataset_id = args.d
     # fingerprint extraction
     print("Fingerprint extraction...")
@@ -253,7 +251,6 @@ def plan_and_preprocess_entry():
         args.pl,
     )
 
-
     np = args.np
     # preprocessing
     if not args.no_pp:
@@ -262,8 +259,8 @@ def plan_and_preprocess_entry():
             dataset_ids=dataset_id,
             plans_identifier=plans[0].plans_name,
             configurations=args.c,
-            part=args.part,
-            total_parts=args.total_parts,
+            part=0,
+            total_parts=1,
             num_processes=np,
             verbose=args.verbose,
         )

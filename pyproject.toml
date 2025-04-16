@@ -32,7 +32,7 @@ keywords = [
 dependencies = [
     "torch>=2.0.0",
     "acvl-utils>=0.2",
-    "dynamic-network-architectures @ git+https://github.com/MIC-DKFZ/dynamic-network-architectures@main",
+    "dynamic-network-architectures @ git+https://github.com/TaWald/dynamic-network-architectures@main",
     "tqdm",
     "dicom2nifti",
     "scipy",
