@@ -1,4 +1,5 @@
 from typing import Literal
+from dynamic_network_architectures.architectures.abtract_arch import AbstractDynamicNetworkArchitectures
 from dynamic_network_architectures.architectures.unet import ResidualEncoderUNet
 from dynamic_network_architectures.architectures.primus import PrimusS, PrimusB, PrimusM, PrimusL
 from torch import nn
@@ -19,7 +20,7 @@ def get_network_by_name(
     encoder_only: bool = False,
     deep_supervision: bool = False,
     arch_kwargs: dict | None = None,
-) -> nn.Module:
+) -> AbstractDynamicNetworkArchitectures:
     """
     we may have to change this in the future to accommodate other plans -> network mappings
 
@@ -28,12 +29,8 @@ def get_network_by_name(
     """
     if architecture_name == "ResEncL":
         model = get_res_enc_l(num_input_channels, num_output_channels, deep_supervision)
-        model.key_to_encoder = "encoder.stages"
-        model.key_to_stem = "encoder.stem"
     elif architecture_name == "NoSkipResEncL":
         model = get_noskip_res_enc_l(num_input_channels, num_output_channels)
-        model.key_to_encoder = "encoder.stages"
-        model.key_to_stem = "encoder.stem"
     elif architecture_name in ["PrimusS", "PrimusB", "PrimusM", "PrimusL"]:
         if architecture_name == "PrimusS":
             model = PrimusS(
@@ -65,9 +62,6 @@ def get_network_by_name(
             )
         else:
             raise ValueError(f"Architecture {architecture_name} is not supported.")
-        model.key_to_encoder = "eva"
-        model.key_to_stem = "down_projection"
-
     else:
         raise ValueError(f"Architecture {architecture_name} is not supported.")
 
@@ -76,8 +70,8 @@ def get_network_by_name(
             model: ResidualEncoderUNet
             try:
                 model = model.encoder
-                model.key_to_encoder = "stages"
-                model.key_to_stem = "stem"
+                model.key_to_encoder = model.key_to_encoder.replace("encoder.", "")
+                model.keys_to_in_proj = [k.replace("encoder.", "") for k in model.keys_to_in_proj]
             except AttributeError:
                 raise RuntimeError("Trying to get the 'encoder' of the network failed. Cannot return encoder only.")
         elif architecture_name in ["PrimusS", "PrimusB", "PrimusM", "PrimusL"]:
