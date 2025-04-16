@@ -10,7 +10,7 @@ from nnssl.architectures.get_network_from_plan import get_network_from_plans
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 
 
-ARCHITECTURE_PRESETS = Literal[
+ARCHITECTURE_PRESETS: Type[str] = Literal[
     "ResEncL",
     "NoSkipResEncL",
     "PrimusS",

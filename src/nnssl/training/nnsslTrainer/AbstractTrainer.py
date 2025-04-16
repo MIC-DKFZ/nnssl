@@ -36,6 +36,7 @@ from nnssl.ssl_data.configure_basic_dummyDA import configure_rotation_dummyDA_mi
 from nnssl.ssl_data.dataloading.data_loader_3d import nnsslDataLoader3D, nnsslAnatDataLoader3D
 from nnssl.ssl_data.dataloading.utils import get_subject_identifiers
 from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
+from dynamic_network_architectures.architectures.abtract_arch import AbstractDynamicNetworkArchitectures
 
 from nnssl.data.dataloading.dataset import nnSSLDatasetBlosc2
 from nnssl.training.logging.nnssl_logger import nnSSLLogger
@@ -271,7 +272,9 @@ class AbstractBaseTrainer(ABC):
 
     @staticmethod
     def _test_load_weight(
-        downstream_arch: nn.Module, pre_train_statedict: dict[str, torch.Tensor], adapt_plan: AdaptationPlan
+        downstream_arch: AbstractDynamicNetworkArchitectures,
+        pre_train_statedict: dict[str, torch.Tensor],
+        adapt_plan: AdaptationPlan,
     ):
         """
         Tests if we can load the weights of the downstream arch given the pre-training statedict and the adaptation plan.
@@ -328,9 +331,6 @@ class AbstractBaseTrainer(ABC):
                 deep_supervision=False,
                 allow_init=False,  # Will be loaded from pre-trained weights, so does not matter!
             )
-            # -------------------- Add info where we find the encoder -------------------- #
-            downstream_arch.key_to_encoder = "encoder.stages"
-            downstream_arch.key_to_stem = "encoder.stem"
         else:
             downstream_arch = get_network_by_name(
                 pretrain_config_plan_copy,
