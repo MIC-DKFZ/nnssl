@@ -17,6 +17,7 @@ ARCHITECTURE_PRESETS = Literal[
     "PrimusB",
     "PrimusM",
     "PrimusL",
+    "Primus",
     "ResidualEncoderUNet",
     "PlainConvUNet",
 ]
@@ -24,6 +25,7 @@ ARCHITECTURE_PRESETS = Literal[
 DYN_ARCHITECTURE_PRESETS = Literal[
     "ResidualEncoderUNet",
     "PlainConvUNet",
+    "Primus",  # Dynamic primus architecture
 ]
 
 
@@ -92,10 +94,29 @@ class DynamicArchitecturePlans:
         return kwargs_requiring_import
 
 
+# Omits Input channels and Output channels
+@dataclass
+class DynamicPrimusArchitecturePlans:
+    eva_depth: int
+    eva_numheads: int
+    embed_dim: int
+    input_shape: tuple[int, int, int]
+    patch_embed_size: tuple[int, int, int] = (8, 8, 8)
+    init_values: float = 0.1
+    scale_attn_inner: bool = True
+
+    def serialize(self):
+        serialized_arch_kwargs = asdict(self)
+        return serialized_arch_kwargs
+
+    def get_kwargs_requiring_import(self):
+        return []
+
+
 @dataclass
 class ArchitecturePlans:
     arch_class_name: ARCHITECTURE_PRESETS
-    arch_kwargs: DynamicArchitecturePlans | None = None
+    arch_kwargs: DynamicArchitecturePlans | DynamicPrimusArchitecturePlans | None = None
     arch_kwargs_requiring_import: list[str] | None = field(init=False, default=None)
 
     def __post_init__(self):
@@ -139,10 +160,13 @@ class AdaptationPlan:
 
     @staticmethod
     def from_dict(data: dict):
+        ArchPlan = DynamicArchitecturePlans
+        if data["architecture_plans"]["arch_class_name"] == "Primus":
+            ArchPlan = DynamicPrimusArchitecturePlans
         architecture_plans = ArchitecturePlans(
             arch_class_name=data["architecture_plans"]["arch_class_name"],
             arch_kwargs=(
-                DynamicArchitecturePlans(**data["architecture_plans"]["arch_kwargs"])
+                ArchPlan(**data["architecture_plans"]["arch_kwargs"])
                 if data["architecture_plans"]["arch_kwargs"]
                 else None
             ),

@@ -3,7 +3,11 @@ from torch import nn
 from torch._dynamo import OptimizedModule
 from typing import Tuple, Union, override
 
-from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan, ArchitecturePlans
+from nnssl.adaptation_planning.adaptation_plan import (
+    AdaptationPlan,
+    ArchitecturePlans,
+    DynamicPrimusArchitecturePlans,
+)
 from nnssl.architectures.evaMAE_module import EvaMAE
 from torch import autocast
 from nnssl.utilities.helpers import dummy_context
@@ -302,3 +306,59 @@ class BaseEvaMAETrainer_test(BaseEvaMAETrainer):
         self.config_plan.patch_size = (96, 96, 96)
         self.total_batch_size = 2
         self.num_epochs = 2
+
+
+class Dynamic_BaseEvaMAETrainer_test(BaseEvaMAETrainer):
+    def __init__(
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
+    ):
+        super().__init__(plan, configuration_name, fold, pretrain_json, device)
+        self.config_plan.patch_size = (96, 96, 96)
+        self.total_batch_size = 2
+        self.num_epochs = 2
+
+    @override
+    def build_architecture_and_adaptation_plan(
+        self, config_plan, num_input_channels, num_output_channels
+    ) -> nn.Module:
+        network = EvaMAE(
+            input_channels=1,
+            embed_dim=864,
+            patch_embed_size=(8, 8, 8),
+            output_channels=1,
+            input_shape=tuple(self.config_plan.patch_size),
+            encoder_eva_depth=18,
+            encoder_eva_numheads=12,
+            decoder_eva_depth=self.decoder_eva_depth,
+            decoder_eva_numheads=self.decoder_eva_numheads,
+            patch_drop_rate=self.mask_percentage,
+            drop_path_rate=self.drop_path_rate,
+            attn_drop_rate=self.attention_drop_rate,
+            init_values=self.init_value,
+            scale_attn_inner=self.scale_attn_inner,
+        )
+        dyn_primus_plan = DynamicPrimusArchitecturePlans(
+            eva_depth=18,
+            eva_numheads=12,
+            embed_dim=864,
+            patch_embed_size=(8, 8, 8),
+            input_shape=tuple(self.config_plan.patch_size),
+        )
+
+        adapt_plan = AdaptationPlan(
+            architecture_plans=ArchitecturePlans("Primus", arch_kwargs=dyn_primus_plan),
+            pretrain_plan=self.plan,
+            pretrain_num_input_channels=1,
+            recommended_downstream_patchsize=self.recommended_downstream_patchsize,
+            key_to_encoder="eva",
+            key_to_stem="down_projection",
+            keys_to_in_proj=("down_projection.proj",),
+            key_to_lpe="eva.pos_embed",
+        )
+        save_json(adapt_plan.serialize(), self.adaptation_json_plan)
+        return network, adapt_plan
