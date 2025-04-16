@@ -1,5 +1,5 @@
 from typing import Literal
-from dynamic_network_architectures.architectures.abtract_arch import AbstractDynamicNetworkArchitectures
+from dynamic_network_architectures.architectures.abstract_arch import AbstractDynamicNetworkArchitectures
 from dynamic_network_architectures.architectures.unet import ResidualEncoderUNet
 from dynamic_network_architectures.architectures.primus import PrimusS, PrimusB, PrimusM, PrimusL
 from torch import nn
