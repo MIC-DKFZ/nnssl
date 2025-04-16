@@ -4,7 +4,7 @@ from typing import Union
 
 from nnssl.utilities.find_class_by_name import recursive_find_python_class
 from batchgenerators.utilities.file_and_folder_operations import join
-from dynamic_network_architectures.architectures.abtract_arch import AbstractDynamicNetworkArchitectures
+from dynamic_network_architectures.architectures.abstract_arch import AbstractDynamicNetworkArchitectures
 
 
 def get_network_from_plans(
