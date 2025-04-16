@@ -36,7 +36,7 @@ from nnssl.ssl_data.configure_basic_dummyDA import configure_rotation_dummyDA_mi
 from nnssl.ssl_data.dataloading.data_loader_3d import nnsslDataLoader3D, nnsslAnatDataLoader3D
 from nnssl.ssl_data.dataloading.utils import get_subject_identifiers
 from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
-from dynamic_network_architectures.architectures.abtract_arch import AbstractDynamicNetworkArchitectures
+from dynamic_network_architectures.architectures.abstract_arch import AbstractDynamicNetworkArchitectures
 
 from nnssl.data.dataloading.dataset import nnSSLDatasetBlosc2
 from nnssl.training.logging.nnssl_logger import nnSSLLogger
