@@ -1,9 +1,9 @@
 # How to set environment variables
 
-nnU-Net requires some environment variables so that it always knows where the raw data, preprocessed data and trained 
+nnssl requires you to set some environment variables so that it always knows where raw data, preprocessed data and trained 
 models are. Depending on the operating system, these environment variables need to be set in different ways.
 
-Variables can either be set permanently (recommended!) or you can decide to set them every time you call nnU-Net. 
+Variables can either be set permanently (recommended!) or you can decide to set them every time you call nnssl. 
 
 # Linux & MacOS
 
@@ -11,9 +11,9 @@ Variables can either be set permanently (recommended!) or you can decide to set 
 Locate the `.bashrc` file in your home folder and add the following lines to the bottom:
 
 ```bash
-export nnUNet_raw="/media/fabian/nnUNet_raw"
-export nnUNet_preprocessed="/media/fabian/nnUNet_preprocessed"
-export nnUNet_results="/media/fabian/nnUNet_results"
+export nnssl_raw="/Your/Path/To/nnssl_raw"
+export nnssl_preprocessed="/Your/Path/To/nnssl_preprocessed"
+export nnssl_results="/Your/Path/To/nnssl_results"
 ```
 
 (Of course you need to adapt the paths to the actual folders you intend to use).
@@ -22,9 +22,9 @@ If you are using a different shell, such as zsh, you will need to find the corre
 ## Temporary
 Just execute the following lines whenever you run nnU-Net:
 ```bash
-export nnUNet_raw="/media/fabian/nnUNet_raw"
-export nnUNet_preprocessed="/media/fabian/nnUNet_preprocessed"
-export nnUNet_results="/media/fabian/nnUNet_results"
+export nnssl_raw="/Your/Path/To/nnssl_raw"
+export nnssl_preprocessed="/Your/Path/To/nnssl_preprocessed"
+export nnssl_results="/Your/Path/To/nnssl_results"
 ```
 (Of course you need to adapt the paths to the actual folders you intend to use).
 
@@ -33,11 +33,11 @@ terminal window and DO NOT transfer to other terminals!
 
 Alternatively you can also just prefix them to your nnU-Net commands:
 
-`nnUNet_results="/media/fabian/nnUNet_results" nnUNet_preprocessed="/media/fabian/nnUNet_preprocessed" nnUNetv2_train[...]`
+`nnssl_results="/Your/Path/To/nnssl_results" nnssl_preprocessed="/Your/Path/To/nnssl_preprocessed" nnUNetv2_train[...]`
 
 ## Verify that environment parameters are set
-You can always execute `echo ${nnUNet_raw}` etc to print the environment variables. This will return an empty string if 
-they were not set.
+You can always execute `echo ${nnssl_raw}` etc to print the environment variables. This will return an empty string if 
+they were not set correctly.
 
 # Windows
 Useful links:
@@ -49,20 +49,20 @@ See `Set Environment Variable in Windows via GUI` [here](https://phoenixnap.com/
 Or read about setx (command prompt).
 
 ## Temporary
-Just execute the following before you run nnU-Net:
+Just execute the following before you run nnssl:
 
 (PowerShell)
 ```PowerShell
-$Env:nnUNet_raw = "C:/Users/fabian/nnUNet_raw"
-$Env:nnUNet_preprocessed = "C:/Users/fabian/nnUNet_preprocessed"
-$Env:nnUNet_results = "C:/Users/fabian/nnUNet_results"
+$Env:nnssl_raw = "C:/Users/YourName/nnssl_raw"
+$Env:nnssl_preprocessed = "C:/Users/YourName/nnssl_preprocessed"
+$Env:nnssl_results = "C:/Users/YourName/nnssl_results"
 ```
 
 (Command Prompt)
 ```Command Prompt
-set nnUNet_raw=C:/Users/fabian/nnUNet_raw
-set nnUNet_preprocessed=C:/Users/fabian/nnUNet_preprocessed
-set nnUNet_results=C:/Users/fabian/fabian/nnUNet_results
+set nnssl_raw=C:/Users/YourName/nnssl_raw
+set nnssl_preprocessed=C:/Users/YourName/nnssl_preprocessed
+set nnssl_results=C:/Users/YourName/nnssl_results
 ```
 
 (Of course you need to adapt the paths to the actual folders you intend to use).

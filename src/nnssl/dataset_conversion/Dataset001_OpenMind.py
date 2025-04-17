@@ -1,7 +1,8 @@
+mport argparse
 import os
 from collections import defaultdict
 from pathlib import Path
-import json
+
 import pandas as pd
 from batchgenerators.utilities.file_and_folder_operations import save_json
 from tqdm import tqdm
@@ -11,18 +12,17 @@ from nnssl.paths import nnssl_raw
 
 sep = os.path.sep
 
-def _add_pretrain_json(csv_path: str):
-    data_csv_path = Path(csv_path)
+
+def _create_pretrain_json(openmind_root_dir: Path):
+    # path to OpenMind metadata file
+    openmind_dir = openmind_root_dir / "OpenMind"
+    data_csv_path = openmind_root_dir / "openneuro_metadata.csv"
 
     data_csv = pd.read_csv(data_csv_path)
     data = data_csv.to_dict(orient="records")
 
     # "openmind" environment variable holds the path to the OpenMind dataset download directory
-    openmind_dir = Path(os.environ.get("openmind"))
-    collection = Collection(
-        collection_name="Dataset745_OpenMind",
-        collection_index=746
-    )
+    collection = Collection(collection_name="Dataset001_OpenMind", collection_index=1)
 
     subject_info_keys = ["age", "sex", "handedness", "race", "weight", "bmi", "health_status"]
     image_info_keys = [
@@ -33,7 +33,7 @@ def _add_pretrain_json(csv_path: str):
         "phase_encoding_direction",
         "magnetic_field_strength",
         "repetition_time",
-        "echo_time"
+        "echo_time",
     ]
 
     # Iterate over every image and one by one extend the Collection
@@ -65,16 +65,14 @@ def _add_pretrain_json(csv_path: str):
         if relative_anat_mask_path:
             anatomy_mask_path = str(openmind_dir / relative_anat_mask_path)
 
-        associated_masks = AssociatedMasks(anonymization_mask=anonymization_mask_path,
-                                           anatomy_mask=anatomy_mask_path)
+        associated_masks = AssociatedMasks(anonymization_mask=anonymization_mask_path, anatomy_mask=anatomy_mask_path)
 
         if dataset_id not in collection.datasets:
             collection.datasets[dataset_id] = Dataset(dataset_index=dataset_id, name=None, dataset_info={})
 
         if subject_id not in collection.datasets[dataset_id].subjects:
             collection.datasets[dataset_id].subjects[subject_id] = Subject(
-                subject_id=subject_id,
-                subject_info=subject_info
+                subject_id=subject_id, subject_info=subject_info
             )
         if session_id not in collection.datasets[dataset_id].subjects[subject_id].sessions:
             collection.datasets[dataset_id].subjects[subject_id].sessions[session_id] = Session(
@@ -86,12 +84,16 @@ def _add_pretrain_json(csv_path: str):
                 image_path=image_path,
                 modality=modality,
                 image_info=image_info,
-                associated_masks=associated_masks
+                associated_masks=associated_masks,
             )
         )
 
     data_csv["dataset_id"] = data_csv["unique_id"].apply(lambda uid: uid[:8])
-    grouped_iqs_csv = data_csv.groupby(["dataset_id", "modality", "derived_from"], dropna=False).first()["image_quality_score"].reset_index()
+    grouped_iqs_csv = (
+        data_csv.groupby(["dataset_id", "modality", "derived_from"], dropna=False)
+        .first()["image_quality_score"]
+        .reset_index()
+    )
     dataset_id_tree = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: None)))
     for _, row in grouped_iqs_csv.iterrows():
         dataset_id = row["dataset_id"]
@@ -108,36 +110,28 @@ def _add_pretrain_json(csv_path: str):
         modality_tree = dataset_id_tree[dataset_id]
         for modality, derived_from_tree in modality_tree.items():
             for derived_from, iqs_value in derived_from_tree.items():
-                dicts.append(
-                    {
-                        "modality": modality,
-                        "derived_from": derived_from,
-                        "image_quality_score": iqs_value
-                    }
-                )
+                dicts.append({"modality": modality, "derived_from": derived_from, "image_quality_score": iqs_value})
         dataset.dataset_info["image_quality_score"] = dicts
 
-
     pretrain_json = collection.to_dict(relative_paths=True)
-    pretrain_json_path = Path(nnssl_raw, "Dataset746_OpenMind", "pretrain_data.json")
+    pretrain_json_path = Path(nnssl_raw, "Dataset745_OpenMind", "pretrain_data.json")
     pretrain_json_path.parent.mkdir(parents=True, exist_ok=True)
     save_json(pretrain_json, pretrain_json_path, indent=4, sort_keys=True)
     print(f"Successfully saved the OpenMind pretrain_data.json at {pretrain_json_path}")
 
 
-def remove_images_by_suffix_list(data, target_suffixes):
-    for dataset in data.get("datasets", {}).values():
-        for subject in dataset.get("subjects", {}).values():
-            for session in subject.get("sessions", {}).values():
-                session["images"] = [
-                    image for image in session.get("images", [])
-                    if all(not image["image_path"].endswith(suffix) for suffix in target_suffixes)
-                ]
-    return data
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--openmind_root_dir",
+        type=Path,
+        required=True,
+        help="Path to the root directory of the OpenMind dataset download directory. "
+             "If you downloaded the dataset from hugginface, you should point to the parent directory of the `openneuro_metadata.csv` file.",
+    )
+    args = parser.parse_args()
+    _create_pretrain_json(args.openmind_root_dir)
 
 
 if __name__ == "__main__":
-    # path to OpenMind metadata file
-    csv_path = "" # adapt
-    _add_pretrain_json()
-
+    main()
