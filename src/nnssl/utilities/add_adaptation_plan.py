@@ -1,6 +1,9 @@
 import argparse
+from copy import deepcopy
 
+from nnssl.experiment_planning.experiment_planners.plan import Plan, ConfigurationPlan
 import torch
+from dataclasses import dataclass, fields
 from batchgenerators.utilities.file_and_folder_operations import load_json, maybe_mkdir_p
 from torch.optim.optimizer import required
 from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
@@ -62,17 +65,34 @@ def add_pretrain_plan_entry():
         help="downstream patchsize recommendation. Default [160,160,160]",
         default=None,
     )
+    parser.add_argument(
+        "-spacing_style",
+        type=str,
+        help="Spacing style: [onemmiso, median, noresample], Default onemmiso",
+        default='onemmiso',
+    )
 
     args = parser.parse_args()
     if args.recommended_downstream_patchsize is None:
         recommended_downstream_patchsize = [160,160,160]
     else:
         recommended_downstream_patchsize = args.recommended_downstream_patchsize
+    plan_dict = load_json(args.pl)
+    plan_dict['configurations']['onemmiso'] = plan_dict['configurations'].pop('3d_fullres')
 
-    plan = load_json(args.pl)
+    copy_dict = deepcopy(plan_dict)
+    valid_keys_plan = {f.name for f in fields(Plan)}
+    plan_dict = {k: v for k, v in copy_dict.items() if k in valid_keys_plan}
+
+    # remove old keys from config and match configs
+    valid_keys = {f.name for f in fields(ConfigurationPlan)}
+    plan_dict['configurations'][args.spacing_style] = {k: v for k, v in copy_dict['configurations'][args.spacing_style].items() if k in valid_keys}
+    plan_dict['configurations'][args.spacing_style]['spacing_style'] = args.spacing_style
+    plan = Plan.from_dict(plan_dict)
+    #print(plan)
     adapt_plan = get_adaptation(args.arch, plan, recommended_downstream_patchsize)
 
-    ckpt = torch.load(args.i)
+    ckpt = torch.load(args.i, weights_only=False)
 
     ckpt["nnssl_adaptation_plan"] = adapt_plan.serialize()
     checkpoint = AbstractBaseTrainer._convert_numpy(ckpt)
