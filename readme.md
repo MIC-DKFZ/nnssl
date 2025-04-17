@@ -28,30 +28,42 @@ Currently it includes the **ResEnc-L** [[a]((https://arxiv.org/abs/2410.23132)),
 **Checkpoints**: To be shared
 
 ----
+
+Below you will find a brief description of the needed steps, to get started with nnssl. 
+Check-out the [documentation](documentation/) directory for a lot more information on how to use this repository.
+
 ## Installation
 
 1. Download/clone the repository
 2. Unzip and navigate into the repository
 3. Install the repository `pip install -e .`  (-e optional)
 
+[More details here](documentation/installation_instructions.md).
 <details>
 <summary>4. Setting environment variables:</summary>
-In addition to the installation, this repository requires setting up three additional path 
 
+In addition to the installation, this repository requires setting up three additional path 
 1. `nnssl_raw` -- The path holding datasets of raw `pretrain_data.json` files.
 2. `nnssl_preprocessed` -- A path where preprocessed data will be stored.
 3. `nnssl_results` -- A path where results will be stored.
+
+[More details here](documentation/setting_up_paths.md). 
 </details>
 
 ## Workflow
-In order to conduct pre-training with this repository three main steps need to be conducted:
+In order to conduct pre-training with this repository three main steps need to be conducted.
 
 ### 1. Raw Data Preparation
-First, some pre-training dataset needs to be chosen. You can use the **[OpenMind 
-dataset](#complimentary-resources)**. However any other dataset could be used as well. Opposed to nnU-Net, the data does not have to be in a specific format. Instead, a `pretrain_data.json` file needs to be created detailing the datasets specific information. (For simplicity the OpenMind dataset comes with this). To create this file for your own dataset or to understand the file, we refer to the instructions below.
+> This is a brief description. For a more detailed version, check [here](documentation/dataset_format.md). 
+
+First, some pre-training dataset needs to be chosen. You can use the **[OpenMind dataset](https://huggingface.co/datasets/AnonRes/OpenMind)**. 
+However any other dataset could be used as well. Opposed to nnU-Net, the data does not have to be in a specific format. Instead, a `pretrain_data.json` file needs to be created detailing the datasets specific information. (For simplicity the OpenMind dataset comes with this). To create this file for your own dataset or to understand the file, we refer to the instructions below.
+
+> If you use the OpenMind dataset, use the dedicated call `nnssl_convert_openmind` to create it's associated `pretrain_data.json`
 <details>
 <summary>Understanding and creating the `pretrain_data.json` file</summary>
-  Medical datasets generally center around studies of subjects. These subjects can be imaged in different sessions with different scanners or through different imaging protocols. This is reflected in the common BIDS data structure, which differentiates into:
+
+Medical datasets generally center around studies of subjects. These subjects can be imaged in different sessions with different scanners or through different imaging protocols. This is reflected in the common BIDS data structure, which differentiates into:
 
   - `subjects` - The individual subjects in the dataset
   - `sessions` - The individual sessions of the subjects
