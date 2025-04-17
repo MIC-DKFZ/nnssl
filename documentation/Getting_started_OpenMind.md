@@ -59,8 +59,14 @@ To preprocess the downstream dataset, simply run:
 
 
 Now you can train as you are used to:
+ResEncL
 
     nnUNetv2_train_pretrained ID 3d_fullres FOLD -p NEWPLANSNAME
+
+PrimusM
+
+    nnUNetv2_train_pretrained ID 3d_fullres FOLD -p NEWPLANSNAME -tr PretrainedTrainer_Primus
+    
 
 The default trainer automatically detects the architecture and loads the corresponding weights. It applies a warm-up phase with an increasing learning rate for the first 50 epochs, followed by nnU-Net’s default polynomial learning rate decay schedule.
 For the SSL3D Challenge, we will use shorter training schedules. The exact details will be shared after some initial testing.
