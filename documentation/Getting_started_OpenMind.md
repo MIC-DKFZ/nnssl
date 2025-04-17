@@ -3,7 +3,7 @@
 This is a guideline how to use the nnSSL framework with the OpenMind dataset. This is also the recommended starting point for the [SSL3D](https://ssl3d-challenge.dkfz.de/) challenge: 
 
 ## 1. Install nnssl
-Follow the installation [instructions](/readme.md) and don#t forget to set all necessary env paths. 
+Follow the installation [instructions](/readme.md) and don't forget to set all necessary env paths. 
 
 ## 2. Download the dataset
 You can find the OpenMind dataset on **[Hugging Face](https://huggingface.co/datasets/AnonRes/OpenMind)**. 
@@ -59,6 +59,7 @@ To preprocess the downstream dataset, simply run:
 
 
 Now you can train as you are used to:
+
 ResEncL
 
     nnUNetv2_train_pretrained ID 3d_fullres FOLD -p NEWPLANSNAME
