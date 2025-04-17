@@ -3,15 +3,15 @@
 This is a guideline how to use the nnSSL framework with the OpenMind dataset. This is also the recommended starting point for the [SSL3D](https://ssl3d-challenge.dkfz.de/) challenge: 
 
 ## 1. Install nnssl
-Follow the installation [instructions](/readme.md) and don't forget to set all necessary env paths. 
+Follow the installation [instructions](/readme.md) and don't forget to set all necessary [env variables](/documentation/set_environment_variables.md). 
 
 ## 2. Download the dataset
 You can find the OpenMind dataset on **[Hugging Face](https://huggingface.co/datasets/AnonRes/OpenMind)**. 
 Follow the instructions of Hugging Face to download the data. 
 
 ## 3. Prepare the dataset
-To prepare the dataset for pre-training you need to create a `pretrain_data.json` file was explained [here](/readme.md)  
-For the OpenNeuro Dataset we provide a [script](/src/nnssl/dataset_conversion/Dataset745_OpenMind.py) for conversion into the expected data format. 
+To prepare the dataset for pre-training you need to create a `pretrain_data.json`. The general structure is explained [here](/documentation/setting_up_paths.md)  
+For the OpenNeuro Dataset we provide a [script](/src/nnssl/dataset_conversion/Dataset001_OpenMind.py) for conversion into the expected data format. 
 
 ## 4. Preprocess the dataset
 You can preprocess the dataset by calling:
