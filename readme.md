@@ -21,7 +21,7 @@ Currently it includes the **ResEnc-L** [[a]((https://arxiv.org/abs/2410.23132)),
 
 **[OpenMind Dataset](https://huggingface.co/datasets/AnonRes/OpenMind)**
 
-**Segmentation Fine-tuning Framework**: To be shared
+**[Segmentation Fine-tuning Framework](https://github.com/TaWald/nnUNet)**
 
 **[Classification Fine-tuning Framework](https://anonymous.4open.science/r/image_classification-22D6/README.md)**
 
