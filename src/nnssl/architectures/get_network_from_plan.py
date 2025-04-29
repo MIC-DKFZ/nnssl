@@ -14,8 +14,7 @@ def get_network_from_plans(
     input_channels,
     output_channels,
     allow_init=True,
-    deep_supervision: Union[bool, None] = None,
-) -> AbstractDynamicNetworkArchitectures:
+    deep_supervision: Union[bool, None] = None):
     network_class = arch_class_name
     architecture_kwargs = dict(**arch_kwargs)
     for ri in arch_kwargs_req_import:
