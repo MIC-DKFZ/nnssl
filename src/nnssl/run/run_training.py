@@ -111,9 +111,9 @@ def maybe_load_checkpoint(
         #         f"WARNING: Cannot continue training because there seems to be no checkpoint available to "
         #         f"continue from. Starting a new training..."
         #     )
-            # raise RuntimeError(
-            #     f"Cannot continue training because there seems to be no checkpoint available to continue from. Starting a new training..."
-            # )
+        # raise RuntimeError(
+        #     f"Cannot continue training because there seems to be no checkpoint available to continue from. Starting a new training..."
+        # )
         if isfile(expected_checkpoint_file):
             logger.info(f"Using {expected_checkpoint_file} as the starting checkpoint for training...")
         else:
@@ -288,9 +288,14 @@ def run_training_entry():
     import argparse
 
     parser = argparse.ArgumentParser()
-    
+
     parser.add_argument("dataset_name_or_id", type=str, help="Dataset name or ID to train with")
-    parser.add_argument("configuration", type=str, help="Configuration that should be trained", choices=get_args(PREPROCESS_SPACING_STYLES))
+    parser.add_argument(
+        "configuration",
+        type=str,
+        help="Configuration that should be trained",
+        choices=get_args(PREPROCESS_SPACING_STYLES),
+    )
     parser.add_argument(
         "-tr",
         type=str,
@@ -402,7 +407,6 @@ def run_training_entry():
         args.val_best,
         device=device,
     )
-
 
 
 if __name__ == "__main__":
