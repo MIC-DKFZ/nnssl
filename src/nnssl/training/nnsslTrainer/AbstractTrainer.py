@@ -308,18 +308,15 @@ class AbstractBaseTrainer(ABC):
         stem.load_state_dict(stem_weights)
         return
 
-    def verify_adaptation_plans(self):
-        if not isfile(self.adaptation_json_plan):
-            raise RuntimeError(
-                "Adaptation plan not found. Please make sure to create_adaptation_plans() during build_architecture."
-            )
+    @staticmethod
+    def verify_adaptation_plans(adaptation_plan_dict: dict, configuration: str, state_dict:dict):
         # ------------- Simulate re-creating the architecture downstream ------------- #
         # Pre-training architecture checkpoint
         #   Has the `key_to_encoder` and `key_to_stem` attributes
-        pre_train_statedict = self.network.state_dict()
-        adapt_plan = AdaptationPlan.from_dict(load_json(self.adaptation_json_plan))
+        pre_train_statedict = state_dict
+        adapt_plan = AdaptationPlan.from_dict(adaptation_plan_dict)
         # Downstream Architecture derived from Pre-taining adaptation plan
-        pretrain_config_plan_copy = deepcopy(adapt_plan.pretrain_plan.configurations[self.configuration_name])
+        pretrain_config_plan_copy = deepcopy(adapt_plan.pretrain_plan.configurations[configuration])
         # Override the patch size to match the input patch size the model received during pre-training
         if adapt_plan.architecture_plans.arch_class_name in get_args(DYN_ARCHITECTURE_PRESETS):
             downstream_arch = get_network_from_plans(
@@ -343,7 +340,7 @@ class AbstractBaseTrainer(ABC):
                 arch_kwargs=None,
             )
         # ------------------------- Simulate explicit loading ------------------------ #
-        self._test_load_weight(downstream_arch, pre_train_statedict, adapt_plan)
+        AbstractBaseTrainer._test_load_weight(downstream_arch, pre_train_statedict, adapt_plan)
 
     @abstractmethod
     def build_architecture_and_adaptation_plan(
@@ -383,7 +380,8 @@ class AbstractBaseTrainer(ABC):
             )
             save_json(self.adaptation_plan.serialize(), self.adaptation_json_plan)
             self.network.to(self.device)
-            self.verify_adaptation_plans()
+
+            self.verify_adaptation_plans(self.adaptation_plan.serialize())
             # compile network for free speedup
             if self._do_i_compile():
                 self.print_to_log_file("Using torch.compile...")
