@@ -25,7 +25,8 @@ Currently it includes the **ResEnc-L** [[a]((https://arxiv.org/abs/2410.23132)),
 
 **[Classification Fine-tuning Framework](https://anonymous.4open.science/r/image_classification-22D6/README.md)**
 
-**Checkpoints**: To be shared
+**[OpenMind pre-trained Checkpoints](https://huggingface.co/collections/MIC-DKFZ/openmind-models-6819c21c7fe6f0aaaab7dadf)**
+*You don't need to manually download the checkpoints (for segmentation). The framework will automatically download the checkpoints for you*
 
 ----
 
