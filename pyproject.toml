@@ -1,7 +1,7 @@
 [project]
 name = "nnssl"
 version = "0.1"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 description = "nnSSL is a framework for self-supervised pre-training 3D medical images easily integrateable with the nnU-Net framework."
 readme = "readme.md"
 license = { file = "LICENSE" }
