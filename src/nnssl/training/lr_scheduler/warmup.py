@@ -13,7 +13,7 @@ class Lin_incr_LRScheduler(_LRScheduler):
         self.max_lr = max_lr
         self.max_steps = max_steps
         self.ctr = 0
-        super().__init__(optimizer, current_step if current_step is not None else -1, False)
+        super().__init__(optimizer, current_step if current_step is not None else -1)
 
     def step(self, current_step=None):
         if current_step is None or current_step == -1:
@@ -32,7 +32,7 @@ class Lin_incr_offset_LRScheduler(_LRScheduler):
         self.max_steps = max_steps
         self.start_step = start_step
         self.ctr = 0
-        super().__init__(optimizer, current_step if current_step is not None else -1, False)
+        super().__init__(optimizer, current_step if current_step is not None else -1)
 
     def step(self, current_step=None):
         if current_step is None or current_step == -1:
@@ -53,7 +53,7 @@ class PolyLRScheduler_offset(_LRScheduler):
         self.start_step = start_step
         self.exponent = exponent
         self.ctr = 0
-        super().__init__(optimizer, current_step if current_step is not None else -1, False)
+        super().__init__(optimizer, current_step if current_step is not None else -1)
 
     def step(self, current_step=None):
         if current_step is None or current_step == -1:
