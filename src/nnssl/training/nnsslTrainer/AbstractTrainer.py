@@ -381,7 +381,7 @@ class AbstractBaseTrainer(ABC):
             save_json(self.adaptation_plan.serialize(), self.adaptation_json_plan)
             self.network.to(self.device)
 
-            self.verify_adaptation_plans(self.adaptation_plan.serialize())
+            self.verify_adaptation_plans(self.adaptation_plan.serialize(),self.configuration_name,self.network.state_dict())
             # compile network for free speedup
             if self._do_i_compile():
                 self.print_to_log_file("Using torch.compile...")
