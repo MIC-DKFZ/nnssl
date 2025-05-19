@@ -87,3 +87,8 @@ dev = [
 skip = '.git,*.pdf,*.svg'
 #
 # ignore-words-list = ''
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
