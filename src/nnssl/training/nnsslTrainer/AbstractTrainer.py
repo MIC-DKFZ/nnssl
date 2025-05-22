@@ -309,7 +309,7 @@ class AbstractBaseTrainer(ABC):
         return
 
     @staticmethod
-    def verify_adaptation_plans(adaptation_plan_dict: dict, configuration: str, state_dict:dict):
+    def verify_adaptation_plans(adaptation_plan_dict: dict, configuration: str, state_dict: dict):
         # ------------- Simulate re-creating the architecture downstream ------------- #
         # Pre-training architecture checkpoint
         #   Has the `key_to_encoder` and `key_to_stem` attributes
@@ -381,7 +381,9 @@ class AbstractBaseTrainer(ABC):
             save_json(self.adaptation_plan.serialize(), self.adaptation_json_plan)
             self.network.to(self.device)
 
-            self.verify_adaptation_plans(self.adaptation_plan.serialize(),self.configuration_name,self.network.state_dict())
+            self.verify_adaptation_plans(
+                self.adaptation_plan.serialize(), self.configuration_name, self.network.state_dict()
+            )
             # compile network for free speedup
             if self._do_i_compile():
                 self.print_to_log_file("Using torch.compile...")
