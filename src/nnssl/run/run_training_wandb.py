@@ -1,18 +1,20 @@
-from datetime import datetime, timedelta
 import os
-from pathlib import Path
-import shutil
 import signal
 import socket
-from typing import Type, Union, Optional
-from typing import get_args
-from loguru import logger
 
-import nnssl
+from typing import get_args
+from datetime import timedelta
+from typing import Type, Union, Optional
+
+import wandb
 import torch.cuda
 import torch.distributed as dist
 import torch.multiprocessing as mp
+
+from loguru import logger
 from batchgenerators.utilities.file_and_folder_operations import join, isfile, load_json
+
+import nnssl
 from nnssl.experiment_planning.experiment_planners.plan_wandb import Plan_wandb
 from nnssl.experiment_planning.experiment_planners.plan import PREPROCESS_SPACING_STYLES
 from nnssl.paths import nnssl_preprocessed
@@ -227,6 +229,24 @@ def run_training(
     if val_with_best:
         assert not disable_checkpointing, "--val_best is not compatible with --disable_checkpointing"
 
+    try:
+        entity = os.environ.get("WANDB_ENTITY", None)
+        project = os.environ.get("WANDB_PROJECT", "nnssl")
+        run_id = os.environ.get("WANDB_RUN_ID", None)
+
+        wandb.init(
+            entity=entity,
+            project=project,
+            id=run_id,
+            name=f"{dataset_name_or_id}_{configuration}_fold{fold}_{trainer_class_name}_{plans_identifier}",
+        )
+    except wandb.Error as e:
+        print(
+            "Failed to initialize wandb. "
+            "Make sure you have set the WANDB_ENTITY and WANDB_PROJECT environment variables correctly."
+        )
+        raise e
+
     if num_gpus > 1:
         assert (
                 device.type == "cuda"
@@ -288,11 +308,15 @@ def run_training(
             cudnn.benchmark = True
 
         if not only_run_validation:
-            nnunet_trainer.run_training()
+            nnunet_trainer.run_training(using_wandb=True)
 
         if val_with_best:
             nnunet_trainer.load_checkpoint(join(nnunet_trainer.output_folder, "checkpoint_best.pth"))
+
         nnunet_trainer.perform_actual_validation(export_validation_probabilities)
+
+    if wandb.run is not None:
+        wandb.finish()
 
 
 def run_training_entry():
