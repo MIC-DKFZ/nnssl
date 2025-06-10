@@ -348,6 +348,15 @@ def run_training_entry():
         help="[OPTIONAL] Use this flag to specify a custom plans identifier. Default: nnSSLPlans",
     )
     parser.add_argument(
+        "-fold",
+        type=str,
+        required=False,
+        default="all",
+        help="[OPTIONAL] Use this flag to specify the fold to train on. Default: all. "
+             "If you want to train on a specific fold, use an integer (e.g. 0-5). "
+             "If you want to train on all folds, use 'all'.",
+    )
+    parser.add_argument(
         "-pretrained_weights",
         type=str,
         required=False,
@@ -432,7 +441,7 @@ def run_training_entry():
     run_training(
         dataset_name,
         config,
-        "all",
+        args.fold,
         args.tr,
         args.p,
         args.pretrained_weights,
