@@ -426,7 +426,7 @@ class AbstractBaseTrainer(ABC):
                 ):
                     step_metrics = self.train_step(next(self.dataloader_train))
                     train_outputs.append(step_metrics)
-                    if using_wandb and wandb.run is not None:
+                    if using_wandb and wandb.run is not None and self.local_rank == 0:
                         if isinstance(step_metrics, dict):
                             # add train/ prefix to all keys
                             to_log_metrics = {

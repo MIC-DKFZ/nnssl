@@ -169,6 +169,7 @@ def run_ddp(
         val_with_best,
         world_size,
         add_params,
+        use_wandb: bool = False,
 ):
     setup_ddp(rank, world_size)
     torch.cuda.set_device(torch.device("cuda", dist.get_rank()))
@@ -191,7 +192,7 @@ def run_ddp(
     signal.signal(signal.SIGUSR1, nnunet_trainer.exit_training)
 
     if not val:
-        nnunet_trainer.run_training()
+        nnunet_trainer.run_training(use_wandb)
 
     if val_with_best:
         nnunet_trainer.load_checkpoint(join(nnunet_trainer.output_folder, "checkpoint_best.pth"))
@@ -275,6 +276,7 @@ def run_training(
                 val_with_best,
                 num_gpus,
                 add_params,
+                wandb.run is not None,  # use_wandb
             ),
             nprocs=num_gpus,
             join=True,
