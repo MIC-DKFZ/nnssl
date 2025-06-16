@@ -98,13 +98,13 @@ class BaseEvaMAETrainer(BaseMAETrainer):
         empty_cache(self.device)
         return optimizer, lr_scheduler
 
-    def on_train_epoch_start(self):
+    def on_train_epoch_start(self, using_wandb: bool = False) -> None:
         if self.current_epoch == 0:
             self.optimizer, self.lr_scheduler = self.configure_optimizers("warmup_all")
         elif self.current_epoch == self.warmup_duration_whole_net:
             self.optimizer, self.lr_scheduler = self.configure_optimizers("train")
 
-        super().on_train_epoch_start()
+        super().on_train_epoch_start(using_wandb)
 
     @staticmethod
     def create_mask(

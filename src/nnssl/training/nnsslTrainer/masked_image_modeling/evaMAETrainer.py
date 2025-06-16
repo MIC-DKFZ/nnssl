@@ -1,23 +1,28 @@
-import torch
 import os
-from torch import nn
-from torch._dynamo import OptimizedModule
+
 from typing import Tuple, Union
-from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan, ArchitecturePlans
-from nnssl.architectures.evaMAE_module import EvaMAE
-from torch import autocast
-from nnssl.utilities.helpers import dummy_context
+
+import torch
+import wandb
+import numpy as np
+
+from torch import nn
 from tqdm import tqdm
+from torch import autocast
+from torch import distributed as dist
+from torch._dynamo import OptimizedModule
+from torch.nn.parallel import DistributedDataParallel as DDP
+from batchgenerators.utilities.file_and_folder_operations import join, save_json, maybe_mkdir_p
+
+from nnssl.paths import nnssl_results
+from nnssl.utilities.helpers import empty_cache
+from nnssl.utilities.helpers import dummy_context
+from nnssl.architectures.evaMAE_module import EvaMAE
 from nnssl.experiment_planning.experiment_planners.plan import Plan
+from nnssl.training.logging.nnssl_logger_wandb import nnSSLLogger_wandb
+from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan, ArchitecturePlans
 from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import BaseMAETrainer
 from nnssl.training.lr_scheduler.warmup import Lin_incr_LRScheduler, PolyLRScheduler_offset
-import numpy as np
-from nnssl.paths import nnssl_results
-from torch import distributed as dist
-from nnssl.training.logging.nnssl_logger_wandb import nnSSLLogger_wandb
-from batchgenerators.utilities.file_and_folder_operations import join, save_json, maybe_mkdir_p
-from torch.nn.parallel import DistributedDataParallel as DDP
-from nnssl.utilities.helpers import empty_cache
 
 
 class EvaMAETrainer(BaseMAETrainer):
@@ -139,13 +144,13 @@ class EvaMAETrainer(BaseMAETrainer):
         empty_cache(self.device)
         return optimizer, lr_scheduler
 
-    def on_train_epoch_start(self):
+    def on_train_epoch_start(self, using_wandb: bool = False):
         if self.current_epoch == 0:
             self.optimizer, self.lr_scheduler = self.configure_optimizers("warmup_all")
         elif self.current_epoch == self.warmup_duration_whole_net:
             self.optimizer, self.lr_scheduler = self.configure_optimizers("train")
 
-        super().on_train_epoch_start()
+        super().on_train_epoch_start(using_wandb)
 
     def _overwrite_batch_size(self):
         if not self.is_ddp:
@@ -294,7 +299,7 @@ class EvaMAETrainer(BaseMAETrainer):
             recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             key_to_encoder="eva",
             key_to_stem="down_projection",
-            key_to_in_proj=("down_projection.proj",),
+            keys_to_in_proj=("down_projection.proj",),
             key_to_lpe="eva.pos_embed",
         )
         raise NotImplementedError("Current AdaptationPlan is not correct")
@@ -346,28 +351,40 @@ class EvaMAETrainer(BaseMAETrainer):
 
         return {"loss": l.detach().cpu().numpy()}
 
-    def run_training(self):
+    def run_training(self, using_wandb: bool = False) -> None:
         try:
             self.on_train_start()
             for epoch in range(self.current_epoch, self.num_epochs):
                 self.on_epoch_start()
 
-                self.on_train_epoch_start()
+                self.on_train_epoch_start(using_wandb)
                 train_outputs = []
                 for batch_id in tqdm(
                     range(self.num_iterations_per_epoch),
                     desc=f"Epoch {epoch}",
                     disable=True if ("LSF_JOBID" in os.environ) else False,
                 ):
-                    train_outputs.append(self.train_step(next(self.dataloader_train)))
+                    step_metrics = self.train_step(next(self.dataloader_train))
+                    train_outputs.append(step_metrics)
+                    if using_wandb and wandb.run is not None and self.local_rank == 0:
+                        if isinstance(step_metrics, dict):
+                            # add train/ prefix to all keys
+                            to_log_metrics = {
+                                f"train/{k}": v
+                                for k, v in step_metrics.items()
+                                if not k.startswith("train/") and k not in ["epoch", "step"]
+                            }
+                            to_log_metrics["epoch"] = epoch
+                            to_log_metrics["step"] = batch_id + epoch * self.num_iterations_per_epoch
+                            wandb.log(to_log_metrics)
                 self.on_train_epoch_end(train_outputs)
 
                 with torch.no_grad():
                     self.on_validation_epoch_start()
                     val_outputs = []
-                    for batch_id in tqdm(range(self.num_val_iterations_per_epoch)):
+                    for _ in tqdm(range(self.num_val_iterations_per_epoch)):
                         val_outputs.append(self.validation_step(next(self.dataloader_val)))
-                    self.on_validation_epoch_end(val_outputs)
+                    self.on_validation_epoch_end(val_outputs, using_wandb)
 
                 if self.exit_training_flag:
                     # This is a signal that we need to resubmit, so we break the loop and exit gracefully
