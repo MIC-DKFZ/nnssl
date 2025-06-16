@@ -1,3 +1,5 @@
+import torch.nn
+
 from dynamic_network_architectures.architectures.unet import ResidualEncoderUNet
 from dynamic_network_architectures.architectures.primus import PrimusS, PrimusB, PrimusM, PrimusL
 from dynamic_network_architectures.architectures.abstract_arch import AbstractDynamicNetworkArchitectures
@@ -67,11 +69,12 @@ def get_network_by_name(
         if architecture_name in ["ResEncL", "NoSkipResEncL"]:
             model: ResidualEncoderUNet
             try:
-                key_to_encoder = model.key_to_encoder.replace("encoder.", "")
-                keys_to_in_proj = [k.replace("encoder.", "") for k in model.keys_to_in_proj]
-                model = model.encoder
-                model.key_to_encoder = key_to_encoder
-                model.keys_to_in_proj = keys_to_in_proj
+                model.decoder = torch.nn.Identity()
+                # key_to_encoder = model.key_to_encoder.replace("encoder.", "")
+                # keys_to_in_proj = [k.replace("encoder.", "") for k in model.keys_to_in_proj]
+                # model = model.encoder
+                # model.key_to_encoder = key_to_encoder
+                # model.keys_to_in_proj = keys_to_in_proj
             except AttributeError:
                 raise RuntimeError("Trying to get the 'encoder' of the network failed. Cannot return encoder only.")
         elif architecture_name in ["PrimusS", "PrimusB", "PrimusM", "PrimusL"]:
