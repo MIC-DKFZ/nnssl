@@ -52,7 +52,7 @@ dependencies = [
     "yacs",
     "einops",
     "loguru",
-    "timm",
+    "timm<=1.0.16",
     "lightning-bolts",
     "pytest",
     "blosc2>=3.0.0b1",
