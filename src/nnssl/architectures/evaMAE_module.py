@@ -118,18 +118,27 @@ class EvaMAE(nn.Module):
 
         # Create mask tokens for missing patches
         num_masked = num_patches - num_kept
-        mask_tokens = self.mask_token.repeat(B, num_masked, 1)
+        mask_tokens = self.mask_token.repeat(B, num_masked, 1)  # Shape: (B, num_masked, C)
 
         # Prepare an empty tensor for the restored sequence
         restored = torch.zeros(B, num_patches, C, device=device)
 
-        # Assign the kept patches and mask tokens in the correct positions
-        for i in range(B):
-            kept_pos = keep_indices[i]
-            masked_pos = torch.tensor([j for j in range(num_patches) if j not in kept_pos], device=device)
-            restored[i, kept_pos] = x[i]
-            restored[i, masked_pos] = mask_tokens[i, :len(masked_pos)]
+        # Create a flat indices tensor for assignment
+        batch_indices = torch.arange(B, device=device).unsqueeze(-1)  # Shape: (B, 1)
 
+        # Flatten keep_indices to use for scatter
+        flat_indices = torch.arange(num_patches, device=device).repeat(B, 1)  # Shape: (B, num_patches)
+        mask = torch.zeros_like(flat_indices, dtype=torch.bool, device=device)  # Mask for "kept" indices
+
+        # Mark kept positions
+        mask[batch_indices, keep_indices] = True
+
+        # Assign kept positions
+        restored[batch_indices, keep_indices] = x
+
+        # Assign mask tokens to the remaining positions
+        masked_positions = torch.where(~mask)
+        restored[masked_positions] = mask_tokens.view(-1, C)
         return restored
 
     def forward(self, x):
