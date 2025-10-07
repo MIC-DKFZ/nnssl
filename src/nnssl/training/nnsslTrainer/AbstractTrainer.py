@@ -4,8 +4,7 @@ from functools import partial
 import inspect
 from multiprocessing import Pool
 import os
-from random import sample
-
+import random
 import sys
 from types import FrameType
 from torch import nn
@@ -998,8 +997,9 @@ class AbstractBaseTrainer(ABC):
             subject_identifiers = get_subject_identifiers(self.preprocessed_dataset_folder)
             assert len(subject_identifiers) != 0, "No subjects found. Aborting"
             subject_identifiers = sorted(subject_identifiers)
-            n_val_subjects = min(200, int(len(subject_identifiers) / 100))
-            val_subjects = sample(subject_identifiers, n_val_subjects)
+            n_val_subjects = min(1000, max(int(len(subject_identifiers) / 100), 5))
+            rng = random.Random(12345)  # seed to guarantee same split always
+            val_subjects = rng.sample(subject_identifiers, n_val_subjects)
             train_subjects = list(set(subject_identifiers) - set(val_subjects))
             splits = {"train": list(train_subjects), "val": list(val_subjects)}
             save_json(splits, splits_file)

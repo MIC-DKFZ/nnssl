@@ -1,4 +1,4 @@
-mport argparse
+import argparse
 import os
 from collections import defaultdict
 from pathlib import Path
@@ -127,7 +127,7 @@ def main():
         type=Path,
         required=True,
         help="Path to the root directory of the OpenMind dataset download directory. "
-             "If you downloaded the dataset from hugginface, you should point to the parent directory of the `openneuro_metadata.csv` file.",
+        "If you downloaded the dataset from hugginface, you should point to the parent directory of the `openneuro_metadata.csv` file.",
     )
     args = parser.parse_args()
     _create_pretrain_json(args.openmind_root_dir)
