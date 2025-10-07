@@ -35,12 +35,13 @@ class nnSSLLogger_wandb(object):
         self.wandb = use_wandb
         if self.wandb:
             project_name = "nnssl_{}".format(dataset_name)
-            run_id = os.getenv("WANDB_RUN_ID")
+            run_id = os.getenv("WANDB_RUN_ID", None)
+            entity = os.getenv("WANDB_ENTITY", None)
             maybe_resume_logging = self._maybe_resume_logging(wandb_init_args)
             if maybe_resume_logging:
-                wandb.init(project=project_name, entity='mic_rocket', id=run_id, allow_val_change=True, resume=maybe_resume_logging, **wandb_init_args)
+                wandb.init(project=project_name, entity=entity, id=run_id, allow_val_change=True, resume=maybe_resume_logging, **wandb_init_args)
             else:
-                wandb.init(project=project_name, entity='mic_rocket', id=run_id, allow_val_change=True, **wandb_init_args)
+                wandb.init(project=project_name, entity=entity, id=run_id, allow_val_change=True, **wandb_init_args)
 
     def _maybe_resume_logging(self, wandb_init_args) -> Union[None, str]:
         """

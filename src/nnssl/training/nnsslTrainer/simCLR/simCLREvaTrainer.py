@@ -61,13 +61,13 @@ class SimCLREvaTrainer(SimCLRTrainer):
         self.init_value = 0.1
         self.scale_attn_inner = True
 
-    def on_train_epoch_start(self):
+    def on_train_epoch_start(self, using_wandb: bool = False) -> None:
         if self.current_epoch == 0:
             self.optimizer, self.lr_scheduler = self.configure_optimizers("warmup_all")
         elif self.current_epoch == self.warmup_duration_whole_net:
             self.optimizer, self.lr_scheduler = self.configure_optimizers("train")
 
-        super().on_train_epoch_start()
+        super().on_train_epoch_start(using_wandb)
 
     def configure_optimizers(self, stage: str = "warmup_all"):
         assert stage in ["warmup_all", "train"]
@@ -142,7 +142,7 @@ class SimCLREvaTrainer(SimCLRTrainer):
             pretrain_num_input_channels=1,  # This is the actual input patch size!
             key_to_encoder="encoder.eva",
             key_to_stem="encoder.down_projection",
-            key_to_in_proj=("encoder.down_projection.proj",),
+            keys_to_in_proj=("encoder.down_projection.proj",),
             key_to_lpe="encoder.eva.pos_embed",
         )
 

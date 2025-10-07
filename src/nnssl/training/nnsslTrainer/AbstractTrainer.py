@@ -7,6 +7,8 @@ import os
 import random
 import sys
 from types import FrameType
+
+import wandb
 from torch import nn
 from copy import deepcopy
 from datetime import datetime
@@ -406,14 +408,14 @@ class AbstractBaseTrainer(ABC):
         self.print_to_log_file("Received exit signal. Terminating after finishing epoch.")
         self.exit_training_flag = True
 
-    def run_training(self):
+    def run_training(self, using_wandb: bool = False):
         try:
             self.on_train_start()
 
             for epoch in range(self.current_epoch, self.num_epochs):
                 self.on_epoch_start()
 
-                self.on_train_epoch_start()
+                self.on_train_epoch_start(using_wandb)
                 train_outputs = []
 
                 for batch_id in tqdm(
@@ -421,7 +423,19 @@ class AbstractBaseTrainer(ABC):
                     desc=f"Epoch {epoch}",
                     disable=True if (("LSF_JOBID" in os.environ) or ("SLURM_JOB_ID" in os.environ)) else False,
                 ):
-                    train_outputs.append(self.train_step(next(self.dataloader_train)))
+                    step_metrics = self.train_step(next(self.dataloader_train))
+                    train_outputs.append(step_metrics)
+                    if using_wandb and wandb.run is not None and self.local_rank == 0:
+                        if isinstance(step_metrics, dict):
+                            # add train/ prefix to all keys
+                            to_log_metrics = {
+                                f"train/{k}": v
+                                for k, v in step_metrics.items()
+                                if not k.startswith("train/") and k not in ["epoch", "step"]
+                            }
+                            to_log_metrics["epoch"] = epoch
+                            to_log_metrics["step"] = batch_id + epoch * self.num_iterations_per_epoch
+                            wandb.log(to_log_metrics)
 
                 self.on_train_epoch_end(train_outputs)
 
@@ -430,7 +444,7 @@ class AbstractBaseTrainer(ABC):
                     val_outputs = []
                     for batch_id in range(self.num_val_iterations_per_epoch):
                         val_outputs.append(self.validation_step(next(self.dataloader_val)))
-                    self.on_validation_epoch_end(val_outputs)
+                    self.on_validation_epoch_end(val_outputs, using_wandb)
 
                 if self.exit_training_flag:
                     # This is a signal that we need to resubmit, so we break the loop and exit gracefully
@@ -764,7 +778,7 @@ class AbstractBaseTrainer(ABC):
         empty_cache(self.device)
         self.print_to_log_file("Training done.")
 
-    def on_train_epoch_end(self, train_outputs: List[dict]):
+    def on_train_epoch_end(self, train_outputs: List[dict], using_wandb: bool = False):
         self.interrupt_at_nans(train_outputs)
         outputs = collate_outputs(train_outputs)
 
@@ -774,9 +788,10 @@ class AbstractBaseTrainer(ABC):
             loss_here = np.vstack(losses_tr).mean()
         else:
             loss_here = np.mean(outputs["loss"])
+
         self.logger.log("train_losses", loss_here, self.current_epoch)
 
-    def on_validation_epoch_end(self, val_outputs: List[dict]):
+    def on_validation_epoch_end(self, val_outputs: List[dict], using_wandb: bool = False):
         outputs_collated = collate_outputs(val_outputs)
 
         if self.is_ddp:
@@ -786,9 +801,17 @@ class AbstractBaseTrainer(ABC):
             loss_here = np.vstack(losses_val).mean()
         else:
             loss_here = np.mean(outputs_collated["loss"])
+        if using_wandb and wandb.run is not None:
+            wandb.log(
+                {
+                    "val/loss": loss_here,
+                    "epoch": self.current_epoch,
+                    "step": self.current_epoch * self.num_iterations_per_epoch
+                 }
+            )
         self.logger.log("val_losses", loss_here, self.current_epoch)
 
-    def on_train_epoch_start(self):
+    def on_train_epoch_start(self, using_wandb: bool = False):
         self.network.train()
         self.lr_scheduler.step(self.current_epoch)
         self.print_to_log_file("")
@@ -796,6 +819,15 @@ class AbstractBaseTrainer(ABC):
         self.print_to_log_file(f"Current learning rate: {np.round(self.optimizer.param_groups[0]['lr'], decimals=5)}")
         # lrs are the same for all workers so we don't need to gather them in case of DDP training
         self.logger.log("lrs", self.optimizer.param_groups[0]["lr"], self.current_epoch)
+
+        if using_wandb and wandb.run is not None:
+            wandb.log(
+                {
+                    "train/lr": self.optimizer.param_groups[0]["lr"],
+                    "epoch": self.current_epoch,
+                    "step": self.current_epoch * self.num_iterations_per_epoch
+                }
+            )
 
     def on_validation_epoch_start(self):
         self.network.eval()

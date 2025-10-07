@@ -1,6 +1,7 @@
 import os
 from typing import List, Tuple, Union
 import matplotlib.pyplot as plt
+import wandb
 from tqdm import tqdm
 from deprecated import deprecated
 from typing_extensions import override
@@ -318,20 +319,32 @@ class BaseMAETrainer(AbstractBaseTrainer):
         )
         return dl_val
 
-    def run_training(self):
+    def run_training(self, using_wandb:bool = False):
         try:
             self.on_train_start()
             for epoch in range(self.current_epoch, self.num_epochs):
                 self.on_epoch_start()
 
-                self.on_train_epoch_start()
+                self.on_train_epoch_start(using_wandb)
                 train_outputs = []
                 for batch_id in tqdm(
-                    range(self.num_iterations_per_epoch),
-                    desc=f"Epoch {epoch}",
-                    disable=True if (("LSF_JOBID" in os.environ) or ("SLURM_JOB_ID" in os.environ)) else False,
+                        range(self.num_iterations_per_epoch),
+                        desc=f"Epoch {epoch}",
+                        disable=True if (("LSF_JOBID" in os.environ) or ("SLURM_JOB_ID" in os.environ)) else False,
                 ):
-                    train_outputs.append(self.train_step(next(self.dataloader_train)))
+                    step_metrics = self.train_step(next(self.dataloader_train))
+                    train_outputs.append(step_metrics)
+                    if using_wandb and wandb.run is not None and self.local_rank == 0:
+                        if isinstance(step_metrics, dict):
+                            # add train/ prefix to all keys
+                            to_log_metrics = {
+                                f"train/{k}": v
+                                for k, v in step_metrics.items()
+                                if not k.startswith("train/") and k not in ["epoch", "step"]
+                            }
+                            to_log_metrics["epoch"] = epoch
+                            to_log_metrics["step"] = batch_id + epoch * self.num_iterations_per_epoch
+                            wandb.log(to_log_metrics)
                 self.on_train_epoch_end(train_outputs)
 
                 with torch.no_grad():
@@ -340,7 +353,7 @@ class BaseMAETrainer(AbstractBaseTrainer):
                     for batch_id in range(self.num_val_iterations_per_epoch):
                         val_batch = next(self.dataloader_val)
                         val_outputs.append(self.validation_step(val_batch))
-                    self.on_validation_epoch_end(val_outputs)
+                    self.on_validation_epoch_end(val_outputs, using_wandb)
 
                 self.on_epoch_end()
                 if self.exit_training_flag:

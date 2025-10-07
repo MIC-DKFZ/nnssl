@@ -1,9 +1,9 @@
-from typing import Literal
-from dynamic_network_architectures.architectures.abstract_arch import AbstractDynamicNetworkArchitectures
+import torch.nn
+
 from dynamic_network_architectures.architectures.unet import ResidualEncoderUNet
 from dynamic_network_architectures.architectures.primus import PrimusS, PrimusB, PrimusM, PrimusL
-from torch import nn
-from dynamic_network_architectures.building_blocks.helper import get_matching_instancenorm, convert_dim_to_conv_op
+from dynamic_network_architectures.architectures.abstract_arch import AbstractDynamicNetworkArchitectures
+
 from nnssl.architectures.architecture_registry import (
     SUPPORTED_ARCHITECTURES,
     get_res_enc_l,
@@ -69,9 +69,12 @@ def get_network_by_name(
         if architecture_name in ["ResEncL", "NoSkipResEncL"]:
             model: ResidualEncoderUNet
             try:
-                model = model.encoder
-                model.key_to_encoder = model.key_to_encoder.replace("encoder.", "")
-                model.keys_to_in_proj = [k.replace("encoder.", "") for k in model.keys_to_in_proj]
+                model.decoder = torch.nn.Identity()
+                # key_to_encoder = model.key_to_encoder.replace("encoder.", "")
+                # keys_to_in_proj = [k.replace("encoder.", "") for k in model.keys_to_in_proj]
+                # model = model.encoder
+                # model.key_to_encoder = key_to_encoder
+                # model.keys_to_in_proj = keys_to_in_proj
             except AttributeError:
                 raise RuntimeError("Trying to get the 'encoder' of the network failed. Cannot return encoder only.")
         elif architecture_name in ["PrimusS", "PrimusB", "PrimusM", "PrimusL"]:
