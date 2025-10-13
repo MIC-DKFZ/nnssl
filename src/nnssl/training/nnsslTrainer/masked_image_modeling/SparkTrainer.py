@@ -127,6 +127,7 @@ class SparkMAETrainer(BaseMAETrainer):
                     "current_epoch": self.current_epoch + 1,
                     "init_args": self.my_init_kwargs,
                     "trainer_name": self.__class__.__name__,
+                    "nnssl_adaptation_plan": self.adaptation_plan.serialize(),
                 }
                 checkpoint = self._convert_numpy(checkpoint)
                 torch.save(checkpoint, filename)
