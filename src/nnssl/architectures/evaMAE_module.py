@@ -160,7 +160,7 @@ class EvaMAE(nn.Module):
             decoded = encoded
 
         # Project back to output shape
-        decoded = rearrange(decoded, 'b (h w d) c -> b c w h d', h=W, w=H, d=D)
+        decoded = rearrange(decoded, 'b (h w d) c -> b c w h d', w=W, h=H, d=D)
         decoded = self.up_projection(decoded)
 
         if self.use_decoder:
