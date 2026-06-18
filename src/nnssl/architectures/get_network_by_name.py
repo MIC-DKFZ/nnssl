@@ -1,7 +1,7 @@
 from typing import Literal
 from dynamic_network_architectures.architectures.abstract_arch import AbstractDynamicNetworkArchitectures
 from dynamic_network_architectures.architectures.unet import ResidualEncoderUNet
-from dynamic_network_architectures.architectures.primus import PrimusS, PrimusB, PrimusM, PrimusL
+from dynamic_network_architectures.architectures.primus import PrimusS, PrimusB, PrimusM, PrimusL, Primus
 from torch import nn
 from dynamic_network_architectures.building_blocks.helper import get_matching_instancenorm, convert_dim_to_conv_op
 from nnssl.architectures.architecture_registry import (
@@ -31,7 +31,7 @@ def get_network_by_name(
         model = get_res_enc_l(num_input_channels, num_output_channels, deep_supervision)
     elif architecture_name == "NoSkipResEncL":
         model = get_noskip_res_enc_l(num_input_channels, num_output_channels)
-    elif architecture_name in ["PrimusS", "PrimusB", "PrimusM", "PrimusL"]:
+    elif architecture_name in ["PrimusS", "PrimusB", "PrimusM", "PrimusL", "PrimusX"]:
         if architecture_name == "PrimusS":
             model = PrimusS(
                 input_channels=num_input_channels,
@@ -59,6 +59,18 @@ def get_network_by_name(
                 output_channels=num_output_channels,
                 input_shape=configuration_plan.patch_size,
                 patch_embed_size=(8, 8, 8),
+            )
+        elif architecture_name == "PrimusX":
+            model = Primus(
+                input_channels=num_input_channels,
+                embed_dim=arch_kwargs["embed_dim"],
+                num_classes=num_output_channels,
+                eva_depth=arch_kwargs["encoder_eva_depth"],
+                eva_numheads=arch_kwargs["encoder_eva_numheads"],
+                input_shape=arch_kwargs["input_shape"],
+                patch_embed_size=arch_kwargs["patch_embed_size"],
+                init_values=arch_kwargs["init_values"],
+                scale_attn_inner=arch_kwargs["scale_attn_inner"],
             )
         else:
             raise ValueError(f"Architecture {architecture_name} is not supported.")

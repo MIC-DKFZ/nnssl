@@ -17,6 +17,7 @@ ARCHITECTURE_PRESETS: Type[str] = Literal[
     "PrimusB",
     "PrimusM",
     "PrimusL",
+    "PrimusX",
     "ResidualEncoderUNet",
     "PlainConvUNet",
 ]
@@ -95,15 +96,18 @@ class DynamicArchitecturePlans:
 @dataclass
 class ArchitecturePlans:
     arch_class_name: ARCHITECTURE_PRESETS
-    arch_kwargs: DynamicArchitecturePlans | None = None
+    arch_kwargs: dict | DynamicArchitecturePlans | None = None
     arch_kwargs_requiring_import: list[str] | None = field(init=False, default=None)
 
     def __post_init__(self):
-        if self.arch_kwargs:
+        if self.arch_kwargs and type(self.arch_kwargs) is DynamicArchitecturePlans:
             self.arch_kwargs_requiring_import = self.arch_kwargs.get_kwargs_requiring_import()
 
     def serialize(self):
-        serialized_arch_kwargs = self.arch_kwargs.serialize() if self.arch_kwargs else None
+        if not type(self.arch_kwargs) == dict:
+            serialized_arch_kwargs = self.arch_kwargs.serialize() if self.arch_kwargs else None
+        else:
+            serialized_arch_kwargs = self.arch_kwargs
         return {
             "arch_class_name": self.arch_class_name,
             "arch_kwargs": serialized_arch_kwargs,
@@ -139,13 +143,17 @@ class AdaptationPlan:
 
     @staticmethod
     def from_dict(data: dict):
-        architecture_plans = ArchitecturePlans(
-            arch_class_name=data["architecture_plans"]["arch_class_name"],
-            arch_kwargs=(
+        if type(data["architecture_plans"]["arch_kwargs"]) == dict:
+            arch_kwargs = data["architecture_plans"]["arch_kwargs"]
+        else:
+            arch_kwargs = (
                 DynamicArchitecturePlans(**data["architecture_plans"]["arch_kwargs"])
                 if data["architecture_plans"]["arch_kwargs"]
                 else None
-            ),
+            )
+        architecture_plans = ArchitecturePlans(
+            arch_class_name=data["architecture_plans"]["arch_class_name"],
+            arch_kwargs=arch_kwargs,
         )
         pretrain_plan = Plan.from_dict(data["pretrain_plan"])
         pretrain_num_input_channels = data["pretrain_num_input_channels"]

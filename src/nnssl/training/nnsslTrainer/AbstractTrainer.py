@@ -4,7 +4,7 @@ from functools import partial
 import inspect
 from multiprocessing import Pool
 import os
-import random
+from random import sample
 import sys
 from types import FrameType
 from torch import nn
@@ -25,8 +25,8 @@ from batchgenerators.transforms.abstract_transforms import AbstractTransform
 
 from batchgenerators.utilities.file_and_folder_operations import join, isfile, save_json, maybe_mkdir_p, load_json
 from torch._dynamo import OptimizedModule
-
-
+from einops import rearrange
+import torch.nn.functional as F
 from nnssl.architectures.get_network_from_plan import get_network_from_plans
 from nnssl.data.raw_dataset import Collection
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
@@ -38,6 +38,7 @@ from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
 from dynamic_network_architectures.architectures.abstract_arch import AbstractDynamicNetworkArchitectures
 
 from nnssl.data.dataloading.dataset import nnSSLDatasetBlosc2
+from nnssl.data.dataloading.containerized_dataset import nnSSLDatasetBlosc2Container
 from nnssl.training.logging.nnssl_logger import nnSSLLogger
 from nnssl.training.lr_scheduler.polylr import PolyLRScheduler
 from nnssl.utilities.serialization import make_serializable
@@ -49,6 +50,74 @@ from torch import distributed as dist
 from torch.cuda import device_count
 from torch.cuda.amp import GradScaler
 from torch.nn.parallel import DistributedDataParallel as DDP
+
+
+def filter_state_dict(state_dict, skip_strings):
+    found_flag = False
+    filtered_state_dict = {}
+
+    for k, v in state_dict.items():
+        if any(skip in k for skip in skip_strings):
+            found_flag = True
+            continue
+        filtered_state_dict[k] = v
+
+    return filtered_state_dict, found_flag
+
+def interpolate_patch_embed_1d(patch_embed, target_len, mode="linear"):
+    """Resizes patch embeddings using interpolation."""
+    return F.interpolate(
+        patch_embed.permute(0, 2, 1),  # [B, C, Tokens]
+        size=target_len,
+        mode=mode,
+        align_corners=False,
+    ).permute(0, 2, 1)  # [B, Tokens, C]
+
+def interpolate_patch_embed_3d(patch_embed, in_shape, out_shape):
+    """Resizes patch embeddings using 3D trilinear interpolation."""
+    patch_embed = patch_embed.permute(0, 2, 1)
+    patch_embed = rearrange(patch_embed, "B C (x y z) -> B C x y z", **in_shape)
+    patch_embed = F.interpolate(patch_embed, size=list(out_shape.values()), mode="trilinear", align_corners=False)
+    patch_embed = rearrange(patch_embed, "B C x y z -> B C (x y z)", **out_shape)
+    return patch_embed.permute(0, 2, 1)
+
+
+def handle_pos_embed_resize(pretrained_dict, model_dict, mode, input_shape=None, pretrained_input_patch_size=None, patch_embed_size=None):
+    pretrained_pos_embed = pretrained_dict["pos_embed"]
+    model_pos_embed = model_dict["pos_embed"]
+    model_pos_embed_shape = model_pos_embed.shape
+
+    # for key, value in pretrained_dict.items():
+    #     print(f"{key}: {value.shape}")
+
+    has_cls_token = "cls_token" in pretrained_dict
+
+
+
+    if has_cls_token:
+        cls_pos_embed = pretrained_pos_embed[:, :1, :]
+        patch_pos_embed = pretrained_pos_embed[:, 1:, :]
+    else:
+        if  "cls_token" in model_dict.keys():
+            cls_pos_embed = model_pos_embed[:, :1, :]
+        patch_pos_embed = pretrained_pos_embed
+
+    if mode == "interpolate":
+        resized_patch_pos_embed = interpolate_patch_embed_1d(patch_pos_embed, target_len=model_pos_embed_shape[1] - int(has_cls_token))
+
+    elif mode == "interpolate_trilinear":
+        # Calculate input/output 3D shapes
+        in_shape = dict(zip("xyz", [int(d / p) for d, p in zip(pretrained_input_patch_size, patch_embed_size)]))
+        out_shape = dict(zip("xyz", [int(d / p) for d, p in zip(input_shape, patch_embed_size)]))
+        resized_patch_pos_embed = interpolate_patch_embed_3d(patch_pos_embed, in_shape, out_shape)
+
+    else:
+        raise NotImplementedError(f"Unknown resize mode: {mode}")
+    if "cls_token" in model_dict.keys():
+        resized_pos_embed = torch.cat([cls_pos_embed, resized_patch_pos_embed], dim=1)
+    else:
+        resized_pos_embed = resized_patch_pos_embed
+    pretrained_dict["pos_embed"] = resized_pos_embed
 
 
 class AbstractBaseTrainer(ABC):
@@ -77,23 +146,27 @@ class AbstractBaseTrainer(ABC):
         # https://i.pinimg.com/originals/26/b2/50/26b250a738ea4abc7a5af4d42ad93af0.jpg
 
         self.is_ddp = dist.is_available() and dist.is_initialized()
-        self.local_rank = 0 if not self.is_ddp else dist.get_rank()
-
         self.device = device
 
-        # ---------------------- print what device we are using ---------------------- #
-        if self.is_ddp:  # implicitly it's clear that we use cuda in this case
-            print(
-                f"I am local rank {self.local_rank}. {device_count()} GPUs are available. The world size is "
-                f"{dist.get_world_size()}."
-                f"Setting device to {self.device}"
-            )
-            self.device = torch.device(type="cuda", index=self.local_rank)
+        if "RANK" in os.environ.keys():
+            self.global_rank = int(os.environ["RANK"])
+            self.local_rank = int(os.environ.get("LOCAL_RANK"))
         else:
-            if self.device.type == "cuda":
-                # we might want to let the user pick this but for now please pick the correct GPU with CUDA_VISIBLE_DEVICES=X
-                self.device = torch.device(type="cuda", index=0)
-            print(f"Using device: {self.device}")
+            self.local_rank = 0 if not self.is_ddp else dist.get_rank()
+            self.global_rank = self.local_rank
+            # ---------------------- print what device we are using ---------------------- #
+            if self.is_ddp:  # implicitly it's clear that we use cuda in this case
+                print(
+                    f"I am local rank {self.local_rank}. {device_count()} GPUs are available. The world size is "
+                    f"{dist.get_world_size()}."
+                    f"Setting device to {self.device}"
+                )
+                self.device = torch.device(type="cuda", index=self.local_rank)
+            else:
+                if self.device.type == "cuda":
+                    # we might want to let the user pick this but for now please pick the correct GPU with CUDA_VISIBLE_DEVICES=X
+                    self.device = torch.device(type="cuda", index=0)
+                print(f"Using device: {self.device}")
 
         # loading and saving this class for continuing from checkpoint should not happen based on pickling. This
         # would also pickle the network etc. Bad, bad. Instead we just reinstantiate and then load the checkpoint we
@@ -194,7 +267,7 @@ class AbstractBaseTrainer(ABC):
         self._best_ema = None
 
         ### checkpoint saving stuff
-        self.save_every = 50
+        self.save_every = 20
         self.disable_checkpointing = False
 
         self.was_initialized = False
@@ -214,19 +287,15 @@ class AbstractBaseTrainer(ABC):
             add_timestamp=False,
         )
 
+        self.save_intermediate_every = None
+
     def _set_batch_size(self):
-        if not self.is_ddp:
-            # set batch size to what the plan says, leave oversample untouched
-            logger.info(f"Not using DDP. Setting batch size for single gpu to {self.total_batch_size}.")
-            self.batch_size = self.total_batch_size
-        else:
-            # batch size is distributed over DDP workers and we need to change oversample_percent for each worker
+        if "WORLD_SIZE" in os.environ:
+            world_size = int(os.environ["WORLD_SIZE"])
             batch_sizes = []
 
-            world_size = dist.get_world_size()
-            my_rank = dist.get_rank()
             logger.info(
-                f"Using DDP. Total Batch size {self.total_batch_size} distributed across all {world_size} gpus."
+                f"Using Cross Node DDP. Total Batch size {self.total_batch_size} distributed across all {world_size} gpus."
             )
 
             global_batch_size = self.total_batch_size
@@ -248,11 +317,48 @@ class AbstractBaseTrainer(ABC):
 
                 batch_sizes.append(batch_size)
 
-            logger.info("worker", my_rank, "batch_size", batch_sizes[my_rank])
-            # self.print_to_log_file("worker", my_rank, "oversample", oversample_percents[my_rank])
-            # self.print_to_log_file("worker", my_rank, "batch_size", batch_sizes[my_rank])
+            logger.info("worker", self.global_rank, "batch_size", batch_sizes[self.global_rank])
 
-            self.batch_size = batch_sizes[my_rank]
+            self.batch_size = batch_sizes[self.global_rank]
+        else:
+            if not self.is_ddp:
+                # set batch size to what the plan says, leave oversample untouched
+                logger.info(f"Not using DDP. Setting batch size for single gpu to {self.total_batch_size}.")
+                self.batch_size = self.total_batch_size
+            else:
+                # batch size is distributed over DDP workers and we need to change oversample_percent for each worker
+                batch_sizes = []
+
+                world_size = dist.get_world_size()
+                my_rank = dist.get_rank()
+                logger.info(
+                    f"Using DDP. Total Batch size {self.total_batch_size} distributed across all {world_size} gpus."
+                )
+
+                global_batch_size = self.total_batch_size
+                assert global_batch_size >= world_size, (
+                    "Cannot run DDP if the batch size is smaller than the number of " "GPUs... Duh."
+                )
+
+                assert (
+                    global_batch_size >= world_size
+                ), f"Cannot run DDP if the batch size ({global_batch_size}) is smaller than the number of GPUs ({world_size})... Duh."
+
+                batch_size_per_GPU = np.ceil(global_batch_size / world_size).astype(int)
+
+                for rank in range(world_size):
+                    if (rank + 1) * batch_size_per_GPU > global_batch_size:
+                        batch_size = batch_size_per_GPU - ((rank + 1) * batch_size_per_GPU - global_batch_size)
+                    else:
+                        batch_size = batch_size_per_GPU
+
+                    batch_sizes.append(batch_size)
+
+                logger.info("worker", my_rank, "batch_size", batch_sizes[my_rank])
+                # self.print_to_log_file("worker", my_rank, "oversample", oversample_percents[my_rank])
+                # self.print_to_log_file("worker", my_rank, "batch_size", batch_sizes[my_rank])
+
+                self.batch_size = batch_sizes[my_rank]
 
     @staticmethod
     def _convert_numpy(obj: dict) -> dict:
@@ -274,6 +380,7 @@ class AbstractBaseTrainer(ABC):
         downstream_arch: AbstractDynamicNetworkArchitectures,
         pre_train_statedict: dict[str, torch.Tensor],
         adapt_plan: AdaptationPlan,
+        arch_kwargs=None,
     ):
         """
         Tests if we can load the weights of the downstream arch given the pre-training statedict and the adaptation plan.
@@ -302,6 +409,12 @@ class AbstractBaseTrainer(ABC):
                 if new_k.startswith("."):
                     new_k = new_k[1:]
                 stem_weights[new_k] = v
+
+        if "cls_token" in encoder_weights.keys():
+            handle_pos_embed_resize(encoder_weights, encoder.state_dict(), 'interpolate_trilinear', arch_kwargs['input_shape'],arch_kwargs['input_shape'],  arch_kwargs['patch_embed_size'])
+            skip_strings_in_pretrained = ["cls_token"]
+            encoder_weights, found_cls_token = filter_state_dict(encoder_weights, skip_strings_in_pretrained)
+
         # ------------------------------ Verify loading ------------------------------ #
         encoder.load_state_dict(encoder_weights)
         stem.load_state_dict(stem_weights)
@@ -320,8 +433,8 @@ class AbstractBaseTrainer(ABC):
         if adapt_plan.architecture_plans.arch_class_name in get_args(DYN_ARCHITECTURE_PRESETS):
             downstream_arch = get_network_from_plans(
                 adapt_plan.architecture_plans.arch_class_name,
-                arch_kwargs=asdict(adapt_plan.architecture_plans.arch_kwargs),
-                arch_kwargs_req_import=adapt_plan.architecture_plans.arch_kwargs_requiring_import,
+                arch_kwargs=adaptation_plan_dict["architecture_plans"]["arch_kwargs"],
+                arch_kwargs_req_import=adaptation_plan_dict["architecture_plans"]["arch_kwargs_requiring_import"],
                 input_channels=adapt_plan.pretrain_num_input_channels,
                 output_channels=2,  # Some arbitrary choice
                 deep_supervision=False,
@@ -336,10 +449,10 @@ class AbstractBaseTrainer(ABC):
                 2,  # Number of output channels -- Does not matter (like e.g. decoder)
                 encoder_only=False,
                 deep_supervision=False,
-                arch_kwargs=None,
+                arch_kwargs=adaptation_plan_dict["architecture_plans"]["arch_kwargs"],
             )
         # ------------------------- Simulate explicit loading ------------------------ #
-        AbstractBaseTrainer._test_load_weight(downstream_arch, pre_train_statedict, adapt_plan)
+        AbstractBaseTrainer._test_load_weight(downstream_arch, pre_train_statedict, adapt_plan, adaptation_plan_dict["architecture_plans"]["arch_kwargs"])
 
     @abstractmethod
     def build_architecture_and_adaptation_plan(
@@ -436,7 +549,8 @@ class AbstractBaseTrainer(ABC):
                     # This is a signal that we need to resubmit, so we break the loop and exit gracefully
                     print("Finished last epoch before restart.")
                     self.print_to_log_file("Finished last epoch before restart.")
-                    raise KeyboardInterrupt
+                    self.save_checkpoint(join(self.output_folder, "checkpoint_latest.pth"))
+                    sys.exit(0)
 
                 self.on_epoch_end()
 
@@ -448,7 +562,7 @@ class AbstractBaseTrainer(ABC):
             raise KeyboardInterrupt
 
     def print_to_log_file(self, *args, also_print_to_console=True, add_timestamp=True):
-        if self.local_rank == 0:
+        if self.global_rank == 0:
             timestamp = time()
             dt_object = datetime.fromtimestamp(timestamp)
 
@@ -474,7 +588,7 @@ class AbstractBaseTrainer(ABC):
                 print(*args)
 
     def print_plans(self):
-        if self.local_rank == 0:
+        if self.global_rank == 0:
             dct = deepcopy(self.plan.serialize())
             del dct["configurations"]
             self.print_to_log_file(
@@ -516,7 +630,7 @@ class AbstractBaseTrainer(ABC):
                 disable=True if (("LSF_JOBID" in os.environ) or ("SLURM_JOB_ID" in os.environ)) else False,
             ):
                 if cnt + 1 % 10000 == 0:  # print every 10k images
-                    if self.local_rank == 0:
+                    if self.global_rank == 0:
                         self.print_to_log_file(f"Checking image {cnt+1} of {len(identifiers)}")
                         logger.info(f"Checking image {cnt+1} of {len(identifiers)}")
                 valid_images.append(dataset.verify_file_exists(i, dataset.dataset_dir, img_dataset))
@@ -535,13 +649,20 @@ class AbstractBaseTrainer(ABC):
         # load the datasets for training and validation. Note that we always draw random samples so we really don't
         # care about distributing training cases across GPUs.
         collection = Collection.from_dict(self.pretrain_json)
-        dataset_tr = nnSSLDatasetBlosc2(self.preprocessed_dataset_folder, collection, tr_subjects, self.iimg_filters)
-        dataset_val = nnSSLDatasetBlosc2(
-            self.preprocessed_dataset_folder, collection, val_subjects, self.iimg_filters
-        )
-
-        logger.info(f"Train dataset contains {len(dataset_tr.image_dataset)} images.")
-        logger.info(f"Validation dataset contains {len(dataset_val.image_dataset)} images.")
+        if "CONTAINERIZED" in os.environ and os.environ["CONTAINERIZED"].lower() in ["true", "1", "t"]:
+            dataset_tr = nnSSLDatasetBlosc2Container(self.preprocessed_dataset_folder, collection, tr_subjects, self.iimg_filters)
+            dataset_val = nnSSLDatasetBlosc2Container(
+                self.preprocessed_dataset_folder, collection, val_subjects, self.iimg_filters
+            )
+            logger.info(f"Train dataset contains {len(dataset_tr.image_identifiers)} images.")
+            logger.info(f"Validation dataset contains {len(dataset_val.image_identifiers)} images.")
+        else:
+            dataset_tr = nnSSLDatasetBlosc2(self.preprocessed_dataset_folder, collection, tr_subjects, self.iimg_filters)
+            dataset_val = nnSSLDatasetBlosc2(
+                self.preprocessed_dataset_folder, collection, val_subjects, self.iimg_filters
+            )
+            logger.info(f"Train dataset contains {len(dataset_tr.image_dataset)} images.")
+            logger.info(f"Validation dataset contains {len(dataset_val.image_dataset)} images.")
 
         # ---------------------- Check which images are existing --------------------- #
         # logger.info("Checking which images are existing...")
@@ -649,7 +770,7 @@ class AbstractBaseTrainer(ABC):
 
     def interrupt_at_nans(self, losses: list[dict]):
         if self.stop_at_nans:
-            threshold = 20
+            threshold = 0.9
             nans = sum([1 if np.isnan(l["loss"]) else 0 for l in losses])
             if nans > threshold:
                 raise RuntimeError(f"More than {threshold} NaN's detected in loss. Aborting.")
@@ -736,7 +857,8 @@ class AbstractBaseTrainer(ABC):
         # Guarantee to only use data that is readable and not inf or nan
 
         # copy plans and dataset.json so that they can be used for restoring everything we need for inference
-        save_json(self.plan.serialize(), join(self.output_folder_base, "plans.json"), sort_keys=False)
+        if not "RANK" in os.environ or int(os.environ["RANK"]) == 0:
+            save_json(self.plan.serialize(), join(self.output_folder_base, "plans.json"), sort_keys=False)
 
         # self._save_debug_information()
 
@@ -748,7 +870,7 @@ class AbstractBaseTrainer(ABC):
         self.current_epoch += 1
 
         # now we can delete latest
-        if self.local_rank == 0 and isfile(join(self.output_folder, "checkpoint_latest.pth")):
+        if self.global_rank == 0 and isfile(join(self.output_folder, "checkpoint_latest.pth")):
             os.remove(join(self.output_folder, "checkpoint_latest.pth"))
 
         # shut down dataloaders
@@ -793,7 +915,7 @@ class AbstractBaseTrainer(ABC):
         self.lr_scheduler.step(self.current_epoch)
         self.print_to_log_file("")
         self.print_to_log_file(f"Epoch {self.current_epoch}")
-        self.print_to_log_file(f"Current learning rate: {np.round(self.optimizer.param_groups[0]['lr'], decimals=5)}")
+        self.print_to_log_file(f"Current learning rate: {np.round(self.optimizer.param_groups[0]['lr'], decimals=7)}")
         # lrs are the same for all workers so we don't need to gather them in case of DDP training
         self.logger.log("lrs", self.optimizer.param_groups[0]["lr"], self.current_epoch)
 
@@ -814,7 +936,11 @@ class AbstractBaseTrainer(ABC):
             f"Epoch time: {np.round(self.logger.my_fantastic_logging['epoch_end_timestamps'][-1] - self.logger.my_fantastic_logging['epoch_start_timestamps'][-1], decimals=2)} s"
         )
         # handling periodic checkpointing
-        self.save_checkpoint(join(self.output_folder, "checkpoint_latest.pth"))
+        if (self.current_epoch + 1) % self.save_every == 0:
+            self.save_checkpoint(join(self.output_folder, "checkpoint_latest.pth"))
+
+        if self.save_intermediate_every and self.current_epoch % self.save_intermediate_every == 0:
+            self.save_checkpoint(join(self.output_folder, f"checkpoint_epoch_{self.current_epoch}.pth"))
 
         # handle 'best' checkpointing. val_loss smaller than best_ema
         if self._best_ema is None or self.logger.my_fantastic_logging["val_losses"][-1] < self._best_ema:
@@ -822,7 +948,7 @@ class AbstractBaseTrainer(ABC):
             self.print_to_log_file(f"Yayy! New best val loss: {np.round(self._best_ema, decimals=4)}")
             self.save_checkpoint(join(self.output_folder, "checkpoint_best.pth"))
 
-        if self.local_rank == 0:
+        if self.global_rank == 0:
             # if self.current_epoch % 50 == 0:
             #     self.print_to_log_file("Saving checkpoint...")
             #     self.save_checkpoint(
@@ -833,7 +959,7 @@ class AbstractBaseTrainer(ABC):
         self.current_epoch += 1
 
     def save_checkpoint(self, filename: str, live_upload: bool = False) -> None:
-        if self.local_rank == 0:
+        if self.global_rank == 0:
             if not self.disable_checkpointing:
                 if self.is_ddp:
                     mod = self.network.module
@@ -854,7 +980,9 @@ class AbstractBaseTrainer(ABC):
                     "nnssl_adaptation_plan": self.adaptation_plan.serialize(),
                 }
                 checkpoint = self._convert_numpy(checkpoint)
-                torch.save(checkpoint, filename)
+                tmp_filename = filename + ".tmp"
+                torch.save(checkpoint, tmp_filename)
+                os.replace(tmp_filename, filename)
             else:
                 self.print_to_log_file("No checkpoint written, checkpointing is disabled")
 
@@ -899,16 +1027,15 @@ class AbstractBaseTrainer(ABC):
                 self.grad_scaler.load_state_dict(checkpoint["grad_scaler_state"])
 
     def perform_actual_validation(self, save_probabilities: bool = False):
-        print("Actual Validation is trainer specific and needs to be written here. To be implemented late!")
+        if self.global_rank == 0:
+            print("Actual Validation is trainer specific and needs to be written here. To be implemented late!")
 
     def _do_i_compile(self):
-        return ("nnUNet_compile" in os.environ.keys()) and (
-            os.environ["nnUNet_compile"].lower() in ("true", "1", "t")
-        )
+        return self.device.type == "cuda" and os.environ.get("nnUNet_compile", "true") in ("true", "1", "t")
 
     def _save_debug_information(self):
         # saving some debug information
-        if self.local_rank == 0:
+        if self.global_rank == 0:
             dct = {}
             for k in self.__dir__():
                 if not k.startswith("__"):
@@ -997,9 +1124,8 @@ class AbstractBaseTrainer(ABC):
             subject_identifiers = get_subject_identifiers(self.preprocessed_dataset_folder)
             assert len(subject_identifiers) != 0, "No subjects found. Aborting"
             subject_identifiers = sorted(subject_identifiers)
-            n_val_subjects = min(1000, max(int(len(subject_identifiers) / 100), 5))
-            rng = random.Random(12345)  # seed to guarantee same split always
-            val_subjects = rng.sample(subject_identifiers, n_val_subjects)
+            n_val_subjects = min(200, int(len(subject_identifiers) / 100))
+            val_subjects = sample(subject_identifiers, n_val_subjects)
             train_subjects = list(set(subject_identifiers) - set(val_subjects))
             splits = {"train": list(train_subjects), "val": list(val_subjects)}
             save_json(splits, splits_file)

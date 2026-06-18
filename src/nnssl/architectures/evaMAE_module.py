@@ -145,7 +145,7 @@ class EvaMAE(nn.Module):
         # Encode patches
         x = self.down_projection(x)
         B, C, W, H, D = x.shape
-        x = rearrange(x, 'b c w h d -> b (h w d) c')
+        x = rearrange(x, 'b c w h d -> b (w h d) c').contiguous()
 
         # Encode using EVA (internally applies masking with patch_drop_rate)
         encoded, keep_indices = self.eva(x)
@@ -160,7 +160,7 @@ class EvaMAE(nn.Module):
             decoded = encoded
 
         # Project back to output shape
-        decoded = rearrange(decoded, 'b (h w d) c -> b c w h d', h=W, w=H, d=D)
+        decoded = rearrange(decoded, 'b (w h d) c -> b c w h d', w=W, h=H, d=D).contiguous()
         decoded = self.up_projection(decoded)
 
         if self.use_decoder:

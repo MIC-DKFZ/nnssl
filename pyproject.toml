@@ -32,7 +32,7 @@ keywords = [
 dependencies = [
     "torch>=2.0.0",
     "acvl-utils>=0.2",
-    "dynamic-network-architectures @ git+https://github.com/TaWald/dynamic-network-architectures@main",
+    "dynamic-network-architectures>=0.4.4,<0.5",
     "tqdm",
     "dicom2nifti",
     "scipy",
@@ -61,6 +61,7 @@ dependencies = [
     "lpips",
     "wandb",
     "torchio",
+    "blosc2-containerization @ git+https://git.dkfz.de/mic/internal/mic-rocket/blosc2-containerization.git"
 ]
 
 [project.urls]
@@ -74,6 +75,7 @@ nnssl_extract_fingerprint = "nnssl.experiment_planning.plan_and_preprocess_entry
 nnssl_plan_experiment = "nnssl.experiment_planning.plan_and_preprocess_entrypoints:plan_experiment_entry"
 nnssl_preprocess = "nnssl.experiment_planning.plan_and_preprocess_entrypoints:preprocess_entry"
 nnssl_train = "nnssl.run.run_training:run_training_entry"
+nnssl_train_cross_node_ddp = "nnssl.run.run_training_cross_node:run_training_cross_node_entry"
 nnssl_train_wandb = "nnssl.run.run_training_wandb:run_training_entry"
 
 [project.optional-dependencies]
