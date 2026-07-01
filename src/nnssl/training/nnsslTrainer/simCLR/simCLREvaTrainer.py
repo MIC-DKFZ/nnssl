@@ -5,7 +5,10 @@ import numpy as np
 import torch
 
 from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan, ArchitecturePlans
-from nnssl.training.lr_scheduler.warmup import Lin_incr_LRScheduler, PolyLRScheduler_offset
+from nnssl.training.lr_scheduler.warmup import (
+    Lin_incr_LRScheduler,
+    PolyLRScheduler_offset,
+)
 from nnssl.architectures.evaMAE_module import EvaMAE
 from nnssl.training.nnsslTrainer.simCLR.simCLRTrainer import SimCLRTrainer
 from torch import nn
@@ -61,13 +64,13 @@ class SimCLREvaTrainer(SimCLRTrainer):
         self.init_value = 0.1
         self.scale_attn_inner = True
 
-    def on_train_epoch_start(self):
+    def on_train_epoch_start(self, using_wandb: bool = False) -> None:
         if self.current_epoch == 0:
             self.optimizer, self.lr_scheduler = self.configure_optimizers("warmup_all")
         elif self.current_epoch == self.warmup_duration_whole_net:
             self.optimizer, self.lr_scheduler = self.configure_optimizers("train")
 
-        super().on_train_epoch_start()
+        super().on_train_epoch_start(using_wandb)
 
     def configure_optimizers(self, stage: str = "warmup_all"):
         assert stage in ["warmup_all", "train"]
@@ -83,10 +86,19 @@ class SimCLREvaTrainer(SimCLRTrainer):
         if stage == "warmup_all":
             self.print_to_log_file("train whole net, warmup")
             optimizer = torch.optim.AdamW(
-                params, self.initial_lr, weight_decay=self.weight_decay, amsgrad=False, betas=(0.9, 0.98), fused=True
+                params,
+                self.initial_lr,
+                weight_decay=self.weight_decay,
+                amsgrad=False,
+                betas=(0.9, 0.98),
+                fused=True,
             )
-            lr_scheduler = Lin_incr_LRScheduler(optimizer, self.initial_lr, self.warmup_duration_whole_net)
-            self.print_to_log_file(f"Initialized warmup_all optimizer and lr_scheduler at epoch {self.current_epoch}")
+            lr_scheduler = Lin_incr_LRScheduler(
+                optimizer, self.initial_lr, self.warmup_duration_whole_net
+            )
+            self.print_to_log_file(
+                f"Initialized warmup_all optimizer and lr_scheduler at epoch {self.current_epoch}"
+            )
         else:
             self.print_to_log_file("train whole net, default schedule")
             if self.training_stage == "warmup_all":
@@ -103,9 +115,14 @@ class SimCLREvaTrainer(SimCLRTrainer):
                     fused=True,
                 )
             lr_scheduler = PolyLRScheduler_offset(
-                optimizer, self.initial_lr, self.num_epochs, self.warmup_duration_whole_net
+                optimizer,
+                self.initial_lr,
+                self.num_epochs,
+                self.warmup_duration_whole_net,
             )
-            self.print_to_log_file(f"Initialized train optimizer and lr_scheduler at epoch {self.current_epoch}")
+            self.print_to_log_file(
+                f"Initialized train optimizer and lr_scheduler at epoch {self.current_epoch}"
+            )
         self.training_stage = stage
         empty_cache(self.device)
         return optimizer, lr_scheduler
@@ -142,7 +159,7 @@ class SimCLREvaTrainer(SimCLRTrainer):
             pretrain_num_input_channels=1,  # This is the actual input patch size!
             key_to_encoder="encoder.eva",
             key_to_stem="encoder.down_projection",
-            key_to_in_proj=("encoder.down_projection.proj",),
+            keys_to_in_proj=("encoder.down_projection.proj",),
             key_to_lpe="encoder.eva.pos_embed",
         )
 
@@ -159,7 +176,9 @@ class SimCLREvaTrainer(SimCLRTrainer):
         new_state_dict = {}
         for k, value in checkpoint["network_weights"].items():
             key = k
-            if key not in self.network.state_dict().keys() and key.startswith("module."):
+            if key not in self.network.state_dict().keys() and key.startswith(
+                "module."
+            ):
                 key = key[7:]
             new_state_dict[key] = value
 
@@ -212,7 +231,11 @@ class SimCLREvaTrainer(SimCLRTrainer):
         # If the device_type is 'cpu' then it's slow as heck and needs to be disabled.
         # If the device_type is 'mps' then it will complain that mps is not implemented, even if enabled=False is set. Whyyyyyyy. (this is why we don't make use of enabled=False)
         # So autocast will only be active if we have a cuda device.
-        with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+        with (
+            autocast(self.device.type, enabled=True)
+            if self.device.type == "cuda"
+            else dummy_context()
+        ):
             all_crop_embeddings = self.network(all_crops)
             if torch.isnan(all_crop_embeddings).any():
                 print("NaN values found in embeddings!")

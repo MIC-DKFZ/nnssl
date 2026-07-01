@@ -21,7 +21,9 @@ import numpy as np
 def find_candidate_datasets(dataset_id: int):
     startswith = "Dataset%03.0d" % dataset_id
     if nnssl_preprocessed is not None and isdir(nnssl_preprocessed):
-        candidates_preprocessed = subdirs(nnssl_preprocessed, prefix=startswith, join=False)
+        candidates_preprocessed = subdirs(
+            nnssl_preprocessed, prefix=startswith, join=False
+        )
     else:
         candidates_preprocessed = []
 
@@ -32,9 +34,13 @@ def find_candidate_datasets(dataset_id: int):
 
     candidates_trained_models = []
     if nnssl_results is not None and isdir(nnssl_results):
-        candidates_trained_models += subdirs(nnssl_results, prefix=startswith, join=False)
+        candidates_trained_models += subdirs(
+            nnssl_results, prefix=startswith, join=False
+        )
 
-    all_candidates = candidates_preprocessed + candidates_raw + candidates_trained_models
+    all_candidates = (
+        candidates_preprocessed + candidates_raw + candidates_trained_models
+    )
     unique_candidates = np.unique(all_candidates)
     return unique_candidates
 
@@ -44,7 +50,8 @@ def convert_id_to_dataset_name(dataset_id: int):
     if len(unique_candidates) > 1:
         raise RuntimeError(
             "More than one dataset name found for dataset id %d. Please correct that. (I looked in the "
-            "following folders:\n%s\n%s\n%s" % (dataset_id, nnssl_raw, nnssl_preprocessed, nnssl_results)
+            "following folders:\n%s\n%s\n%s"
+            % (dataset_id, nnssl_raw, nnssl_preprocessed, nnssl_results)
         )
     if len(unique_candidates) == 0:
         raise RuntimeError(
@@ -75,6 +82,7 @@ def maybe_convert_to_dataset_name(dataset_name_or_id: Union[int, str]) -> str:
             raise ValueError(
                 "dataset_name_or_id was a string and did not start with 'Dataset' so we tried to "
                 "convert it to a dataset ID (int). That failed, however. Please give an integer number "
-                "('1', '2', etc) or a correct dataset name. Your input: %s" % dataset_name_or_id
+                "('1', '2', etc) or a correct dataset name. Your input: %s"
+                % dataset_name_or_id
             )
     return convert_id_to_dataset_name(dataset_name_or_id)

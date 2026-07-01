@@ -10,9 +10,14 @@ from nnssl.experiment_planning.experiment_planners.plan import Plan
 
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-from nnssl.training.nnsslTrainer.swinunetr_pretrain.SwinUNETRTrainer import SwinUNETRTrainer
+from nnssl.training.nnsslTrainer.swinunetr_pretrain.SwinUNETRTrainer import (
+    SwinUNETRTrainer,
+)
 from nnssl.utilities.helpers import dummy_context, empty_cache
-from nnssl.training.lr_scheduler.warmup import Lin_incr_LRScheduler, PolyLRScheduler_offset
+from nnssl.training.lr_scheduler.warmup import (
+    Lin_incr_LRScheduler,
+    PolyLRScheduler_offset,
+)
 from nnssl.architectures.evaMAE_module import EvaMAE
 from batchgenerators.utilities.file_and_folder_operations import save_json
 
@@ -73,10 +78,19 @@ class SwinUNETREvaTrainer(SwinUNETRTrainer):
         if stage == "warmup_all":
             self.print_to_log_file("train whole net, warmup")
             optimizer = torch.optim.AdamW(
-                params, self.initial_lr, weight_decay=self.weight_decay, amsgrad=False, betas=(0.9, 0.98), fused=True
+                params,
+                self.initial_lr,
+                weight_decay=self.weight_decay,
+                amsgrad=False,
+                betas=(0.9, 0.98),
+                fused=True,
             )
-            lr_scheduler = Lin_incr_LRScheduler(optimizer, self.initial_lr, self.warmup_duration_whole_net)
-            self.print_to_log_file(f"Initialized warmup_all optimizer and lr_scheduler at epoch {self.current_epoch}")
+            lr_scheduler = Lin_incr_LRScheduler(
+                optimizer, self.initial_lr, self.warmup_duration_whole_net
+            )
+            self.print_to_log_file(
+                f"Initialized warmup_all optimizer and lr_scheduler at epoch {self.current_epoch}"
+            )
         else:
             self.print_to_log_file("train whole net, default schedule")
             if self.training_stage == "warmup_all":
@@ -93,9 +107,14 @@ class SwinUNETREvaTrainer(SwinUNETRTrainer):
                     fused=True,
                 )
             lr_scheduler = PolyLRScheduler_offset(
-                optimizer, self.initial_lr, self.num_epochs, self.warmup_duration_whole_net
+                optimizer,
+                self.initial_lr,
+                self.num_epochs,
+                self.warmup_duration_whole_net,
             )
-            self.print_to_log_file(f"Initialized train optimizer and lr_scheduler at epoch {self.current_epoch}")
+            self.print_to_log_file(
+                f"Initialized train optimizer and lr_scheduler at epoch {self.current_epoch}"
+            )
         self.training_stage = stage
         empty_cache(self.device)
         return optimizer, lr_scheduler
@@ -144,7 +163,9 @@ class SwinUNETREvaTrainer(SwinUNETRTrainer):
         new_state_dict = {}
         for k, value in checkpoint["network_weights"].items():
             key = k
-            if key not in self.network.state_dict().keys() and key.startswith("module."):
+            if key not in self.network.state_dict().keys() and key.startswith(
+                "module."
+            ):
                 key = key[7:]
             new_state_dict[key] = value
 
@@ -189,16 +210,26 @@ class SwinUNETREvaTrainer(SwinUNETRTrainer):
 
         imgs_rotated = torch.cat([imgs1_rotated, imgs2_rotated], dim=0)
         rotations = torch.cat([rotations1, rotations2], dim=0)
-        imgs_rotated_cutout = torch.cat([imgs1_rotated_cutout, imgs2_rotated_cutout], dim=0)
+        imgs_rotated_cutout = torch.cat(
+            [imgs1_rotated_cutout, imgs2_rotated_cutout], dim=0
+        )
 
         imgs_rotated = imgs_rotated.to(self.device, non_blocking=True)
         rotations = rotations.to(self.device, non_blocking=True)
         imgs_rotated_cutout = imgs_rotated_cutout.to(self.device, non_blocking=True)
 
         self.optimizer.zero_grad(set_to_none=True)
-        with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
-            rotations_pred, contrast_pred, reconstructions = self.network(imgs_rotated_cutout)
-            l = self.loss(rotations_pred, rotations, contrast_pred, reconstructions, imgs_rotated)
+        with (
+            autocast(self.device.type, enabled=True)
+            if self.device.type == "cuda"
+            else dummy_context()
+        ):
+            rotations_pred, contrast_pred, reconstructions = self.network(
+                imgs_rotated_cutout
+            )
+            l = self.loss(
+                rotations_pred, rotations, contrast_pred, reconstructions, imgs_rotated
+            )
 
         if self.grad_scaler is not None:
             self.grad_scaler.scale(l).backward()

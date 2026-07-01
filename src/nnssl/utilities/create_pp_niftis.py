@@ -12,7 +12,9 @@ import SimpleITK as sitk
 nnssl_preprocessed = os.environ["nnssl_preprocessed"]
 
 
-def convert_npzs_to_nifti_im(npz_file: str, config_plan: ConfigurationPlan) -> sitk.Image:
+def convert_npzs_to_nifti_im(
+    npz_file: str, config_plan: ConfigurationPlan
+) -> sitk.Image:
     spacing = config_plan.spacing
     data = np.load(npz_file, "r")["data"][0]
     im = sitk.GetImageFromArray(data)
@@ -20,7 +22,12 @@ def convert_npzs_to_nifti_im(npz_file: str, config_plan: ConfigurationPlan) -> s
     return im
 
 
-def create_pp_niftis(dataset_name_or_id: int, plans_identifier: str, configuration_name: str, n_samples: int = 20):
+def create_pp_niftis(
+    dataset_name_or_id: int,
+    plans_identifier: str,
+    configuration_name: str,
+    n_samples: int = 20,
+):
     """
     Main function that is called externally.
     Does the preprocessing of the cases found in the dataset_name.
@@ -31,7 +38,8 @@ def create_pp_niftis(dataset_name_or_id: int, plans_identifier: str, configurati
 
     plans_file = join(nnssl_preprocessed, dataset_name, plans_identifier + ".json")
     assert isfile(plans_file), (
-        "Expected plans file (%s) not found. Run corresponding nnUNet_plan_experiment " "first." % plans_file
+        "Expected plans file (%s) not found. Run corresponding nnUNet_plan_experiment "
+        "first." % plans_file
     )
     plan: Plan = Plan.load_from_file(plans_file)
     config_plan: ConfigurationPlan = plan.configurations[configuration_name]
@@ -43,7 +51,11 @@ def create_pp_niftis(dataset_name_or_id: int, plans_identifier: str, configurati
     dataset_json_file = join(nnssl_preprocessed, dataset_name, "dataset.json")
     dataset_json = load_json(dataset_json_file)
 
-    output_directory = join(nnssl_preprocessed, dataset_name, (config_plan.data_identifier + "_pp_nifti_samples"))
+    output_directory = join(
+        nnssl_preprocessed,
+        dataset_name,
+        (config_plan.data_identifier + "_pp_nifti_samples"),
+    )
     if isdir(output_directory):
         shutil.rmtree(output_directory)  # remove the folder if it exists
     maybe_mkdir_p(output_directory)
@@ -54,7 +66,9 @@ def create_pp_niftis(dataset_name_or_id: int, plans_identifier: str, configurati
 
     for npz in npz_samples:
         im = convert_npzs_to_nifti_im(npz, config_plan)
-        sitk.WriteImage(im, join(output_directory, os.path.basename(npz)[:-4] + ".nii.gz"))
+        sitk.WriteImage(
+            im, join(output_directory, os.path.basename(npz)[:-4] + ".nii.gz")
+        )
 
     # identifiers = [os.path.basename(i[:-len(dataset_json['file_ending'])]) for i in seg_fnames]
     # output_filenames_truncated = [join(output_directory, i) for i in identifiers]

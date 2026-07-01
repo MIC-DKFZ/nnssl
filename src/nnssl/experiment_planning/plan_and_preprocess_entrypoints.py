@@ -1,7 +1,13 @@
 from time import sleep
 from nnssl.configuration import default_num_processes
-from nnssl.experiment_planning.plan_and_preprocess_api import extract_fingerprints, plan_experiments, preprocess
-from nnssl.preprocessing.preprocessors.default_preprocessor import PREPROCESS_SPACING_STYLES
+from nnssl.experiment_planning.plan_and_preprocess_api import (
+    extract_fingerprints,
+    plan_experiments,
+    preprocess,
+)
+from nnssl.preprocessing.preprocessors.default_preprocessor import (
+    PREPROCESS_SPACING_STYLES,
+)
 from typing import get_args
 from loguru import logger
 
@@ -21,7 +27,8 @@ def extract_fingerprint_entry():
         type=int,
         default=default_num_processes,
         required=False,
-        help=f"[OPTIONAL] Number of processes used for fingerprint extraction. " f"Default: {default_num_processes}",
+        help=f"[OPTIONAL] Number of processes used for fingerprint extraction. "
+        f"Default: {default_num_processes}",
     )
     parser.add_argument(
         "--clean",

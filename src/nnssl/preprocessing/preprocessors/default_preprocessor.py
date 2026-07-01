@@ -25,13 +25,22 @@ from batchgenerators.utilities.file_and_folder_operations import *
 
 
 from nnssl.data.raw_dataset import Collection, IndependentImage
-from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan, PREPROCESS_SPACING_STYLES
+from nnssl.experiment_planning.experiment_planners.plan import (
+    ConfigurationPlan,
+    Plan,
+    PREPROCESS_SPACING_STYLES,
+)
 from nnssl.paths import nnssl_preprocessed, nnssl_raw
 from nnssl.preprocessing.cropping.cropping import crop_to_nonzero
 
 from nnssl.preprocessing.preprocessors.normalize import normalize_arr
-from nnssl.preprocessing.preprocessors.no_resampling_preprocessor import no_resample_preprocess_case
-from nnssl.preprocessing.resampling.default_resampling import compute_new_shape, get_resampling_scheme
+from nnssl.preprocessing.preprocessors.no_resampling_preprocessor import (
+    no_resample_preprocess_case,
+)
+from nnssl.preprocessing.resampling.default_resampling import (
+    compute_new_shape,
+    get_resampling_scheme,
+)
 from nnssl.data.dataloading.dataset import nnSSLDatasetBlosc2
 from nnssl.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
 from nnssl.data.utils import get_train_collection
@@ -84,20 +93,29 @@ def preprocess_case(
     # normalization MUST happen before resampling or we get huge problems with resampled nonzero masks no
     # longer fitting the images perfectly!
     norm_mask = masks[0]
-    data = normalize_arr(data, norm_mask, config_plan.normalization_schemes, config_plan.use_mask_for_norm)
+    data = normalize_arr(
+        data,
+        norm_mask,
+        config_plan.normalization_schemes,
+        config_plan.use_mask_for_norm,
+    )
 
     old_shape = data.shape[1:]
     resampling_fn = partial(
-        get_resampling_scheme(config_plan.resampling_fn_data), **config_plan.resampling_fn_data_kwargs
+        get_resampling_scheme(config_plan.resampling_fn_data),
+        **config_plan.resampling_fn_data_kwargs,
     )
     data = resampling_fn(data, new_shape, original_spacing, target_spacing)
 
     if has_masks:
         resampling_mask_fn = partial(
-            get_resampling_scheme(config_plan.resampling_fn_mask), **config_plan.resampling_fn_mask_kwargs
+            get_resampling_scheme(config_plan.resampling_fn_mask),
+            **config_plan.resampling_fn_mask_kwargs,
         )
         for cnt, mask in enumerate(masks):
-            masks[cnt] = resampling_mask_fn(mask, new_shape, original_spacing, target_spacing)
+            masks[cnt] = resampling_mask_fn(
+                mask, new_shape, original_spacing, target_spacing
+            )
     if verbose:
         print(
             f"old shape: {old_shape}, new_shape: {new_shape}, old_spacing: {original_spacing}, "
@@ -121,9 +139,16 @@ def preprocess_and_save(
 ):
     """Reads the images and their properties, preprocesses them and saves them to disk. (in a compressed npz)"""
     output_image_filename = Path(join(output_directory, image.get_output_path("image")))
-    output_anon_filename = Path(join(output_directory, image.get_output_path("anon_mask")))
-    output_anat_filename = Path(join(output_directory, image.get_output_path("anat_mask")))
+    output_anon_filename = Path(
+        join(output_directory, image.get_output_path("anon_mask"))
+    )
+    output_anat_filename = Path(
+        join(output_directory, image.get_output_path("anat_mask"))
+    )
     output_image_filename.parent.mkdir(parents=True, exist_ok=True)
+    # Skip if already preprocessed
+    if output_image_filename.with_suffix('.b2nd').exists():
+        return
     try:
         rw = plan.image_reader_writer_class()()
         image_path = image.image_path
@@ -135,10 +160,16 @@ def preprocess_and_save(
             raise RuntimeError("Found infs in the image")
 
         if image.associated_masks is not None:
-            masks = [rw.read_seg(v)[0] for v in asdict(image.associated_masks).values() if v is not None]
+            masks = [
+                rw.read_seg(v)[0]
+                for v in asdict(image.associated_masks).values()
+                if v is not None
+            ]
         else:
             masks = None
-        data, masks = pp_case_func(data, masks, data_properties, plan, config_plan, verbose)
+        data, masks = pp_case_func(
+            data, masks, data_properties, plan, config_plan, verbose
+        )
         # print('dtypes', data.dtype, seg.dtype)
         block_size_data, chunk_size_data = nnSSLDatasetBlosc2.comp_blosc2_params(
             data.shape, tuple([160, 160, 160]), data.itemsize
@@ -194,11 +225,14 @@ def default_preprocess(
     that does not contain label information.
     """
     dataset_name = maybe_convert_to_dataset_name(dataset_name_or_id)
-    assert isdir(join(nnssl_raw, dataset_name)), "The requested dataset could not be found in nnssl_raw"
+    assert isdir(
+        join(nnssl_raw, dataset_name)
+    ), "The requested dataset could not be found in nnssl_raw"
 
     plans_file = join(nnssl_preprocessed, dataset_name, plans_identifier + ".json")
     assert isfile(plans_file), (
-        "Expected plans file (%s) not found. Run corresponding nnUNet_plan_experiment " "first." % plans_file
+        "Expected plans file (%s) not found. Run corresponding nnUNet_plan_experiment "
+        "first." % plans_file
     )
     plan: Plan = Plan.load_from_file(plans_file)
     config_plan: ConfigurationPlan = plan.configurations[configuration_name]
@@ -207,7 +241,9 @@ def default_preprocess(
         print(f"Preprocessing the following configuration: {configuration_name}")
         print(config_plan)
 
-    output_directory = join(nnssl_preprocessed, dataset_name, config_plan.data_identifier)
+    output_directory = join(
+        nnssl_preprocessed, dataset_name, config_plan.data_identifier
+    )
 
     maybe_mkdir_p(output_directory)
 
@@ -216,7 +252,12 @@ def default_preprocess(
     pp_collection.update_extension(new_extension=".b2nd")
     pp_collection.raw_to_pp_path(data_identifier=config_plan.data_identifier)
     save_json(
-        pp_collection.to_dict(relative_paths=True), join(nnssl_preprocessed, dataset_name, f"pretrain_data__{configuration_name}.json")
+        pp_collection.to_dict(relative_paths=True),
+        join(
+            nnssl_preprocessed,
+            dataset_name,
+            f"pretrain_data__{configuration_name}.json",
+        ),
     )
     # multiprocessing magic.
     spst: PREPROCESS_SPACING_STYLES
@@ -244,7 +285,9 @@ def default_preprocess(
         if part == total_parts - 1:
             all_independent_images = all_independent_images[part * images_per_part :]
         else:
-            all_independent_images = all_independent_images[part * images_per_part : (part + 1) * images_per_part]
+            all_independent_images = all_independent_images[
+                part * images_per_part : (part + 1) * images_per_part
+            ]
 
     if num_processes > 1:
         with multiprocessing.get_context("spawn").Pool(num_processes) as p:
@@ -255,7 +298,11 @@ def default_preprocess(
     valid_imgs = [img for img, r in zip(all_independent_images, r) if r]
 
     if total_parts > 1:
-        out_filename = join(nnssl_preprocessed, dataset_name, f"valid_imgs__{part}_of_{total_parts}.json")
+        out_filename = join(
+            nnssl_preprocessed,
+            dataset_name,
+            f"valid_imgs__{part}_of_{total_parts}.json",
+        )
     else:
         out_filename = join(nnssl_preprocessed, dataset_name, "valid_imgs.json")
     save_json([img.to_dict() for img in valid_imgs], out_filename)
@@ -273,7 +320,9 @@ def default_preprocess(
             valid_images = []
             for f in all_valid_files:
                 valid_images += load_json(join(nnssl_preprocessed, dataset_name, f))
-            save_json(valid_images, join(nnssl_preprocessed, dataset_name, "valid_imgs.json"))
+            save_json(
+                valid_images, join(nnssl_preprocessed, dataset_name, "valid_imgs.json")
+            )
             for f in all_valid_files:
                 os.remove(join(nnssl_preprocessed, dataset_name, f))
 

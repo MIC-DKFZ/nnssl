@@ -6,13 +6,17 @@ from batchgenerators.utilities.file_and_folder_operations import join
 from nnssl.experiment_planning.dataset_fingerprint.default_fingerprint_extractor import (
     default_dataset_fingerprint_extraction,
 )
-from nnssl.experiment_planning.experiment_planners.default_experiment_planner import ExperimentPlanner
+from nnssl.experiment_planning.experiment_planners.default_experiment_planner import (
+    ExperimentPlanner,
+)
 from nnssl.experiment_planning.experiment_planners.plan import Plan
 from nnssl.paths import nnssl_preprocessed
 from nnssl.preprocessing.preprocessors.abstract_preprocessor import get_preprocessor
 
 if TYPE_CHECKING:
-    from nnssl.preprocessing.preprocessors.abstract_preprocessor import PreprocessorProtocol
+    from nnssl.preprocessing.preprocessors.abstract_preprocessor import (
+        PreprocessorProtocol,
+    )
 from nnssl.utilities.dataset_name_id_conversion import convert_id_to_dataset_name
 from nnssl.utilities.find_class_by_name import recursive_find_python_class
 from nnssl.configuration import default_num_processes
@@ -105,7 +109,7 @@ def preprocess_dataset(
     verbose: bool = False,
 ) -> None:
     if not isinstance(num_processes, list):
-        num_processes = [num_processes]
+        num_processes = list(num_processes)
     if len(num_processes) == 1:
         num_processes = num_processes * len(configurations)
     if len(num_processes) != len(configurations):
@@ -130,7 +134,9 @@ def preprocess_dataset(
             continue
         config = plan.configurations[c]
         preprocessor: PreprocessorProtocol = get_preprocessor(config.preprocessor_name)
-        preprocessor(dataset_id, c, plans_identifier, part, total_parts, num_processes=n)
+        preprocessor(
+            dataset_id, c, plans_identifier, part, total_parts, num_processes=n
+        )
 
 
 def preprocess(
@@ -143,4 +149,12 @@ def preprocess(
     verbose: bool = False,
 ):
     for d in dataset_ids:
-        preprocess_dataset(d, plans_identifier, configurations, part, total_parts, num_processes, verbose)
+        preprocess_dataset(
+            d,
+            plans_identifier,
+            configurations,
+            part,
+            total_parts,
+            num_processes,
+            verbose,
+        )

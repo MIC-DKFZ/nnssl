@@ -91,7 +91,9 @@ def bezier_curve(points, nTimes=1000):
 
     t = np.linspace(0.0, 1.0, nTimes)
 
-    polynomial_array = np.array([bernstein_poly(i, nPoints - 1, t) for i in range(0, nPoints)])
+    polynomial_array = np.array(
+        [bernstein_poly(i, nPoints - 1, t) for i in range(0, nPoints)]
+    )
 
     xvals = np.dot(xPoints, polynomial_array)
     yvals = np.dot(yPoints, polynomial_array)
@@ -115,7 +117,12 @@ def data_augmentation(x, y, seg, prob=0.5):
 def nonlinear_transformation(x, prob=0.5):
     if random.random() >= prob:
         return x
-    points = [[0, 0], [random.random(), random.random()], [random.random(), random.random()], [1, 1]]
+    points = [
+        [0, 0],
+        [random.random(), random.random()],
+        [random.random(), random.random()],
+        [1, 1],
+    ]
     xpoints = [p[0] for p in points]
     ypoints = [p[1] for p in points]
     xvals, yvals = bezier_curve(points, nTimes=100000)
@@ -150,7 +157,9 @@ def local_pixel_shuffling(x, prob=0.5):
         ]
         window = window.flatten()
         np.random.shuffle(window)
-        window = window.reshape((block_noise_size_x, block_noise_size_y, block_noise_size_z))
+        window = window.reshape(
+            (block_noise_size_x, block_noise_size_y, block_noise_size_z)
+        )
         image_temp[
             0,
             noise_x : noise_x + block_noise_size_x,
@@ -220,9 +229,15 @@ def image_out_painting(x):
     ]
     cnt = 4
     while cnt > 0 and random.random() < 0.95:
-        block_noise_size_x = img_rows - random.randint(3 * img_rows // 7, 4 * img_rows // 7)
-        block_noise_size_y = img_cols - random.randint(3 * img_cols // 7, 4 * img_cols // 7)
-        block_noise_size_z = img_deps - random.randint(3 * img_deps // 7, 4 * img_deps // 7)
+        block_noise_size_x = img_rows - random.randint(
+            3 * img_rows // 7, 4 * img_rows // 7
+        )
+        block_noise_size_y = img_cols - random.randint(
+            3 * img_cols // 7, 4 * img_cols // 7
+        )
+        block_noise_size_z = img_deps - random.randint(
+            3 * img_deps // 7, 4 * img_deps // 7
+        )
         noise_x = random.randint(3, img_rows - block_noise_size_x - 3)
         noise_y = random.randint(3, img_cols - block_noise_size_y - 3)
         noise_z = random.randint(3, img_deps - block_noise_size_z - 3)

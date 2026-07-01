@@ -21,12 +21,15 @@ col_order = [
     "repetition_time",
     "echo_time",
     "is_brain_extract",
-    "derived_from"
+    "derived_from",
 ]
+
 
 def main():
     output_dir = Path("/home/j385i/cluster_data/j385i/data/openneuro/")
-    pretrain_json = load_json("/home/j385i/cluster_data/j385i/datasets/nnssl/nnssl_raw/Dataset745_OpenNeuro_v2/pretrain_data.json")
+    pretrain_json = load_json(
+        "/home/j385i/cluster_data/j385i/datasets/nnssl/nnssl_raw/Dataset745_OpenNeuro_v2/pretrain_data.json"
+    )
     collection = Collection.from_dict(pretrain_json)
     independent_images = collection.to_independent_images()
     flat_json = []
@@ -38,7 +41,7 @@ def main():
                 "image_path": ind_image.image_path,
                 "modality": ind_image.image_modality,
                 **ind_image.subject_info,
-                **ind_image.image_info
+                **ind_image.image_info,
             }
         )
     save_json(flat_json, output_dir / "openneuro_flat.json")

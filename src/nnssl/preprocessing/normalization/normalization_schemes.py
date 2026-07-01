@@ -21,8 +21,7 @@ class NormalizationProtocol(Protocol):
         target_dtype: Type[Number] = np.float32,
         use_mask_for_norm: Optional[bool] = None,
         non_zero_mask: Optional[np.ndarray] = None,
-    ) -> np.ndarray:
-        ...
+    ) -> np.ndarray: ...
 
 
 def assert_bool_or_none(value):
@@ -39,7 +38,10 @@ def convert_dtype(image: np.ndarray, target_dtype: Type[Number]) -> np.ndarray:
 
 
 def z_score_normalization(
-    image: np.ndarray, use_mask_for_norm: bool, non_zero_mask: np.ndarray, target_dtype: Type[Number]
+    image: np.ndarray,
+    use_mask_for_norm: bool,
+    non_zero_mask: np.ndarray,
+    target_dtype: Type[Number],
 ) -> np.ndarray:
     image = convert_dtype(image, target_dtype)
     if use_mask_for_norm:
@@ -58,17 +60,20 @@ def no_normalization(image: np.ndarray, target_dtype: Type[Number]) -> np.ndarra
     return convert_dtype(image, target_dtype)
 
 
-def rescale_to_01_normalization(image: np.ndarray, target_dtype: Type[Number]) -> np.ndarray:
+def rescale_to_01_normalization(
+    image: np.ndarray, target_dtype: Type[Number]
+) -> np.ndarray:
     image = convert_dtype(image, target_dtype)
     image = image - image.min()
     return image / np.clip(image.max(), a_min=1e-8, a_max=None)
 
 
-def rgb_to_01_normalization(image: np.ndarray, target_dtype: Type[Number]) -> np.ndarray:
+def rgb_to_01_normalization(
+    image: np.ndarray, target_dtype: Type[Number]
+) -> np.ndarray:
     assert_min_max_for_rgb(image)
     image = convert_dtype(image, target_dtype)
     return image / 255.0
-
 
 
 def apply_normalization(
@@ -81,7 +86,9 @@ def apply_normalization(
     if isinstance(scheme, str):
         scheme = NormalizationScheme(scheme)
     if scheme == NormalizationScheme.Z_SCORE:
-        return z_score_normalization(image, use_mask_for_norm, non_zero_mask, target_dtype)
+        return z_score_normalization(
+            image, use_mask_for_norm, non_zero_mask, target_dtype
+        )
     elif scheme == NormalizationScheme.NO_NORMALIZATION:
         return no_normalization(image, target_dtype)
     elif scheme == NormalizationScheme.RESCALE_TO_01:

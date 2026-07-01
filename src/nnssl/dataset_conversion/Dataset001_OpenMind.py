@@ -7,7 +7,14 @@ import pandas as pd
 from batchgenerators.utilities.file_and_folder_operations import save_json
 from tqdm import tqdm
 
-from nnssl.data.raw_dataset import Dataset, Image, Session, Subject, AssociatedMasks, Collection
+from nnssl.data.raw_dataset import (
+    Dataset,
+    Image,
+    Session,
+    Subject,
+    AssociatedMasks,
+    Collection,
+)
 from nnssl.paths import nnssl_raw
 
 sep = os.path.sep
@@ -24,7 +31,15 @@ def _create_pretrain_json(openmind_root_dir: Path):
     # "openmind" environment variable holds the path to the OpenMind dataset download directory
     collection = Collection(collection_name="Dataset001_OpenMind", collection_index=1)
 
-    subject_info_keys = ["age", "sex", "handedness", "race", "weight", "bmi", "health_status"]
+    subject_info_keys = [
+        "age",
+        "sex",
+        "handedness",
+        "race",
+        "weight",
+        "bmi",
+        "health_status",
+    ]
     image_info_keys = [
         "derived_from",
         "is_brain_extract",
@@ -40,8 +55,12 @@ def _create_pretrain_json(openmind_root_dir: Path):
     for dic in tqdm(data):
         relative_scan_path = dic["image_path"]
         modality = dic["modality"]
-        subject_info = {k: dic[k] for k in subject_info_keys if k in dic if not pd.isna(dic[k])}
-        image_info = {k: dic[k] for k in image_info_keys if k in dic if not pd.isna(dic[k])}
+        subject_info = {
+            k: dic[k] for k in subject_info_keys if k in dic if not pd.isna(dic[k])
+        }
+        image_info = {
+            k: dic[k] for k in image_info_keys if k in dic if not pd.isna(dic[k])
+        }
 
         parts = relative_scan_path.split(sep)
         dataset_id, subject_id = parts[0], parts[1]
@@ -65,20 +84,29 @@ def _create_pretrain_json(openmind_root_dir: Path):
         if relative_anat_mask_path:
             anatomy_mask_path = str(openmind_dir / relative_anat_mask_path)
 
-        associated_masks = AssociatedMasks(anonymization_mask=anonymization_mask_path, anatomy_mask=anatomy_mask_path)
+        associated_masks = AssociatedMasks(
+            anonymization_mask=anonymization_mask_path, anatomy_mask=anatomy_mask_path
+        )
 
         if dataset_id not in collection.datasets:
-            collection.datasets[dataset_id] = Dataset(dataset_index=dataset_id, name=None, dataset_info={})
+            collection.datasets[dataset_id] = Dataset(
+                dataset_index=dataset_id, name=None, dataset_info={}
+            )
 
         if subject_id not in collection.datasets[dataset_id].subjects:
             collection.datasets[dataset_id].subjects[subject_id] = Subject(
                 subject_id=subject_id, subject_info=subject_info
             )
-        if session_id not in collection.datasets[dataset_id].subjects[subject_id].sessions:
-            collection.datasets[dataset_id].subjects[subject_id].sessions[session_id] = Session(
-                session_id=session_id, images=[]
-            )
-        collection.datasets[dataset_id].subjects[subject_id].sessions[session_id].images.append(
+        if (
+            session_id
+            not in collection.datasets[dataset_id].subjects[subject_id].sessions
+        ):
+            collection.datasets[dataset_id].subjects[subject_id].sessions[
+                session_id
+            ] = Session(session_id=session_id, images=[])
+        collection.datasets[dataset_id].subjects[subject_id].sessions[
+            session_id
+        ].images.append(
             Image(
                 name=image_name,
                 image_path=image_path,
@@ -94,7 +122,9 @@ def _create_pretrain_json(openmind_root_dir: Path):
         .first()["image_quality_score"]
         .reset_index()
     )
-    dataset_id_tree = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: None)))
+    dataset_id_tree = defaultdict(
+        lambda: defaultdict(lambda: defaultdict(lambda: None))
+    )
     for _, row in grouped_iqs_csv.iterrows():
         dataset_id = row["dataset_id"]
         modality = row["modality"]
@@ -110,7 +140,13 @@ def _create_pretrain_json(openmind_root_dir: Path):
         modality_tree = dataset_id_tree[dataset_id]
         for modality, derived_from_tree in modality_tree.items():
             for derived_from, iqs_value in derived_from_tree.items():
-                dicts.append({"modality": modality, "derived_from": derived_from, "image_quality_score": iqs_value})
+                dicts.append(
+                    {
+                        "modality": modality,
+                        "derived_from": derived_from,
+                        "image_quality_score": iqs_value,
+                    }
+                )
         dataset.dataset_info["image_quality_score"] = dicts
 
     pretrain_json = collection.to_dict(relative_paths=True)

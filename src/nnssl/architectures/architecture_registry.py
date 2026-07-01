@@ -5,7 +5,9 @@ from dynamic_network_architectures.architectures.unet import ResidualEncoderUNet
 from nnssl.architectures.noskipResEncUNet import ResidualEncoderUNet_noskip
 
 
-SUPPORTED_ARCHITECTURES = Literal["ResEncL", "NoSkipResEncL" "PrimusS", "PrimusB", "PrimusM", "PrimusL"]
+SUPPORTED_ARCHITECTURES = Literal[
+    "ResEncL", "NoSkipResEncL" "PrimusS", "PrimusB", "PrimusM", "PrimusL"
+]
 PRIMUS_SCALES = Literal["S", "M", "B", "L"]
 
 
@@ -37,7 +39,9 @@ def get_res_enc_l(
     return network
 
 
-def get_noskip_res_enc_l(num_input_channels: int, num_output_channels: int) -> ResidualEncoderUNet:
+def get_noskip_res_enc_l(
+    num_input_channels: int, num_output_channels: int
+) -> ResidualEncoderUNet:
     """
     Creates the ResEnc-L architecture used in "Revisiting MAE Pre-training ..."
     https://arxiv.org/abs/2410.23132

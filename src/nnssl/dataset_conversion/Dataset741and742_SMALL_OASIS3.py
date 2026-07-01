@@ -33,14 +33,21 @@ def main():
                 imgs_of_ending = [f for f in content if f.endswith(e)]
                 chosen_imgs_of_ending = []
                 with tqdm(total=samples_per_ending, desc="Searching 3D images") as pbar:
-                    while len(chosen_imgs_of_ending) < samples_per_ending and len(imgs_of_ending) > 0:
+                    while (
+                        len(chosen_imgs_of_ending) < samples_per_ending
+                        and len(imgs_of_ending) > 0
+                    ):
                         chosen_img = imgs_of_ending.pop()
-                        im = sitk.ReadImage(os.path.join(path_to_raw_dataset, chosen_img))
+                        im = sitk.ReadImage(
+                            os.path.join(path_to_raw_dataset, chosen_img)
+                        )
                         if len(im.GetSize()) == 3:
                             chosen_imgs_of_ending.append(chosen_img)
                             pbar.update(1)
                         else:
-                            print(f"Image {chosen_img} has {len(im.GetSize())} dimensions, not 3. Skipping")
+                            print(
+                                f"Image {chosen_img} has {len(im.GetSize())} dimensions, not 3. Skipping"
+                            )
                     all_images += chosen_imgs_of_ending
         images = all_images
 
@@ -59,7 +66,10 @@ def main():
         os.makedirs(dataset_dir, exist_ok=True)
         os.makedirs(out_train_dir, exist_ok=True)
         for image in tqdm(images, desc="Copying images"):
-            shutil.copy(os.path.join(path_to_raw_dataset, image), os.path.join(out_train_dir, image))
+            shutil.copy(
+                os.path.join(path_to_raw_dataset, image),
+                os.path.join(out_train_dir, image),
+            )
         save_json(dataset_json, dataset_dir / "dataset.json")
 
 
@@ -67,7 +77,9 @@ def add_pretrain_json():
     path_to_data = "/home/tassilowald/Data/Datasets/nnunetv2/nnssl_raw/Dataset741_Small_OASIS3_T1_only"
     image_path = Path(path_to_data) / "imagesTr"
     images = [p for p in os.listdir(image_path) if p.endswith(".nii.gz")]
-    pretrain_dataset = Dataset(name="Dataset741_Small_OASIS3_T1_only", dataset_index=741)
+    pretrain_dataset = Dataset(
+        name="Dataset741_Small_OASIS3_T1_only", dataset_index=741
+    )
     for image in tqdm(images):
         subject = image.split("_")[0]
         session = image.split("_")[1].split("-")[1]
@@ -75,12 +87,19 @@ def add_pretrain_json():
         if subject not in pretrain_dataset.subjects:
             pretrain_dataset.subjects[subject] = Subject(subject)
         if session not in pretrain_dataset.subjects[subject].sessions:
-            pretrain_dataset.subjects[subject].sessions[session] = Session(session_id=session, images=[])
+            pretrain_dataset.subjects[subject].sessions[session] = Session(
+                session_id=session, images=[]
+            )
         pretrain_dataset.subjects[subject].sessions[session].images.append(
             Image(name=image, image_path=str(image_path / image), modality=modality)
         )
     pretrain_json = pretrain_dataset.to_dict()
-    save_json(pretrain_json, str(Path(path_to_data) / "pretrain_data.json"), indent=4, sort_keys=True)
+    save_json(
+        pretrain_json,
+        str(Path(path_to_data) / "pretrain_data.json"),
+        indent=4,
+        sort_keys=True,
+    )
 
 
 if __name__ == "__main__":

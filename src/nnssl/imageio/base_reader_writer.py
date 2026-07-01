@@ -36,7 +36,9 @@ class BaseReaderWriter(ABC):
         return True
 
     @abstractmethod
-    def read_images(self, image_fnames: Union[List[str], Tuple[str, ...]]) -> Tuple[np.ndarray, dict]:
+    def read_images(
+        self, image_fnames: Union[List[str], Tuple[str, ...]]
+    ) -> Tuple[np.ndarray, dict]:
         """
         Reads a sequence of images and returns a 4d (!) np.ndarray along with a dictionary. The 4d array must have the
         modalities (or color channels, or however you would like to call them) in its first axis, followed by the

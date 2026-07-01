@@ -21,7 +21,9 @@ from nnssl.training.loss.pcrlv2_loss import PCRLv2Loss
 
 from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
 from nnssl.utilities.default_n_proc_DA import get_allowed_n_proc_DA
-from batchgenerators.dataloading.single_threaded_augmenter import SingleThreadedAugmenter
+from batchgenerators.dataloading.single_threaded_augmenter import (
+    SingleThreadedAugmenter,
+)
 from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
 from torch import autocast
 from nnssl.utilities.helpers import dummy_context
@@ -80,9 +82,14 @@ class PCRLv2Trainer(AbstractBaseTrainer):
 
     @override
     def build_architecture_and_adaptation_plan(
-        self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
+        self,
+        config_plan: ConfigurationPlan,
+        num_input_channels: int,
+        num_output_channels: int,
     ) -> nn.Module:
-        network = get_network_by_name(config_plan, "NoSkipResEncL", num_input_channels, num_output_channels)
+        network = get_network_by_name(
+            config_plan, "NoSkipResEncL", num_input_channels, num_output_channels
+        )
         architecture = PCRLv2Architecture(network)
         self.num_mid_stages = len(architecture.features_per_mid_stage)
         raise NotImplementedError("Missing adaptation plan")
@@ -94,34 +101,9 @@ class PCRLv2Trainer(AbstractBaseTrainer):
         tr_transforms = self.get_training_transforms()
         val_transforms = self.get_validation_transforms()
 
-        dl_tr, dl_val = self.get_plain_dataloaders(initial_patch_size=self.config_plan.patch_size)
-
-        allowed_num_processes = get_allowed_n_proc_DA()
-        if allowed_num_processes == 0:
-            mt_gen_train = SingleThreadedAugmenter(dl_tr, tr_transforms)
-            mt_gen_val = SingleThreadedAugmenter(dl_val, val_transforms)
-        else:
-            mt_gen_train = LimitedLenWrapper(
-                self.num_iterations_per_epoch,
-                data_loader=dl_tr,
-                transform=tr_transforms,
-                num_processes=allowed_num_processes,
-                num_cached=6,
-                seeds=None,
-                pin_memory=self.device.type == "cuda",
-                wait_time=0.02,
-            )
-            mt_gen_val = LimitedLenWrapper(
-                self.num_val_iterations_per_epoch,
-                data_loader=dl_val,
-                transform=val_transforms,
-                num_processes=max(1, allowed_num_processes // 2),
-                num_cached=3,
-                seeds=None,
-                pin_memory=self.device.type == "cuda",
-                wait_time=0.02,
-            )
-        return mt_gen_train, mt_gen_val
+        return self.make_generators(
+            self.config_plan.patch_size, tr_transforms, val_transforms
+        )
 
     @override
     def train_step(self, batch: dict) -> dict:
@@ -145,13 +127,24 @@ class PCRLv2Trainer(AbstractBaseTrainer):
         aug_local_crops = aug_local_crops.to(self.device, non_blocking=True)
 
         self.optimizer.zero_grad(set_to_none=True)
-        with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
-            reconstructions_A, embeddings_A, mid_reconstructions_A = self.network(aug_global_crops_A)
+        with (
+            autocast(self.device.type, enabled=True)
+            if self.device.type == "cuda"
+            else dummy_context()
+        ):
+            reconstructions_A, embeddings_A, mid_reconstructions_A = self.network(
+                aug_global_crops_A
+            )
             embeddings_B = self.network(aug_global_crops_B, embeddings_only=True)
             local_embeddings = self.network(aug_local_crops, embeddings_only=True)
 
             rec_l, mid_rec_l, g_sim_l, l_sim_l = self.loss(
-                reconstructions_A, mid_reconstructions_A, global_crops_A, embeddings_A, embeddings_B, local_embeddings
+                reconstructions_A,
+                mid_reconstructions_A,
+                global_crops_A,
+                embeddings_A,
+                embeddings_B,
+                local_embeddings,
             )
             l = rec_l + mid_rec_l + g_sim_l + l_sim_l
 
@@ -193,9 +186,18 @@ class PCRLv2Trainer(AbstractBaseTrainer):
                 for batch_id in tqdm(
                     range(self.num_iterations_per_epoch),
                     desc=f"Epoch {epoch}",
-                    disable=True if (("LSF_JOBID" in os.environ) or ("SLURM_JOB_ID" in os.environ)) else False,
+                    disable=(
+                        True
+                        if (
+                            ("LSF_JOBID" in os.environ)
+                            or ("SLURM_JOB_ID" in os.environ)
+                        )
+                        else False
+                    ),
                 ):
-                    l, rec_l, mid_rec_l, g_sim_l, l_sim_l = self.train_step(next(self.dataloader_train))
+                    l, rec_l, mid_rec_l, g_sim_l, l_sim_l = self.train_step(
+                        next(self.dataloader_train)
+                    )
                     rec_ls.append(rec_l)
                     mid_rec_ls.append(mid_rec_l)
                     g_sim_ls.append(g_sim_l)
@@ -217,7 +219,9 @@ class PCRLv2Trainer(AbstractBaseTrainer):
                     self.on_validation_epoch_start()
                     val_outputs = []
                     for batch_id in range(self.num_val_iterations_per_epoch):
-                        val_outputs.append(self.validation_step(next(self.dataloader_val)))
+                        val_outputs.append(
+                            self.validation_step(next(self.dataloader_val))
+                        )
                         # val_outputs.append(self.validation_step(next(self.dataloader_val)))
                     self.on_validation_epoch_end(val_outputs)
 
@@ -257,8 +261,14 @@ class PCRLv2Trainer(AbstractBaseTrainer):
         aug_local_crops = aug_local_crops.to(self.device, non_blocking=True)
 
         with torch.no_grad():
-            with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
-                reconstructions_A, embeddings_A, mid_reconstructions_A = self.network(aug_global_crops_A)
+            with (
+                autocast(self.device.type, enabled=True)
+                if self.device.type == "cuda"
+                else dummy_context()
+            ):
+                reconstructions_A, embeddings_A, mid_reconstructions_A = self.network(
+                    aug_global_crops_A
+                )
                 embeddings_B = self.network(aug_global_crops_B, embeddings_only=True)
                 local_embeddings = self.network(aug_local_crops, embeddings_only=True)
                 rec_l, mid_rec_l, g_sim_l, l_sim_l = self.loss(
@@ -284,7 +294,12 @@ class PCRLv2Trainer(AbstractBaseTrainer):
                     self.min_IoU,
                 ),
                 NumpyToTensor(
-                    keys=["aug_global_crops_A", "global_crops_A", "aug_global_crops_B", "aug_local_crops"],
+                    keys=[
+                        "aug_global_crops_A",
+                        "global_crops_A",
+                        "aug_global_crops_B",
+                        "aug_local_crops",
+                    ],
                     cast_to="float",
                 ),
             ]
@@ -309,7 +324,14 @@ class PCRLv2Trainer_test(PCRLv2Trainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        super().__init__(plan, configuration_name, fold, pretrain_json, device, global_input_size=(96, 96, 96))
+        super().__init__(
+            plan,
+            configuration_name,
+            fold,
+            pretrain_json,
+            device,
+            global_input_size=(96, 96, 96),
+        )
         self.total_batch_size = 2
         self.num_iterations_per_epoch = 20
         self.num_val_iterations_per_epoch = 5

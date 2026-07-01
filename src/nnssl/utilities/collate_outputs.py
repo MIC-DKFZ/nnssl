@@ -19,6 +19,8 @@ def collate_outputs(outputs: List[dict]):
         elif isinstance(outputs[0][k], list):
             collated[k] = [item for o in outputs for item in o[k]]
         else:
-            raise ValueError(f'Cannot collate input of type {type(outputs[0][k])}. '
-                             f'Modify collate_outputs to add this functionality')
+            raise ValueError(
+                f"Cannot collate input of type {type(outputs[0][k])}. "
+                f"Modify collate_outputs to add this functionality"
+            )
     return collated

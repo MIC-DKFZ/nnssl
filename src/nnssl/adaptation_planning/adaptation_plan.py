@@ -46,7 +46,9 @@ def serialize_kwargs(arch_kwargs: dict[str, Any]) -> dict[str, Any]:
     serialized_kwargs = {}
     for key, value in arch_kwargs.items():
         if isinstance(value, list):
-            serialized_kwargs[key] = [int(v) if isinstance(v, float) and v.is_integer() else v for v in value]
+            serialized_kwargs[key] = [
+                int(v) if isinstance(v, float) and v.is_integer() else v for v in value
+            ]
         elif isinstance(value, float):
             serialized_kwargs[key] = int(value) if value.is_integer() else value
         elif isinstance(value, np.ndarray):
@@ -87,7 +89,11 @@ class DynamicArchitecturePlans:
     def get_kwargs_requiring_import(self):
         kwargs_requiring_import = []
         for key, value in self.__dict__.items():
-            if isinstance(value, type) and (issubclass(value, nn.Module)) or isinstance(value, str):
+            if (
+                isinstance(value, type)
+                and (issubclass(value, nn.Module))
+                or isinstance(value, str)
+            ):
                 kwargs_requiring_import.append(key)
         return kwargs_requiring_import
 
@@ -100,10 +106,14 @@ class ArchitecturePlans:
 
     def __post_init__(self):
         if self.arch_kwargs:
-            self.arch_kwargs_requiring_import = self.arch_kwargs.get_kwargs_requiring_import()
+            self.arch_kwargs_requiring_import = (
+                self.arch_kwargs.get_kwargs_requiring_import()
+            )
 
     def serialize(self):
-        serialized_arch_kwargs = self.arch_kwargs.serialize() if self.arch_kwargs else None
+        serialized_arch_kwargs = (
+            self.arch_kwargs.serialize() if self.arch_kwargs else None
+        )
         return {
             "arch_class_name": self.arch_class_name,
             "arch_kwargs": serialized_arch_kwargs,
@@ -130,6 +140,7 @@ class AdaptationPlan:
     key_to_stem: str
     keys_to_in_proj: Sequence[str]
     key_to_lpe: str | None = None
+    key_to_xlstm: str | None = None  # xLSTM bottleneck key
 
     def serialize(self):
         serialized_plan = asdict(self)
@@ -162,6 +173,7 @@ class AdaptationPlan:
             key_to_stem=key_to_stem,
             keys_to_in_proj=tuple(keys_to_in_proj),
             key_to_lpe=data.get("key_to_lpe", None),
+            key_to_xlstm=data.get("key_to_xlstm", None),
         )
 
 
@@ -192,9 +204,19 @@ if __name__ == "__main__":
         normalization_schemes=["ZScoreNormalization"],
         use_mask_for_norm=False,
         resampling_fn_data="resample_data_or_seg_to_shape",
-        resampling_fn_data_kwargs={"is_seg": False, "order": 3, "order_z": 0, "force_separate_z": None},
+        resampling_fn_data_kwargs={
+            "is_seg": False,
+            "order": 3,
+            "order_z": 0,
+            "force_separate_z": None,
+        },
         resampling_fn_mask="resample_data_or_seg_to_shape",
-        resampling_fn_mask_kwargs={"is_seg": False, "order": 1, "order_z": 0, "force_separate_z": None},
+        resampling_fn_mask_kwargs={
+            "is_seg": False,
+            "order": 1,
+            "order_z": 0,
+            "force_separate_z": None,
+        },
         spacing=[1, 1, 1],
         patch_size=None,
     )
@@ -223,7 +245,10 @@ if __name__ == "__main__":
         recommended_downstream_patchsize=(160, 160, 160),
         key_to_encoder="encoder.stages",
         key_to_stem="encoder.stem",
-        keys_to_in_proj=("encoder.stem.convs.0.conv", "encoder.stem.convs.0.all_modules.0"),
+        keys_to_in_proj=(
+            "encoder.stem.convs.0.conv",
+            "encoder.stem.convs.0.all_modules.0",
+        ),
     )
     serialized_adaptation_plan = adaptation_plan.serialize()
     # Write the serialized adaptation plan to an IO buffer
@@ -240,9 +265,13 @@ if __name__ == "__main__":
 
     print(deserialized_adaptation_plan)
     network = get_network_from_plans(
-        arch_class_name=deserialized_adaptation_plan["architecture_plans"]["arch_class_name"],
+        arch_class_name=deserialized_adaptation_plan["architecture_plans"][
+            "arch_class_name"
+        ],
         arch_kwargs=deserialized_adaptation_plan["architecture_plans"]["arch_kwargs"],
-        arch_kwargs_req_import=deserialized_adaptation_plan["architecture_plans"]["arch_kwargs_requiring_import"],
+        arch_kwargs_req_import=deserialized_adaptation_plan["architecture_plans"][
+            "arch_kwargs_requiring_import"
+        ],
         input_channels=1,  # Should be different
         output_channels=2,
         allow_init=False,  # Always false

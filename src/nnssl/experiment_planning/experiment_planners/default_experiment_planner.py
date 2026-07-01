@@ -1,7 +1,13 @@
 from typing import List, Literal, Union, Tuple
 
 import numpy as np
-from batchgenerators.utilities.file_and_folder_operations import load_json, join, save_json, isfile, maybe_mkdir_p
+from batchgenerators.utilities.file_and_folder_operations import (
+    load_json,
+    join,
+    save_json,
+    isfile,
+    maybe_mkdir_p,
+)
 
 from nnssl.data.raw_dataset import Collection
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
@@ -10,8 +16,12 @@ from nnssl.imageio.reader_writer_registry import (
 )
 from nnssl.paths import nnssl_raw, nnssl_preprocessed
 from nnssl.preprocessing.preprocessors.abstract_preprocessor import Preprocessors
-from nnssl.preprocessing.preprocessors.default_preprocessor import PREPROCESS_SPACING_STYLES
-from nnssl.preprocessing.resampling.default_resampling import resample_data_or_seg_to_shape
+from nnssl.preprocessing.preprocessors.default_preprocessor import (
+    PREPROCESS_SPACING_STYLES,
+)
+from nnssl.preprocessing.resampling.default_resampling import (
+    resample_data_or_seg_to_shape,
+)
 from nnssl.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
 from nnssl.utilities.json_export import recursive_fix_for_json_export
 from nnssl.data.utils import get_train_collection
@@ -40,9 +50,13 @@ class ExperimentPlanner(object):
 
         # load dataset fingerprint
         if not isfile(join(preprocessed_folder, "dataset_fingerprint.json")):
-            raise RuntimeError("Fingerprint missing for this dataset. Please run nnUNet_extract_dataset_fingerprint")
+            raise RuntimeError(
+                "Fingerprint missing for this dataset. Please run nnUNet_extract_dataset_fingerprint"
+            )
 
-        self.dataset_fingerprint = load_json(join(preprocessed_folder, "dataset_fingerprint.json"))
+        self.dataset_fingerprint = load_json(
+            join(preprocessed_folder, "dataset_fingerprint.json")
+        )
         self.plans_identifier = plans_name
 
         self.plans = None
@@ -78,7 +92,12 @@ class ExperimentPlanner(object):
             "order_z": 0,
             "force_separate_z": None,
         }
-        return resampling_data, resampling_data_kwargs, resampling_seg, resampling_seg_kwargs
+        return (
+            resampling_data,
+            resampling_data_kwargs,
+            resampling_seg,
+            resampling_seg_kwargs,
+        )
 
     def determine_segmentation_softmax_export_fn(self, *args, **kwargs):
         """
@@ -124,7 +143,9 @@ class ExperimentPlanner(object):
         max_spacing_axis = np.argmax(target_spacing)
         remaining_axes = [i for i in list(range(3)) if i != max_spacing_axis]
         transpose_forward = [max_spacing_axis] + remaining_axes
-        transpose_backward = [np.argwhere(np.array(transpose_forward) == i)[0][0] for i in range(3)]
+        transpose_backward = [
+            np.argwhere(np.array(transpose_forward) == i)[0][0] for i in range(3)
+        ]
         return transpose_forward, transpose_backward
 
     def get_plans_for_configuration(
@@ -134,7 +155,12 @@ class ExperimentPlanner(object):
         data_identifier: str,
     ) -> ConfigurationPlan:
         assert all([i > 0 for i in spacing]), f"Spacing must be > 0! Spacing: {spacing}"
-        resampling_data, resampling_data_kwargs, resampling_seg, resampling_seg_kwargs = self.determine_resampling()
+        (
+            resampling_data,
+            resampling_data_kwargs,
+            resampling_seg,
+            resampling_seg_kwargs,
+        ) = self.determine_resampling()
 
         spacing_style: PREPROCESS_SPACING_STYLES
         if config == "median":
@@ -198,13 +224,17 @@ class ExperimentPlanner(object):
             self.generate_data_identifier("noresample"),
         )
 
-        median_spacing = np.median(self.dataset_fingerprint["spacings"], 0)[transpose_forward]
+        median_spacing = np.median(self.dataset_fingerprint["spacings"], 0)[
+            transpose_forward
+        ]
         # json is stupid and I hate it... "Object of type int64 is not JSON serializable" -> my ass
         plans = Plan(
             **{
                 "dataset_name": self.dataset_name,
                 "plans_name": self.plans_identifier,
-                "original_median_spacing_after_transp": [float(i) for i in median_spacing],
+                "original_median_spacing_after_transp": [
+                    float(i) for i in median_spacing
+                ],
                 "image_reader_writer": self.determine_reader_writer().__name__,
                 "transpose_forward": [int(i) for i in transpose_forward],
                 "transpose_backward": [int(i) for i in transpose_backward],
@@ -224,7 +254,9 @@ class ExperimentPlanner(object):
     def save_plans(self, plans: Plan):
         recursive_fix_for_json_export(plans)
 
-        plans_file = join(nnssl_preprocessed, self.dataset_name, self.plans_identifier + ".json")
+        plans_file = join(
+            nnssl_preprocessed, self.dataset_name, self.plans_identifier + ".json"
+        )
 
         # we don't want to overwrite potentially existing custom configurations every time this is executed. So let's
         # read the plans file if it already exists and keep any non-default configurations
@@ -238,7 +270,9 @@ class ExperimentPlanner(object):
 
         maybe_mkdir_p(join(nnssl_preprocessed, self.dataset_name))
         save_json(plans, plans_file, sort_keys=False)
-        print(f"Plans were saved to {join(nnssl_preprocessed, self.dataset_name, self.plans_identifier + '.json')}")
+        print(
+            f"Plans were saved to {join(nnssl_preprocessed, self.dataset_name, self.plans_identifier + '.json')}"
+        )
 
     def generate_data_identifier(self, configuration_name: str) -> str:
         """

@@ -4,8 +4,14 @@ from batchgenerators.transforms.abstract_transforms import AbstractTransform
 
 
 class MaskTransform(AbstractTransform):
-    def __init__(self, apply_to_channels: List[int], mask_idx_in_seg: int = 0, set_outside_to: int = 0,
-                 data_key: str = "data", seg_key: str = "seg"):
+    def __init__(
+        self,
+        apply_to_channels: List[int],
+        mask_idx_in_seg: int = 0,
+        set_outside_to: int = 0,
+        data_key: str = "data",
+        seg_key: str = "seg",
+    ):
         """
         Sets everything outside the mask to 0. CAREFUL! outside is defined as < 0, not =0 (in the Mask)!!!
         """

@@ -1,6 +1,8 @@
 import torch
 from nnssl.experiment_planning.experiment_planners.plan import Plan
-from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import BaseMAETrainer
+from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import (
+    BaseMAETrainer,
+)
 import numpy as np
 
 

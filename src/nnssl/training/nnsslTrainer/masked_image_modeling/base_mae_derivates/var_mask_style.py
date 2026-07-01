@@ -3,10 +3,14 @@ import numpy as np
 import torch
 
 from nnssl.experiment_planning.experiment_planners.plan import Plan
-from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import BaseMAETrainer
+from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import (
+    BaseMAETrainer,
+)
 
 
-def create_blocky_mask(tensor_size, block_size, sparsity_factor=0.75, rng_seed: None | int = None) -> torch.Tensor:
+def create_blocky_mask(
+    tensor_size, block_size, sparsity_factor=0.75, rng_seed: None | int = None
+) -> torch.Tensor:
     """
     Create the smallest binary mask for the encoder by choosing a percentage of pixels at that resolution..
 
@@ -30,7 +34,9 @@ def create_blocky_mask(tensor_size, block_size, sparsity_factor=0.75, rng_seed: 
     return small_mask
 
 
-def create_grid_mask(tensor_size, block_size, sparsity_factor=0.75, rng_seed: None | int = None) -> torch.Tensor:
+def create_grid_mask(
+    tensor_size, block_size, sparsity_factor=0.75, rng_seed: None | int = None
+) -> torch.Tensor:
     """
     Create a regular grid of block masks for the encoder by choosing a percentage of pixels at that resolution..
 
@@ -49,7 +55,9 @@ def create_grid_mask(tensor_size, block_size, sparsity_factor=0.75, rng_seed: No
 
     mask_kernel = torch.ones((2, 2, 2))
     if closest_ratio == 0 or closest_ratio == 1:
-        raise ValueError("The sparsity factor is too low or too high for the grid mask.")
+        raise ValueError(
+            "The sparsity factor is too low or too high for the grid mask."
+        )
     if closest_ratio >= 0.125:
         mask_kernel[0, 0, 0] = 0
     if closest_ratio >= 0.25:
@@ -77,11 +85,15 @@ def create_grid_mask(tensor_size, block_size, sparsity_factor=0.75, rng_seed: No
     return full_mask
 
 
-def create_slice_mask(tensor_size, sparsity_factor=0.75, rng_seed: None | int = None) -> torch.Tensor:
+def create_slice_mask(
+    tensor_size, sparsity_factor=0.75, rng_seed: None | int = None
+) -> torch.Tensor:
     """Create masking based of removing indices and slices."""
 
     potential_slices = tensor_size
-    total_slice_ids = [(cnt, j) for cnt, i in enumerate(potential_slices) for j in range(i)]
+    total_slice_ids = [
+        (cnt, j) for cnt, i in enumerate(potential_slices) for j in range(i)
+    ]
 
     n_slices = int(sparsity_factor * len(total_slice_ids) / 3)
     if rng_seed is None:
@@ -98,11 +110,15 @@ def create_slice_mask(tensor_size, sparsity_factor=0.75, rng_seed: None | int = 
     return mask
 
 
-def create_same_dim_slice_mask(tensor_size, sparsity_factor=0.75, rng_seed: None | int = None) -> torch.Tensor:
+def create_same_dim_slice_mask(
+    tensor_size, sparsity_factor=0.75, rng_seed: None | int = None
+) -> torch.Tensor:
     """Create masking based of removing indices and slices."""
 
     slice_of_choice = random.choice([0, 1, 2])
-    total_slice_ids = [(slice_of_choice, j) for j in range(tensor_size[slice_of_choice])]
+    total_slice_ids = [
+        (slice_of_choice, j) for j in range(tensor_size[slice_of_choice])
+    ]
 
     n_slices = int(sparsity_factor * len(total_slice_ids))
     if rng_seed is None:
@@ -123,7 +139,10 @@ class GridMaskMAE(BaseMAETrainer):
 
     @staticmethod
     def mask_creation(
-        batch_size: int, patch_size: tuple[int, int, int], mask_percentage: float, rng_seed: int | None = None
+        batch_size: int,
+        patch_size: tuple[int, int, int],
+        mask_percentage: float,
+        rng_seed: int | None = None,
     ) -> torch.Tensor:
         """
         Creates a masking tensor with 1s (indicating no masking) and 0s (indicating masking).
@@ -137,7 +156,10 @@ class GridMaskMAE(BaseMAETrainer):
 
         block_size = 16
         sparsity_factor = mask_percentage
-        mask = [create_grid_mask(patch_size, block_size, sparsity_factor) for _ in range(batch_size)]
+        mask = [
+            create_grid_mask(patch_size, block_size, sparsity_factor)
+            for _ in range(batch_size)
+        ]
         mask = torch.stack(mask)[:, None, ...]  # Add channel dimension
         return mask
 
@@ -146,7 +168,10 @@ class SliceMaskMAE(BaseMAETrainer):
 
     @staticmethod
     def mask_creation(
-        batch_size: int, patch_size: tuple[int, int, int], mask_percentage: float, rng_seed: int | None = None
+        batch_size: int,
+        patch_size: tuple[int, int, int],
+        mask_percentage: float,
+        rng_seed: int | None = None,
     ) -> torch.Tensor:
         """
         Creates a masking tensor with 1s (indicating no masking) and 0s (indicating masking).
@@ -158,7 +183,9 @@ class SliceMaskMAE(BaseMAETrainer):
         :return:
         """
 
-        mask = [create_slice_mask(patch_size, mask_percentage) for _ in range(batch_size)]
+        mask = [
+            create_slice_mask(patch_size, mask_percentage) for _ in range(batch_size)
+        ]
         mask = torch.stack(mask)[:, None, ...]  # Add channel dimension
         return mask
 
@@ -167,7 +194,10 @@ class SameSliceMaskMAE(BaseMAETrainer):
 
     @staticmethod
     def mask_creation(
-        batch_size: int, patch_size: tuple[int, int, int], mask_percentage: float, rng_seed: int | None = None
+        batch_size: int,
+        patch_size: tuple[int, int, int],
+        mask_percentage: float,
+        rng_seed: int | None = None,
     ) -> torch.Tensor:
         """
         Creates a masking tensor with 1s (indicating no masking) and 0s (indicating masking).
@@ -179,7 +209,10 @@ class SameSliceMaskMAE(BaseMAETrainer):
         :return:
         """
 
-        mask = [create_same_dim_slice_mask(patch_size, mask_percentage) for _ in range(batch_size)]
+        mask = [
+            create_same_dim_slice_mask(patch_size, mask_percentage)
+            for _ in range(batch_size)
+        ]
         mask = torch.stack(mask)[:, None, ...]  # Add channel dimension
         return mask
 

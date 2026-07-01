@@ -25,7 +25,11 @@ def _get_active_ex_or_ii(B, D, H, W, device, dtype):
     if D < mask_D and H < mask_H and W < mask_W:
         return torch.ones(B, 1, D, H, W, dtype=dtype, device=device)
     # If the resolution is larger than our blocks -?
-    d_repeat, h_repeat, w_repeat = D // _cur_active.shape[-3], H // _cur_active.shape[-2], W // _cur_active.shape[-1]
+    d_repeat, h_repeat, w_repeat = (
+        D // _cur_active.shape[-3],
+        H // _cur_active.shape[-2],
+        W // _cur_active.shape[-1],
+    )
     active_ex = (
         _cur_active.repeat_interleave(d_repeat, dim=2)
         .repeat_interleave(h_repeat, dim=3)
@@ -43,9 +47,15 @@ def _old_get_active_ex_or_ii(B, D, H, W):
     mask_D, mask_H, mask_W = _cur_active.shape[2:]
     # If we the resolution is smaller than our blocks
     if D < mask_D and H < mask_H and W < mask_W:
-        return torch.ones(B, 1, D, H, W, dtype=_cur_active.dtype, device=_cur_active.device)
+        return torch.ones(
+            B, 1, D, H, W, dtype=_cur_active.dtype, device=_cur_active.device
+        )
     # If the resolution is larger than our blocks -?
-    d_repeat, h_repeat, w_repeat = D // _cur_active.shape[-3], H // _cur_active.shape[-2], W // _cur_active.shape[-1]
+    d_repeat, h_repeat, w_repeat = (
+        D // _cur_active.shape[-3],
+        H // _cur_active.shape[-2],
+        W // _cur_active.shape[-1],
+    )
     active_ex = (
         _cur_active.repeat_interleave(d_repeat, dim=2)
         .repeat_interleave(h_repeat, dim=3)
@@ -59,7 +69,14 @@ def sp_conv_forward(self, x: torch.Tensor):
     Does the normal conv call, and then masks the output with the active_ex mask.
     """
     x = super(type(self), self).forward(x)
-    x *= _get_active_ex_or_ii(B=x.shape[0], D=x.shape[2], H=x.shape[3], W=x.shape[4], device=x.device, dtype=x.dtype)
+    x *= _get_active_ex_or_ii(
+        B=x.shape[0],
+        D=x.shape[2],
+        H=x.shape[3],
+        W=x.shape[4],
+        device=x.device,
+        dtype=x.dtype,
+    )
     # (BCDHW) *= (B1DHW), mask the output of conv
     return x
 
@@ -89,7 +106,12 @@ def einops_sp_bn_forward(self, x: torch.Tensor):
     This has to be done to make the masking not affect the norm statistics.
     """
     mask = _get_active_ex_or_ii(
-        B=x.shape[0], D=x.shape[2], H=x.shape[3], W=x.shape[4], device=x.device, dtype=x.dtype
+        B=x.shape[0],
+        D=x.shape[2],
+        H=x.shape[3],
+        W=x.shape[4],
+        device=x.device,
+        dtype=x.dtype,
     )
     # active_ex.squeeze(1).nonzero(as_tuple=True)  # ii: bi, di, hi, wi
     # ToDo: Test this re-arrange madness.
@@ -99,8 +121,12 @@ def einops_sp_bn_forward(self, x: torch.Tensor):
     L = mask.sum(dim=(1, 2, 3))[0]  # Same for all batch elements
     mask_ids = mask.nonzero(as_tuple=True)
     flat_values = x_pre_in[mask_ids]
-    ncl = rearrange(flat_values, "(b L) c -> b c L", b=x.shape[0], c=x.shape[1], L=int(L))  # (BCL) -> (BCL)
-    ncl = super(type(self), self).forward(ncl)  # use BN1d to normalize this flatten feature `nc`
+    ncl = rearrange(
+        flat_values, "(b L) c -> b c L", b=x.shape[0], c=x.shape[1], L=int(L)
+    )  # (BCL) -> (BCL)
+    ncl = super(type(self), self).forward(
+        ncl
+    )  # use BN1d to normalize this flatten feature `nc`
     ncl = rearrange(ncl, "b c L -> (b L) c")  # (BCL) -> (BCL)
 
     x_postin = torch.zeros_like(x_pre_in, dtype=x_pre_in.dtype, device=x_pre_in.device)
@@ -117,7 +143,9 @@ def old_sp_in_forward(self, x: torch.Tensor):
     Flatten the input, normalize it, and then reshape it back to the original shape.
     This has to be done to make the masking not affect the norm statistics.
     """
-    mask = _old_get_active_ex_or_ii(B=x.shape[0], D=x.shape[2], H=x.shape[3], W=x.shape[4])
+    mask = _old_get_active_ex_or_ii(
+        B=x.shape[0], D=x.shape[2], H=x.shape[3], W=x.shape[4]
+    )
     # active_ex.squeeze(1).nonzero(as_tuple=True)  # ii: bi, di, hi, wi
     # ToDo: Test this re-arrange madness.
     #   Should normalize by sample now (not by batch, as we do instance norm and not batchnorm!)
@@ -126,8 +154,12 @@ def old_sp_in_forward(self, x: torch.Tensor):
     L = mask.sum(dim=(1, 2, 3))[0]  # Same for all batch elements
     mask_ids = mask.nonzero(as_tuple=True)
     flat_values = x_pre_in[mask_ids]
-    ncl = rearrange(flat_values, "(b L) c -> b c L", b=x.shape[0], c=x.shape[1], L=int(L))  # (BCL) -> (BCL)
-    ncl = super(type(self), self).forward(ncl)  # use BN1d to normalize this flatten feature `nc`
+    ncl = rearrange(
+        flat_values, "(b L) c -> b c L", b=x.shape[0], c=x.shape[1], L=int(L)
+    )  # (BCL) -> (BCL)
+    ncl = super(type(self), self).forward(
+        ncl
+    )  # use BN1d to normalize this flatten feature `nc`
     ncl = rearrange(ncl, "b c L -> (b L) c")  # (BCL) -> (BCL)
 
     x_postin = torch.zeros_like(x_pre_in, dtype=x_pre_in.dtype, device=x_pre_in.device)
@@ -146,7 +178,12 @@ def sp_bn_forward(self, x: torch.Tensor):
     """
     B, C = x.shape[0], x.shape[1]
     mask = _get_active_ex_or_ii(
-        B=x.shape[0], D=x.shape[2], H=x.shape[3], W=x.shape[4], device=x.device, dtype=x.dtype
+        B=x.shape[0],
+        D=x.shape[2],
+        H=x.shape[3],
+        W=x.shape[4],
+        device=x.device,
+        dtype=x.dtype,
     )
 
     x_pre_in = torch.permute(x, (0, 2, 3, 4, 1))
@@ -157,7 +194,9 @@ def sp_bn_forward(self, x: torch.Tensor):
 
     pre_nlc = torch.reshape(flat_values, (B, L, C))  # (BL)C -> BLC
     pre_ncl = torch.permute(pre_nlc, (0, 2, 1))  # BLC -> BCL
-    post_ncl = super(type(self), self).forward(pre_ncl)  # use BN1d to normalize this flatten feature `nc`
+    post_ncl = super(type(self), self).forward(
+        pre_ncl
+    )  # use BN1d to normalize this flatten feature `nc`
 
     post_nlc = torch.permute(post_ncl, (0, 2, 1))  # BCL -> BLC
     post_ncl = torch.reshape(post_nlc, (B * L, C))  # BLC -> (BL)C
@@ -188,8 +227,10 @@ class einops_SparseInstanceNorm3d(nn.InstanceNorm1d):
 class SparseInstanceNorm3d(nn.InstanceNorm1d):
     forward = sp_bn_forward  # hack: override the forward function; see `sp_bn_forward` above for more details
 
+
 class OldInstanceNorm3d(nn.InstanceNorm1d):
     forward = old_sp_in_forward
+
 
 # def convert_to_spark_cnn(m: nn.Module, verbose=False, sbn=False):
 #     oup = m
@@ -394,7 +435,9 @@ def convert_to_einops_spark_cnn(m: nn.Module, verbose=False, sbn=False):
         raise NotImplementedError
     # Right now seems a bit fishy. Seems like infinite recursion.
     for name, child in m.named_children():
-        oup.add_module(name, convert_to_einops_spark_cnn(child, verbose=verbose, sbn=sbn))
+        oup.add_module(
+            name, convert_to_einops_spark_cnn(child, verbose=verbose, sbn=sbn)
+        )
     del m
     return oup
 

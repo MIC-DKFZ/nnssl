@@ -7,7 +7,9 @@ import numpy as np
 
 
 def _mix_image(
-    foreground_image: np.ndarray, background_image: np.ndarray, mixing_coefficient: np.ndarray
+    foreground_image: np.ndarray,
+    background_image: np.ndarray,
+    mixing_coefficient: np.ndarray,
 ) -> np.ndarray:
     """
     Mixes two images together using a mixing coefficient array
@@ -17,7 +19,10 @@ def _mix_image(
     :param mixing_coefficient: The mixing coefficient array of the same shape as the images (range of [0, 1])
     :return: The mixed image
     """
-    return mixing_coefficient * foreground_image + (1 - mixing_coefficient) * background_image
+    return (
+        mixing_coefficient * foreground_image
+        + (1 - mixing_coefficient) * background_image
+    )
 
 
 def _get_bboxes_within_image_bounds(
@@ -65,7 +70,12 @@ def _overlay_bbox(
         x_start, x_size = x_starts[idx], xs[idx]
         y_start, y_size = y_starts[idx], ys[idx]
         z_start, z_size = z_starts[idx], zs[idx]
-        image[:, x_start : x_start + x_size, y_start : y_start + y_size, z_start : z_start + z_size] = values[idx]
+        image[
+            :,
+            x_start : x_start + x_size,
+            y_start : y_start + y_size,
+            z_start : z_start + z_size,
+        ] = values[idx]
     return image
 
 
@@ -102,8 +112,12 @@ def mix_batch(
         xs, ys, zs, x_starts, y_starts, z_starts = _get_bboxes_within_image_bounds(
             num_patches, (X, Y, Z), vf_subpatch_size
         )
-        alpha_images[i] = _overlay_bbox(alpha_images[i], alphas, xs, ys, zs, x_starts, y_starts, z_starts)
-        masks[i] = _overlay_bbox(masks[i], indices, xs, ys, zs, x_starts, y_starts, z_starts)
+        alpha_images[i] = _overlay_bbox(
+            alpha_images[i], alphas, xs, ys, zs, x_starts, y_starts, z_starts
+        )
+        masks[i] = _overlay_bbox(
+            masks[i], indices, xs, ys, zs, x_starts, y_starts, z_starts
+        )
 
     mixed_images = _mix_image(foreground_images, background_images, alpha_images)
     return mixed_images, masks
@@ -132,7 +146,9 @@ class VolumeFusionTransform(AbstractTransform):
         self.data_key: str = data_key
         self.vf_mixing_coefficients: Sequence[float] = vf_mixing_coefficients
         self.vf_subpatch_count: Tuple[int, int] = vf_subpatch_count
-        self.vf_subpatch_size: Tuple[Tuple[int, int], Tuple[int, int], Tuple[int, int]] = vf_subpatch_size
+        self.vf_subpatch_size: Tuple[
+            Tuple[int, int], Tuple[int, int], Tuple[int, int]
+        ] = vf_subpatch_size
 
     def __call__(self, **data_dict):
         data = data_dict.get(self.data_key)

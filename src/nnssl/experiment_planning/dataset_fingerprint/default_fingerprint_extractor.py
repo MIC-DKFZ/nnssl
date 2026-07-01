@@ -11,7 +11,13 @@ from nnssl.imageio.reader_writer_registry import (
     determine_reader_writer_from_file_ending,
 )
 from nnssl.paths import nnssl_raw, nnssl_preprocessed
-from batchgenerators.utilities.file_and_folder_operations import load_json, join, save_json, isfile, maybe_mkdir_p
+from batchgenerators.utilities.file_and_folder_operations import (
+    load_json,
+    join,
+    save_json,
+    isfile,
+    maybe_mkdir_p,
+)
 from nnssl.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
 from nnssl.data.utils import get_train_collection
 
@@ -95,7 +101,9 @@ def default_dataset_fingerprint_extraction(
         dataset_name,
         num_processes,
         collection,
-    ) = setup_collection_fingerprint_extractor(dataset_name_or_id, num_processes, verbose)
+    ) = setup_collection_fingerprint_extractor(
+        dataset_name_or_id, num_processes, verbose
+    )
 
     collection: Collection
     preprocessed_output_folder = join(nnssl_preprocessed, dataset_name)
@@ -107,12 +115,36 @@ def default_dataset_fingerprint_extraction(
         reader_writer_class = determine_reader_writer_from_file_ending(
             file_ending, collection.get_all_image_paths()[0]
         )
-        analyze_case_partial = partial(analyze_case, reader_writer_class=reader_writer_class)
+        analyze_case_partial = partial(
+            analyze_case, reader_writer_class=reader_writer_class
+        )
         if num_processes > 1:
-            with multiprocessing.get_context("spawn").Pool(num_processes) as p:
-                results = list(p.map(analyze_case_partial, [[k] for k in collection.get_all_image_paths()]))
+            from multiprocessing.pool import ThreadPool
+            all_cases = [[k] for k in collection.get_all_image_paths()]
+            partial_file = properties_file + ".partial"
+            if isfile(partial_file):
+                partial_data = load_json(partial_file)
+                done_keys = set(partial_data.get("done_keys", []))
+                results = partial_data.get("spacings", [])
+                remaining = [c for c in all_cases if c[0] not in done_keys]
+                print(f"Resuming from {len(done_keys)} already done cases...")
+            else:
+                done_keys = set()
+                results = []
+                remaining = all_cases
+            with ThreadPool(num_processes) as p:
+                for i, res in enumerate(tqdm(p.imap(analyze_case_partial, remaining), total=len(remaining), desc="Fingerprinting")):
+                    results.append(res)
+                    done_keys.add(remaining[i][0])
+                    if (i+1) % 500 == 0:
+                        save_json({"spacings": results, "done_keys": list(done_keys)}, partial_file)
+            if isfile(partial_file):
+                os.remove(partial_file)
         else:
-            results = [analyze_case([k], reader_writer_class) for k in tqdm(collection.get_all_image_paths())]
+            results = [
+                analyze_case([k], reader_writer_class)
+                for k in tqdm(collection.get_all_image_paths())
+            ]
         spacings = [r[0] for r in results]
         fingerprint = {"spacings": spacings}
         save_fingerprint(fingerprint, properties_file)
@@ -123,4 +155,6 @@ def default_dataset_fingerprint_extraction(
 
 
 if __name__ == "__main__":
-    fingerprint = default_dataset_fingerprint_extraction(2, 8, verbose=False, overwrite_existing=False)
+    fingerprint = default_dataset_fingerprint_extraction(
+        2, 8, verbose=False, overwrite_existing=False
+    )

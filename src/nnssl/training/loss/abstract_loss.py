@@ -9,6 +9,8 @@ class AbstractLoss(nn.Module):
         super().__init__()
 
     @abstractmethod
-    def forward(self, model_output: dict[str, torch.Tensor], target: dict[str, torch.Tensor]) -> torch.Tensor:
+    def forward(
+        self, model_output: dict[str, torch.Tensor], target: dict[str, torch.Tensor]
+    ) -> torch.Tensor:
         """Can take any outputs,  ."""
         pass

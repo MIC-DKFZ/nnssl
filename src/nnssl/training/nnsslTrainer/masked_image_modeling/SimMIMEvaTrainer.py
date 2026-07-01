@@ -11,11 +11,15 @@ from nnssl.architectures.evaSimMIM_module import EvaSimMIM
 from nnssl.utilities.helpers import dummy_context
 
 from nnssl.experiment_planning.experiment_planners.plan import Plan
-from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import BaseMAETrainer
-from nnssl.training.lr_scheduler.warmup import Lin_incr_LRScheduler, PolyLRScheduler_offset
+from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import (
+    BaseMAETrainer,
+)
+from nnssl.training.lr_scheduler.warmup import (
+    Lin_incr_LRScheduler,
+    PolyLRScheduler_offset,
+)
 from torch.nn.parallel import DistributedDataParallel as DDP
 from nnssl.utilities.helpers import empty_cache
-from batchgenerators.utilities.file_and_folder_operations import save_json
 
 
 class SimMIMEvaTrainer(BaseMAETrainer):
@@ -69,10 +73,19 @@ class SimMIMEvaTrainer(BaseMAETrainer):
         if stage == "warmup_all":
             self.print_to_log_file("train whole net, warmup")
             optimizer = torch.optim.AdamW(
-                params, self.initial_lr, weight_decay=self.weight_decay, amsgrad=False, betas=(0.9, 0.98), fused=True
+                params,
+                self.initial_lr,
+                weight_decay=self.weight_decay,
+                amsgrad=False,
+                betas=(0.9, 0.98),
+                fused=True,
             )
-            lr_scheduler = Lin_incr_LRScheduler(optimizer, self.initial_lr, self.warmup_duration_whole_net)
-            self.print_to_log_file(f"Initialized warmup_all optimizer and lr_scheduler at epoch {self.current_epoch}")
+            lr_scheduler = Lin_incr_LRScheduler(
+                optimizer, self.initial_lr, self.warmup_duration_whole_net
+            )
+            self.print_to_log_file(
+                f"Initialized warmup_all optimizer and lr_scheduler at epoch {self.current_epoch}"
+            )
         else:
             self.print_to_log_file("train whole net, default schedule")
             if self.training_stage == "warmup_all":
@@ -89,20 +102,25 @@ class SimMIMEvaTrainer(BaseMAETrainer):
                     fused=True,
                 )
             lr_scheduler = PolyLRScheduler_offset(
-                optimizer, self.initial_lr, self.num_epochs, self.warmup_duration_whole_net
+                optimizer,
+                self.initial_lr,
+                self.num_epochs,
+                self.warmup_duration_whole_net,
             )
-            self.print_to_log_file(f"Initialized train optimizer and lr_scheduler at epoch {self.current_epoch}")
+            self.print_to_log_file(
+                f"Initialized train optimizer and lr_scheduler at epoch {self.current_epoch}"
+            )
         self.training_stage = stage
         empty_cache(self.device)
         return optimizer, lr_scheduler
 
-    def on_train_epoch_start(self):
+    def on_train_epoch_start(self, using_wandb: bool = False) -> None:
         if self.current_epoch == 0:
             self.optimizer, self.lr_scheduler = self.configure_optimizers("warmup_all")
         elif self.current_epoch == self.warmup_duration_whole_net:
             self.optimizer, self.lr_scheduler = self.configure_optimizers("train")
 
-        super().on_train_epoch_start()
+        super().on_train_epoch_start(using_wandb)
 
     def build_architecture_and_adaptation_plan(
         self, config_plan, num_input_channels, num_output_channels
@@ -137,7 +155,10 @@ class SimMIMEvaTrainer(BaseMAETrainer):
         data = data.to(self.device, non_blocking=True)
 
         sparse_mask = self.mask_creation(
-            self.batch_size, self.config_plan.patch_size, self.mask_percentage, block_size=self.vit_patch_size[0]
+            self.batch_size,
+            self.config_plan.patch_size,
+            self.mask_percentage,
+            block_size=self.vit_patch_size[0],
         ).to(self.device, non_blocking=True)
         # Make the mask the same size as the data
         rep_D, rep_H, rep_W = (
@@ -153,7 +174,11 @@ class SimMIMEvaTrainer(BaseMAETrainer):
 
         self.optimizer.zero_grad(set_to_none=True)
 
-        with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+        with (
+            autocast(self.device.type, enabled=True)
+            if self.device.type == "cuda"
+            else dummy_context()
+        ):
             output = self.network(data, sparse_mask)
             l = self.loss(output, data, dense_mask)
 
@@ -176,7 +201,10 @@ class SimMIMEvaTrainer(BaseMAETrainer):
         data = data.to(self.device, non_blocking=True)
 
         sparse_mask = self.mask_creation(
-            self.batch_size, self.config_plan.patch_size, self.mask_percentage, block_size=self.vit_patch_size[0]
+            self.batch_size,
+            self.config_plan.patch_size,
+            self.mask_percentage,
+            block_size=self.vit_patch_size[0],
         ).to(self.device, non_blocking=True)
         # Make the mask the same size as the data
         rep_D, rep_H, rep_W = (
@@ -191,7 +219,11 @@ class SimMIMEvaTrainer(BaseMAETrainer):
         )
 
         # Autocast for CUDA device
-        with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+        with (
+            autocast(self.device.type, enabled=True)
+            if self.device.type == "cuda"
+            else dummy_context()
+        ):
             output = self.network(data, sparse_mask)
             l = self.loss(output, data, dense_mask)
 
@@ -208,7 +240,9 @@ class SimMIMEvaTrainer(BaseMAETrainer):
         new_state_dict = {}
         for k, value in checkpoint["network_weights"].items():
             key = k
-            if key not in self.network.state_dict().keys() and key.startswith("module."):
+            if key not in self.network.state_dict().keys() and key.startswith(
+                "module."
+            ):
                 key = key[7:]
             new_state_dict[key] = value
 

@@ -1,4 +1,3 @@
-
 from nnssl.preprocessing.normalization.normalization_schemes import apply_normalization
 import numpy as np
 
@@ -23,4 +22,3 @@ def normalize_arr(
             non_zero_mask=non_zero_mask[c],
         )
     return data
-

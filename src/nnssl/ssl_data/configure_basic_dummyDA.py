@@ -33,7 +33,9 @@ def configure_rotation_dummyDA_mirroring_and_inital_patch_size(patch_size):
 
     # todo this function is stupid. It doesn't even use the correct scale range (we keep things as they were in the
     #  old nnunet for now)
-    initial_patch_size = get_patch_size(patch_size[-dim:], *rotation_for_DA.values(), (0.85, 1.25))
+    initial_patch_size = get_patch_size(
+        patch_size[-dim:], *rotation_for_DA.values(), (0.85, 1.25)
+    )
     if do_dummy_2d_data_aug:
         initial_patch_size[0] = patch_size[0]
 

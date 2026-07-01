@@ -2,8 +2,6 @@ from typing import Literal, Tuple
 from batchgenerators.transforms.abstract_transforms import AbstractTransform, Compose
 from batchgenerators.transforms.spatial_transforms import (
     Rot90Transform,
-    MirrorTransform,
-    SpatialTransform,
 )
 from batchgenerators.transforms.noise_transforms import (
     GaussianNoiseTransform,
@@ -13,7 +11,6 @@ from batchgenerators.transforms.resample_transforms import (
     SimulateLowResolutionTransform,
 )
 from batchgenerators.transforms.spatial_transforms import (
-    SpatialTransform,
     MirrorTransform,
 )
 from batchgenerators.transforms.utility_transforms import RenameTransform, NumpyToTensor
@@ -269,8 +266,9 @@ if __name__ == "__main__":
         crop_size=(64, 64, 64),
         data_key="data",
         aug="train",
-        crop_count_per_image=3,
+        crop_count_per_image=1,
         min_overlap_ratio=0.5,
     )
     res = trafo(**inp_dict)
     print(res["reference_crop_index"])
+    print(res["all_crops"].shape)

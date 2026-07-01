@@ -18,7 +18,8 @@ def extract_fingerprint_entry():
         type=int,
         default=default_num_processes,
         required=False,
-        help=f"[OPTIONAL] Number of processes used for fingerprint extraction. " f"Default: {default_num_processes}",
+        help=f"[OPTIONAL] Number of processes used for fingerprint extraction. "
+        f"Default: {default_num_processes}",
     )
     parser.add_argument(
         "--clean",

@@ -22,8 +22,7 @@ class ResamplingProtocol(Protocol):
         order: int = 3,
         do_separate_z: bool = False,
         order_z: int = 0,
-    ) -> np.ndarray:
-        ...
+    ) -> np.ndarray: ...
 
 
 class ResamplingSchemes(Enum):
@@ -38,7 +37,9 @@ def resampling_scheme_type(value):
         raise argparse.ArgumentTypeError(f"{value} is not a valid option")
 
 
-def get_resampling_scheme(resampling_scheme: ResamplingSchemes | str) -> ResamplingProtocol:
+def get_resampling_scheme(
+    resampling_scheme: ResamplingSchemes | str,
+) -> ResamplingProtocol:
     if isinstance(resampling_scheme, str):
         resampling_scheme = resampling_scheme_type(resampling_scheme)
     if resampling_scheme == ResamplingSchemes.DATA_TO_SHAPE:
@@ -50,14 +51,17 @@ def get_resampling_scheme(resampling_scheme: ResamplingSchemes | str) -> Resampl
 
 
 def get_do_separate_z(
-    spacing: Union[Tuple[float, ...], List[float], np.ndarray], anisotropy_threshold=ANISO_THRESHOLD
+    spacing: Union[Tuple[float, ...], List[float], np.ndarray],
+    anisotropy_threshold=ANISO_THRESHOLD,
 ):
     do_separate_z = (np.max(spacing) / np.min(spacing)) > anisotropy_threshold
     return do_separate_z
 
 
 def get_lowres_axis(new_spacing: Union[Tuple[float, ...], List[float], np.ndarray]):
-    axis = np.where(max(new_spacing) / np.array(new_spacing) == 1)[0]  # find which axis is anisotropic
+    axis = np.where(max(new_spacing) / np.array(new_spacing) == 1)[
+        0
+    ]  # find which axis is anisotropic
     return axis
 
 
@@ -68,7 +72,9 @@ def compute_new_shape(
 ) -> np.ndarray:
     assert len(old_spacing) == len(old_shape)
     assert len(old_shape) == len(new_spacing)
-    new_shape = np.array([int(round(i / j * k)) for i, j, k in zip(old_spacing, new_spacing, old_shape)])
+    new_shape = np.array(
+        [int(round(i / j * k)) for i, j, k in zip(old_spacing, new_spacing, old_shape)]
+    )
     return new_shape
 
 
@@ -116,7 +122,9 @@ def resample_data_or_seg_to_spacing(
     shape = np.array(data[0].shape)
     new_shape = compute_new_shape(shape[1:], current_spacing, new_spacing)
 
-    data_reshaped = resample_data_or_seg(data, new_shape, is_seg, axis, order, do_separate_z, order_z=order_z)
+    data_reshaped = resample_data_or_seg(
+        data, new_shape, is_seg, axis, order, do_separate_z, order_z=order_z
+    )
     return data_reshaped
 
 
@@ -167,7 +175,9 @@ def resample_data_or_seg_to_shape(
     if data is not None:
         assert data.ndim == 4, "data must be c x y z"
 
-    data_reshaped = resample_data_or_seg(data, new_shape, is_seg, axis, order, do_separate_z, order_z=order_z)
+    data_reshaped = resample_data_or_seg(
+        data, new_shape, is_seg, axis, order, do_separate_z, order_z=order_z
+    )
     return data_reshaped
 
 
@@ -221,11 +231,21 @@ def resample_data_or_seg(
                 reshaped_data = []
                 for slice_id in range(shape[axis]):
                     if axis == 0:
-                        reshaped_data.append(resize_fn(data[c, slice_id], new_shape_2d, order, **kwargs))
+                        reshaped_data.append(
+                            resize_fn(data[c, slice_id], new_shape_2d, order, **kwargs)
+                        )
                     elif axis == 1:
-                        reshaped_data.append(resize_fn(data[c, :, slice_id], new_shape_2d, order, **kwargs))
+                        reshaped_data.append(
+                            resize_fn(
+                                data[c, :, slice_id], new_shape_2d, order, **kwargs
+                            )
+                        )
                     else:
-                        reshaped_data.append(resize_fn(data[c, :, :, slice_id], new_shape_2d, order, **kwargs))
+                        reshaped_data.append(
+                            resize_fn(
+                                data[c, :, :, slice_id], new_shape_2d, order, **kwargs
+                            )
+                        )
                 reshaped_data = np.stack(reshaped_data, axis)
                 if shape[axis] != new_shape[axis]:
                     # The following few lines are blatantly copied and modified from sklearn's resize()
@@ -244,16 +264,23 @@ def resample_data_or_seg(
                     coord_map = np.array([map_rows, map_cols, map_dims])
                     if not is_seg or order_z == 0:
                         reshaped_final_data.append(
-                            map_coordinates(reshaped_data, coord_map, order=order_z, mode="nearest")[None]
+                            map_coordinates(
+                                reshaped_data, coord_map, order=order_z, mode="nearest"
+                            )[None]
                         )
                     else:
-                        unique_labels = np.sort(pd.unique(reshaped_data.ravel()))  # np.unique(reshaped_data)
+                        unique_labels = np.sort(
+                            pd.unique(reshaped_data.ravel())
+                        )  # np.unique(reshaped_data)
                         reshaped = np.zeros(new_shape, dtype=dtype_data)
 
                         for i, cl in enumerate(unique_labels):
                             reshaped_multihot = np.round(
                                 map_coordinates(
-                                    (reshaped_data == cl).astype(float), coord_map, order=order_z, mode="nearest"
+                                    (reshaped_data == cl).astype(float),
+                                    coord_map,
+                                    order=order_z,
+                                    mode="nearest",
                                 )
                             )
                             reshaped[reshaped_multihot > 0.5] = cl

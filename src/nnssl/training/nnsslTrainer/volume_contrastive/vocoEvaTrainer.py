@@ -15,7 +15,10 @@ from nnssl.experiment_planning.experiment_planners.plan import Plan
 
 from torch.nn.parallel import DistributedDataParallel as DDP
 from nnssl.utilities.helpers import empty_cache, dummy_context
-from nnssl.training.lr_scheduler.warmup import Lin_incr_LRScheduler, PolyLRScheduler_offset
+from nnssl.training.lr_scheduler.warmup import (
+    Lin_incr_LRScheduler,
+    PolyLRScheduler_offset,
+)
 from nnssl.architectures.evaMAE_module import EvaMAE
 
 
@@ -33,7 +36,14 @@ class VoCoEvaTrainer(VoCoTrainer):
         target_crop_count: int = 4,
     ):
         super().__init__(
-            plan, configuration_name, fold, pretrain_json, device, patch_size, base_crop_count, target_crop_count
+            plan,
+            configuration_name,
+            fold,
+            pretrain_json,
+            device,
+            patch_size,
+            base_crop_count,
+            target_crop_count,
         )
 
         self.drop_path_rate = 0.2
@@ -75,10 +85,19 @@ class VoCoEvaTrainer(VoCoTrainer):
         if stage == "warmup_all":
             self.print_to_log_file("train whole net, warmup")
             optimizer = torch.optim.AdamW(
-                params, self.initial_lr, weight_decay=self.weight_decay, amsgrad=False, betas=(0.9, 0.98), fused=True
+                params,
+                self.initial_lr,
+                weight_decay=self.weight_decay,
+                amsgrad=False,
+                betas=(0.9, 0.98),
+                fused=True,
             )
-            lr_scheduler = Lin_incr_LRScheduler(optimizer, self.initial_lr, self.warmup_duration_whole_net)
-            self.print_to_log_file(f"Initialized warmup_all optimizer and lr_scheduler at epoch {self.current_epoch}")
+            lr_scheduler = Lin_incr_LRScheduler(
+                optimizer, self.initial_lr, self.warmup_duration_whole_net
+            )
+            self.print_to_log_file(
+                f"Initialized warmup_all optimizer and lr_scheduler at epoch {self.current_epoch}"
+            )
         else:
             self.print_to_log_file("train whole net, default schedule")
             if self.training_stage == "warmup_all":
@@ -95,9 +114,14 @@ class VoCoEvaTrainer(VoCoTrainer):
                     fused=True,
                 )
             lr_scheduler = PolyLRScheduler_offset(
-                optimizer, self.initial_lr, self.num_epochs, self.warmup_duration_whole_net
+                optimizer,
+                self.initial_lr,
+                self.num_epochs,
+                self.warmup_duration_whole_net,
             )
-            self.print_to_log_file(f"Initialized train optimizer and lr_scheduler at epoch {self.current_epoch}")
+            self.print_to_log_file(
+                f"Initialized train optimizer and lr_scheduler at epoch {self.current_epoch}"
+            )
         self.training_stage = stage
         empty_cache(self.device)
         return optimizer, lr_scheduler
@@ -151,7 +175,9 @@ class VoCoEvaTrainer(VoCoTrainer):
         new_state_dict = {}
         for k, value in checkpoint["network_weights"].items():
             key = k
-            if key not in self.network.state_dict().keys() and key.startswith("module."):
+            if key not in self.network.state_dict().keys() and key.startswith(
+                "module."
+            ):
                 key = key[7:]
             new_state_dict[key] = value
 
@@ -197,10 +223,18 @@ class VoCoEvaTrainer(VoCoTrainer):
 
         self.optimizer.zero_grad(set_to_none=True)
 
-        with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+        with (
+            autocast(self.device.type, enabled=True)
+            if self.device.type == "cuda"
+            else dummy_context()
+        ):
             embeddings = self.network(all_crops)
-            base_embeddings = rearrange(embeddings[:NBASE], "(b NBASE) c -> b NBASE c", b=self.batch_size)
-            target_embeddings = rearrange(embeddings[NBASE:], "(b nTARGET) c -> b nTARGET c", b=self.batch_size)
+            base_embeddings = rearrange(
+                embeddings[:NBASE], "(b NBASE) c -> b NBASE c", b=self.batch_size
+            )
+            target_embeddings = rearrange(
+                embeddings[NBASE:], "(b nTARGET) c -> b nTARGET c", b=self.batch_size
+            )
 
             l = self.loss(base_embeddings, target_embeddings, gt_overlaps)
 

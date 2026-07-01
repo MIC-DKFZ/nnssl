@@ -7,9 +7,14 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 
 from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan, ArchitecturePlans
 from nnssl.experiment_planning.experiment_planners.plan import Plan
-from nnssl.training.lr_scheduler.warmup import Lin_incr_LRScheduler, PolyLRScheduler_offset
+from nnssl.training.lr_scheduler.warmup import (
+    Lin_incr_LRScheduler,
+    PolyLRScheduler_offset,
+)
 from nnssl.architectures.evaMAE_module import EvaMAE
-from nnssl.training.nnsslTrainer.models_genesis.ModelGenesisTrainer import ModelGenesisTrainer
+from nnssl.training.nnsslTrainer.models_genesis.ModelGenesisTrainer import (
+    ModelGenesisTrainer,
+)
 from nnssl.utilities.helpers import empty_cache
 
 from torch import autocast
@@ -28,7 +33,9 @@ class ModelGenesisEvaTrainer(ModelGenesisTrainer):
         device: torch.device,
     ):
 
-        super(ModelGenesisEvaTrainer, self).__init__(plan, configuration_name, fold, pretrain_json, device)
+        super(ModelGenesisEvaTrainer, self).__init__(
+            plan, configuration_name, fold, pretrain_json, device
+        )
         self.config_plan.patch_size = (160, 160, 160)
         ###settings taken from fabi
         self.drop_path_rate = 0.2
@@ -70,10 +77,19 @@ class ModelGenesisEvaTrainer(ModelGenesisTrainer):
         if stage == "warmup_all":
             self.print_to_log_file("train whole net, warmup")
             optimizer = torch.optim.AdamW(
-                params, self.initial_lr, weight_decay=self.weight_decay, amsgrad=False, betas=(0.9, 0.98), fused=True
+                params,
+                self.initial_lr,
+                weight_decay=self.weight_decay,
+                amsgrad=False,
+                betas=(0.9, 0.98),
+                fused=True,
             )
-            lr_scheduler = Lin_incr_LRScheduler(optimizer, self.initial_lr, self.warmup_duration_whole_net)
-            self.print_to_log_file(f"Initialized warmup_all optimizer and lr_scheduler at epoch {self.current_epoch}")
+            lr_scheduler = Lin_incr_LRScheduler(
+                optimizer, self.initial_lr, self.warmup_duration_whole_net
+            )
+            self.print_to_log_file(
+                f"Initialized warmup_all optimizer and lr_scheduler at epoch {self.current_epoch}"
+            )
         else:
             self.print_to_log_file("train whole net, default schedule")
             if self.training_stage == "warmup_all":
@@ -90,9 +106,14 @@ class ModelGenesisEvaTrainer(ModelGenesisTrainer):
                     fused=True,
                 )
             lr_scheduler = PolyLRScheduler_offset(
-                optimizer, self.initial_lr, self.num_epochs, self.warmup_duration_whole_net
+                optimizer,
+                self.initial_lr,
+                self.num_epochs,
+                self.warmup_duration_whole_net,
             )
-            self.print_to_log_file(f"Initialized train optimizer and lr_scheduler at epoch {self.current_epoch}")
+            self.print_to_log_file(
+                f"Initialized train optimizer and lr_scheduler at epoch {self.current_epoch}"
+            )
         self.training_stage = stage
         empty_cache(self.device)
         return optimizer, lr_scheduler
@@ -139,7 +160,9 @@ class ModelGenesisEvaTrainer(ModelGenesisTrainer):
         new_state_dict = {}
         for k, value in checkpoint["network_weights"].items():
             key = k
-            if key not in self.network.state_dict().keys() and key.startswith("module."):
+            if key not in self.network.state_dict().keys() and key.startswith(
+                "module."
+            ):
                 key = key[7:]
             new_state_dict[key] = value
 
@@ -186,7 +209,11 @@ class ModelGenesisEvaTrainer(ModelGenesisTrainer):
         # If the device_type is 'cpu' then it's slow as heck and needs to be disabled.
         # If the device_type is 'mps' then it will complain that mps is not implemented, even if enabled=False is set. Whyyyyyyy. (this is why we don't make use of enabled=False)
         # So autocast will only be active if we have a cuda device.
-        with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+        with (
+            autocast(self.device.type, enabled=True)
+            if self.device.type == "cuda"
+            else dummy_context()
+        ):
             output = self.network(in_data)
             # del data
             l = self.loss(target, output)

@@ -5,7 +5,9 @@ from nnssl.architectures.get_network_by_name import get_network_by_name
 from nnssl.architectures.spark_model import EfficientSpark3D
 from nnssl.architectures.spark_utils import convert_to_spark_cnn
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
-from nnssl.training.nnsslTrainer.masked_image_modeling.SparkTrainer import SparkMAETrainer
+from nnssl.training.nnsslTrainer.masked_image_modeling.SparkTrainer import (
+    SparkMAETrainer,
+)
 from batchgenerators.utilities.file_and_folder_operations import save_json
 
 
@@ -49,7 +51,10 @@ class EffSparkMAETrainer(SparkMAETrainer):
             recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
-            keys_to_in_proj=("encoder.stem.convs.0.conv", "encoder.stem.convs.0.all_modules.0"),
+            keys_to_in_proj=(
+                "encoder.stem.convs.0.conv",
+                "encoder.stem.convs.0.all_modules.0",
+            ),
         )
 
         return actual_network, adapt_plan

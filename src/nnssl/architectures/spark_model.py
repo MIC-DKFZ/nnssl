@@ -66,17 +66,23 @@ class SparK3D(nn.Module):
                 if self.densify_norm_str == "in":
                     densify_norm = SparseInstanceNorm3d(feats_per_stage)
                 elif self.densify_norm_str == "bn":
-                    raise NotImplementedError("Not implemented other BN in densification yet.")
+                    raise NotImplementedError(
+                        "Not implemented other BN in densification yet."
+                    )
                 else:
                     densify_norm = nn.Identity()
                 self.densify_norms.append(densify_norm)
 
                 # create densify proj
-                if i == 0:  # Always e_width = d_width in nnU-Net and e_width == d_width:
+                if (
+                    i == 0
+                ):  # Always e_width = d_width in nnU-Net and e_width == d_width:
                     densify_proj = (
                         nn.Identity()
                     )  # todo: NOTE THAT CONVNEXT-S WOULD USE THIS, because it has a width of 768 that equals to the decoder's width 768
-                    print(f"[SparK.__init__, densify {i+1}/{self.hierarchy}]: use nn.Identity() as densify_proj")
+                    print(
+                        f"[SparK.__init__, densify {i+1}/{self.hierarchy}]: use nn.Identity() as densify_proj"
+                    )
                 else:
                     # Need to
                     kernel_size = 1 if i <= 0 else 3
@@ -93,7 +99,9 @@ class SparK3D(nn.Module):
                     )
                 self.densify_projs.append(densify_proj)
 
-            print(f"[SparK.__init__] dims of mask_tokens={tuple(p.numel() for p in self.mask_tokens)}")
+            print(
+                f"[SparK.__init__] dims of mask_tokens={tuple(p.numel() for p in self.mask_tokens)}"
+            )
 
     def forward(self, x: torch.Tensor):
         # step1. Mask
@@ -106,13 +114,17 @@ class SparK3D(nn.Module):
         # ---------------- Without Mask Token no densification is done --------------- #
         if self.use_mask_token:
             to_dec = []
-            for i, bcfff in enumerate(fea_bcffs):  # from the smallest feature map to the largest
+            for i, bcfff in enumerate(
+                fea_bcffs
+            ):  # from the smallest feature map to the largest
                 if bcfff is not None:
                     bcfff = self.densify_norms[i](bcfff)
                     mask_tokens = self.mask_tokens[i].expand_as(bcfff)
                     cur_shape = [bcfff.shape[0]] + list(bcfff.shape[2:])  # B H W D
                     bcfff = torch.where(
-                        _get_active_ex_or_ii(*cur_shape, device=bcfff.device, dtype=bcfff.dtype).expand_as(bcfff)
+                        _get_active_ex_or_ii(
+                            *cur_shape, device=bcfff.device, dtype=bcfff.dtype
+                        ).expand_as(bcfff)
                         == 1,
                         bcfff,
                         mask_tokens,
@@ -179,14 +191,20 @@ class EfficientSpark3D(nn.Module):
         # step3. Densify: get hierarchical dense features for decoding
         # ---------------- Without Mask Token no densification is done --------------- #
         to_dec = []
-        for i, bcfff in enumerate(fea_bcffs):  # from the smallest feature map to the largest
+        for i, bcfff in enumerate(
+            fea_bcffs
+        ):  # from the smallest feature map to the largest
             if bcfff is not None:
                 # bcfff = self.densify_norms[i](bcfff)  # Why even norm?
                 mask_tokens = self.mask_tokens[i]
                 cur_shape = [bcfff.shape[0]] + list(bcfff.shape[2:])  # B H W D
-                cur_mask = _get_active_ex_or_ii(*cur_shape, device=bcfff.device, dtype=bcfff.dtype)
+                cur_mask = _get_active_ex_or_ii(
+                    *cur_shape, device=bcfff.device, dtype=bcfff.dtype
+                )
                 densification_mask = mask_tokens * (1 - cur_mask)
-                bcfff = bcfff + densification_mask  # fill in empty (non-active) positions with [mask] tokens
+                bcfff = (
+                    bcfff + densification_mask
+                )  # fill in empty (non-active) positions with [mask] tokens
                 # bcfff: torch.Tensor = self.densify_projs[i](bcfff)  -- No projection because Why do this at all?
             to_dec.append(bcfff)
 
