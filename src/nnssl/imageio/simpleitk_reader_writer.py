@@ -22,7 +22,9 @@ import SimpleITK as sitk
 class SimpleITKIO(BaseReaderWriter):
     supported_file_endings = [".nii.gz", ".nrrd", ".mha", ".nii"]
 
-    def read_images(self, image_fnames: Union[List[str], Tuple[str, ...]]) -> Tuple[np.ndarray, dict]:
+    def read_images(
+        self, image_fnames: Union[List[str], Tuple[str, ...]]
+    ) -> Tuple[np.ndarray, dict]:
         images = []
         spacings = []
         origins = []
@@ -39,7 +41,9 @@ class SimpleITKIO(BaseReaderWriter):
                 # 2d
                 npy_image = npy_image[None, None]
                 max_spacing = max(spacings[-1])
-                spacings_for_nnunet.append((max_spacing * 999, *list(spacings[-1])[::-1]))
+                spacings_for_nnunet.append(
+                    (max_spacing * 999, *list(spacings[-1])[::-1])
+                )
             elif npy_image.ndim == 3:
                 # 3d, as in original nnunet
                 npy_image = npy_image[None]
@@ -49,7 +53,9 @@ class SimpleITKIO(BaseReaderWriter):
                 spacings_for_nnunet.append(list(spacings[-1])[::-1][1:])
                 pass
             else:
-                raise RuntimeError(f"Unexpected number of dimensions: {npy_image.ndim} in file {f}")
+                raise RuntimeError(
+                    f"Unexpected number of dimensions: {npy_image.ndim} in file {f}"
+                )
 
             images.append(npy_image)
             spacings_for_nnunet[-1] = list(np.abs(spacings_for_nnunet[-1]))

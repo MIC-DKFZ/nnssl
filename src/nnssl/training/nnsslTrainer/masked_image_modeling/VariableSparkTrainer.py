@@ -1,6 +1,8 @@
 from typing import override
 import torch
-from batchgenerators.dataloading.single_threaded_augmenter import SingleThreadedAugmenter
+from batchgenerators.dataloading.single_threaded_augmenter import (
+    SingleThreadedAugmenter,
+)
 from batchgenerators.utilities.file_and_folder_operations import save_json
 from torch import nn, autocast
 
@@ -10,13 +12,19 @@ from nnssl.architectures.get_network_by_name import get_network_by_name
 from nnssl.architectures.spark_model import SparK3D
 from nnssl.architectures.spark_utils import convert_to_spark_cnn
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
-from nnssl.ssl_data.configure_basic_dummyDA import configure_rotation_dummyDA_mirroring_and_inital_patch_size
+from nnssl.ssl_data.configure_basic_dummyDA import (
+    configure_rotation_dummyDA_mirroring_and_inital_patch_size,
+)
 from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
 from nnssl.training.loss.mse_loss import LossMaskMSELoss
 from nnssl.training.lr_scheduler.polylr import ContinuedPolyLRSchedulerWithWarmup
-from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import create_blocky_mask
+from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import (
+    create_blocky_mask,
+)
 from dynamic_network_architectures.architectures.unet import ResidualEncoderUNet
-from nnssl.training.nnsslTrainer.masked_image_modeling.SparkTrainer import SparkMAETrainer
+from nnssl.training.nnsslTrainer.masked_image_modeling.SparkTrainer import (
+    SparkMAETrainer,
+)
 import numpy as np
 
 from nnssl.utilities.default_n_proc_DA import get_allowed_n_proc_DA
@@ -58,14 +66,22 @@ class BaseVariableSparkMAETrainer(SparkMAETrainer):
 
         block_size = 16
 
-        cur_mask_ratio = self.mask_random_seed.uniform(mask_percentage[0], mask_percentage[1])
-        mask = [create_blocky_mask(patch_size, block_size, cur_mask_ratio) for _ in range(batch_size)]
+        cur_mask_ratio = self.mask_random_seed.uniform(
+            mask_percentage[0], mask_percentage[1]
+        )
+        mask = [
+            create_blocky_mask(patch_size, block_size, cur_mask_ratio)
+            for _ in range(batch_size)
+        ]
         mask = torch.stack(mask)[:, None, ...]  # Add channel dimension
         return mask
 
     @override
     def build_architecture_and_adaptation_plan(
-        self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
+        self,
+        config_plan: ConfigurationPlan,
+        num_input_channels: int,
+        num_output_channels: int,
     ) -> nn.Module:
         network = get_network_by_name(
             config_plan,
@@ -86,7 +102,10 @@ class BaseVariableSparkMAETrainer(SparkMAETrainer):
             recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
-            keys_to_in_proj=("encoder.stem.convs.0.conv", "encoder.stem.convs.0.all_modules.0"),
+            keys_to_in_proj=(
+                "encoder.stem.convs.0.conv",
+                "encoder.stem.convs.0.all_modules.0",
+            ),
         )
 
         return actual_network, adapt_plan
@@ -120,32 +139,9 @@ class BaseVariableSparkMAETrainer_ANAT(BaseVariableSparkMAETrainer):
 
         dl_tr, dl_val = self.get_foreground_dataloaders(initial_patch_size)
 
-        allowed_num_processes = get_allowed_n_proc_DA()
-        if allowed_num_processes == 0:
-            mt_gen_train = SingleThreadedAugmenter(dl_tr, tr_transforms)
-            mt_gen_val = SingleThreadedAugmenter(dl_val, val_transforms)
-        else:
-            mt_gen_train = LimitedLenWrapper(
-                self.num_iterations_per_epoch,
-                data_loader=dl_tr,
-                transform=tr_transforms,
-                num_processes=allowed_num_processes,
-                num_cached=6,
-                seeds=None,
-                pin_memory=self.device.type == "cuda",
-                wait_time=0.02,
-            )
-            mt_gen_val = LimitedLenWrapper(
-                self.num_val_iterations_per_epoch,
-                data_loader=dl_val,
-                transform=val_transforms,
-                num_processes=max(1, allowed_num_processes // 2),
-                num_cached=3,
-                seeds=None,
-                pin_memory=self.device.type == "cuda",
-                wait_time=0.02,
-            )
-        return mt_gen_train, mt_gen_val
+        return self.handle_multi_threaded_generators(
+            dl_tr, dl_val, tr_transforms, val_transforms
+        )
 
 
 class BaseVariableSparkMAETrainer_ANON(BaseVariableSparkMAETrainer):
@@ -158,9 +154,9 @@ class BaseVariableSparkMAETrainer_ANON(BaseVariableSparkMAETrainer):
         data = data.to(self.device, non_blocking=True)
         anon = anon.to(self.device, non_blocking=True)
 
-        mask = self.mask_creation(self.batch_size, self.config_plan.patch_size, self.mask_percentage).to(
-            self.device, non_blocking=True
-        )
+        mask = self.mask_creation(
+            self.batch_size, self.config_plan.patch_size, self.mask_percentage
+        ).to(self.device, non_blocking=True)
         spark_utils._cur_active = mask
 
         # 'SparkLoss' scales the mask to the voxel space during the forward call.
@@ -171,12 +167,20 @@ class BaseVariableSparkMAETrainer_ANON(BaseVariableSparkMAETrainer):
             data.shape[3] // mask.shape[3],
             data.shape[4] // mask.shape[4],
         )
-        mask = mask.repeat_interleave(rep_D, dim=2).repeat_interleave(rep_H, dim=3).repeat_interleave(rep_W, dim=4)
+        mask = (
+            mask.repeat_interleave(rep_D, dim=2)
+            .repeat_interleave(rep_H, dim=3)
+            .repeat_interleave(rep_W, dim=4)
+        )
         loss_mask = (1 - mask) * (1 - anon)
 
         self.optimizer.zero_grad(set_to_none=True)
 
-        with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+        with (
+            autocast(self.device.type, enabled=True)
+            if self.device.type == "cuda"
+            else dummy_context()
+        ):
             output = self.network(data)
             l = self.loss(output, data, loss_mask)
         if self.grad_scaler is not None:
@@ -198,9 +202,9 @@ class BaseVariableSparkMAETrainer_ANON(BaseVariableSparkMAETrainer):
             data = data.to(self.device, non_blocking=True)
             anon = anon.to(self.device, non_blocking=True)
 
-            mask = self.mask_creation(self.batch_size, self.config_plan.patch_size, self.mask_percentage).to(
-                self.device, non_blocking=True
-            )
+            mask = self.mask_creation(
+                self.batch_size, self.config_plan.patch_size, self.mask_percentage
+            ).to(self.device, non_blocking=True)
             spark_utils._cur_active = mask
 
             rep_D, rep_H, rep_W = (
@@ -209,17 +213,25 @@ class BaseVariableSparkMAETrainer_ANON(BaseVariableSparkMAETrainer):
                 data.shape[4] // mask.shape[4],
             )
             mask = (
-                mask.repeat_interleave(rep_D, dim=2).repeat_interleave(rep_H, dim=3).repeat_interleave(rep_W, dim=4)
+                mask.repeat_interleave(rep_D, dim=2)
+                .repeat_interleave(rep_H, dim=3)
+                .repeat_interleave(rep_W, dim=4)
             )
             loss_mask = (1 - mask) * (1 - anon)
 
-            with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+            with (
+                autocast(self.device.type, enabled=True)
+                if self.device.type == "cuda"
+                else dummy_context()
+            ):
                 output = self.network(data)
             l = self.loss(output, data, loss_mask)
             return {"loss": l.detach().cpu().numpy()}
 
 
-class BaseVariableSparkMAETrainer_ANAT_ANON(BaseVariableSparkMAETrainer_ANAT, BaseVariableSparkMAETrainer_ANON):
+class BaseVariableSparkMAETrainer_ANAT_ANON(
+    BaseVariableSparkMAETrainer_ANAT, BaseVariableSparkMAETrainer_ANON
+):
     pass
 
 
@@ -332,7 +344,11 @@ class BigVariableSparkMAETrainerContinue(BigVariableSparkMAETrainer):
 
     def configure_optimizers(self):
         optimizer = torch.optim.SGD(
-            self.network.parameters(), self.initial_lr, weight_decay=self.weight_decay, momentum=0.99, nesterov=True
+            self.network.parameters(),
+            self.initial_lr,
+            weight_decay=self.weight_decay,
+            momentum=0.99,
+            nesterov=True,
         )
         lr_scheduler = ContinuedPolyLRSchedulerWithWarmup(
             optimizer,

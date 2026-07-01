@@ -1,6 +1,8 @@
 import torch
 from nnssl.experiment_planning.experiment_planners.plan import Plan
-from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import BaseMAETrainer_BS8_1000ep
+from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import (
+    BaseMAETrainer_BS8_1000ep,
+)
 
 
 class BaseMAETrainer_BS8_1000ep_LR1e2_WD_1e5(BaseMAETrainer_BS8_1000ep):

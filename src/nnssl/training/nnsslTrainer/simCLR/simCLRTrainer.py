@@ -94,7 +94,9 @@ class SimCLRTrainer(AbstractBaseTrainer):
         tr_transforms = []
 
         if do_dummy_2d_data_aug:
-            raise NotImplementedError("We don't do dummy 2d aug here anymore. Data should be isotropic!")
+            raise NotImplementedError(
+                "We don't do dummy 2d aug here anymore. Data should be isotropic!"
+            )
 
         # --------------------------- SimCLR Transformation --------------------------- #
         # All train augmentations are moved to the SimCLR Transform class.
@@ -159,34 +161,7 @@ class SimCLRTrainer(AbstractBaseTrainer):
         val_transforms = self.get_validation_transforms()
 
         # We don't do non-90 degree rotations for the VoCo Trainer.
-        dl_tr, dl_val = self.get_plain_dataloaders(patch_size)
-
-        allowed_num_processes = get_allowed_n_proc_DA()
-        if allowed_num_processes == 0:
-            mt_gen_train = SingleThreadedAugmenter(dl_tr, tr_transforms)
-            mt_gen_val = SingleThreadedAugmenter(dl_val, val_transforms)
-        else:
-            mt_gen_train = LimitedLenWrapper(
-                self.num_iterations_per_epoch,
-                data_loader=dl_tr,
-                transform=tr_transforms,
-                num_processes=allowed_num_processes,
-                num_cached=6,
-                seeds=None,
-                pin_memory=self.device.type == "cuda",
-                wait_time=0.02,
-            )
-            mt_gen_val = LimitedLenWrapper(
-                self.num_val_iterations_per_epoch,
-                data_loader=dl_val,
-                transform=val_transforms,
-                num_processes=max(1, allowed_num_processes // 2),
-                num_cached=3,
-                seeds=None,
-                pin_memory=self.device.type == "cuda",
-                wait_time=0.02,
-            )
-        return mt_gen_train, mt_gen_val
+        return self.make_generators(initial_patch_size, tr_transforms, val_transforms)
 
     def build_architecture_and_adaptation_plan(
         self,
@@ -214,7 +189,10 @@ class SimCLRTrainer(AbstractBaseTrainer):
             pretrain_num_input_channels=1,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
-            keys_to_in_proj=("encoder.stem.convs.0.conv", "encoder.stem.convs.0.all_modules.0"),
+            keys_to_in_proj=(
+                "encoder.stem.convs.0.conv",
+                "encoder.stem.convs.0.all_modules.0",
+            ),
         )
         return architecture, adapt_plan
 
@@ -235,7 +213,11 @@ class SimCLRTrainer(AbstractBaseTrainer):
         # If the device_type is 'cpu' then it's slow as heck and needs to be disabled.
         # If the device_type is 'mps' then it will complain that mps is not implemented, even if enabled=False is set. Whyyyyyyy. (this is why we don't make use of enabled=False)
         # So autocast will only be active if we have a cuda device.
-        with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+        with (
+            autocast(self.device.type, enabled=True)
+            if self.device.type == "cuda"
+            else dummy_context()
+        ):
             all_crop_embeddings = self.network(all_crops)
             if torch.isnan(all_crop_embeddings).any():
                 print("NaN values found in embeddings!")
@@ -285,7 +267,11 @@ class SimCLRTrainer(AbstractBaseTrainer):
         # If the device_type is 'mps' then it will complain that mps is not implemented, even if enabled=False is set. Whyyyyyyy. (this is why we don't make use of enabled=False)
         # So autocast will only be active if we have a cuda device.
         with torch.no_grad():
-            with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+            with (
+                autocast(self.device.type, enabled=True)
+                if self.device.type == "cuda"
+                else dummy_context()
+            ):
                 all_crop_embeddings = self.network(all_crops)
                 # This rearrange below isn't necessary, but would come in handy when doing more involved contrastive tasks.
                 # z_i_embeddings = rearrange(
@@ -300,8 +286,12 @@ class SimCLRTrainer(AbstractBaseTrainer):
                 # )
 
                 # Normalize prior to contrastive loss
-                z_i_embeddings = nn.functional.normalize(all_crop_embeddings[:NREF], dim=1)
-                z_j_embeddings = nn.functional.normalize(all_crop_embeddings[NREF:], dim=1)
+                z_i_embeddings = nn.functional.normalize(
+                    all_crop_embeddings[:NREF], dim=1
+                )
+                z_j_embeddings = nn.functional.normalize(
+                    all_crop_embeddings[NREF:], dim=1
+                )
 
                 # del data
                 l, acc = self.loss(z_i_embeddings, z_j_embeddings)

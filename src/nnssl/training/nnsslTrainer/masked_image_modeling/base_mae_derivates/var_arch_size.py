@@ -2,7 +2,11 @@ from dynamic_network_architectures.architectures.unet import ResidualEncoderUNet
 from dynamic_network_architectures.building_blocks.residual import BottleneckD
 from torch import nn
 
-from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan, ArchitecturePlans, DynamicArchitecturePlans
+from nnssl.adaptation_planning.adaptation_plan import (
+    AdaptationPlan,
+    ArchitecturePlans,
+    DynamicArchitecturePlans,
+)
 from nnssl.architectures.get_network_from_plan import get_network_from_plans
 from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import (
     BaseMAETrainer_BS8_1000ep,
@@ -39,7 +43,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B(BaseMAETrainer_BS8_1000ep):
             output_channels=1,
             deep_supervision=False,
         )
-        arch_plan = ArchitecturePlans(arch_class_name="ResidualEncoderUNet", arch_kwargs=arch_kwargs)
+        arch_plan = ArchitecturePlans(
+            arch_class_name="ResidualEncoderUNet", arch_kwargs=arch_kwargs
+        )
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plan,
             pretrain_plan=self.plan,
@@ -67,7 +73,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B(BaseMAETrainer_BS8_1000ep):
             deep_supervision=False,
         )
 
-        assert network.state_dict().keys() == network_old.state_dict().keys(), "State dicts do not match"
+        assert (
+            network.state_dict().keys() == network_old.state_dict().keys()
+        ), "State dicts do not match"
         for k in network.state_dict().keys():
             if network.state_dict()[k].shape != network_old.state_dict()[k].shape:
                 print(
@@ -107,7 +115,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_M_Depth_B(BaseMAETrainer_BS8_1000ep):
             output_channels=1,
             deep_supervision=False,
         )
-        arch_plan = ArchitecturePlans(arch_class_name="ResidualEncoderUNet", arch_kwargs=arch_kwargs)
+        arch_plan = ArchitecturePlans(
+            arch_class_name="ResidualEncoderUNet", arch_kwargs=arch_kwargs
+        )
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plan,
             pretrain_plan=self.plan,
@@ -135,7 +145,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_M_Depth_B(BaseMAETrainer_BS8_1000ep):
             deep_supervision=False,
         )
 
-        assert network.state_dict().keys() == network_old.state_dict().keys(), "State dicts do not match"
+        assert (
+            network.state_dict().keys() == network_old.state_dict().keys()
+        ), "State dicts do not match"
         for k in network.state_dict().keys():
             if network.state_dict()[k].shape != network_old.state_dict()[k].shape:
                 print(
@@ -175,7 +187,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_L_Depth_B(BaseMAETrainer_BS8_1000ep):
             output_channels=1,
             deep_supervision=False,
         )
-        arch_plan = ArchitecturePlans(arch_class_name="ResidualEncoderUNet", arch_kwargs=arch_kwargs)
+        arch_plan = ArchitecturePlans(
+            arch_class_name="ResidualEncoderUNet", arch_kwargs=arch_kwargs
+        )
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plan,
             pretrain_plan=self.plan,
@@ -203,7 +217,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_L_Depth_B(BaseMAETrainer_BS8_1000ep):
             deep_supervision=False,
         )
 
-        assert network.state_dict().keys() == network_old.state_dict().keys(), "State dicts do not match"
+        assert (
+            network.state_dict().keys() == network_old.state_dict().keys()
+        ), "State dicts do not match"
         for k in network.state_dict().keys():
             if network.state_dict()[k].shape != network_old.state_dict()[k].shape:
                 print(
@@ -243,7 +259,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_M(BaseMAETrainer_BS8_1000ep):
             output_channels=1,
             deep_supervision=False,
         )
-        arch_plan = ArchitecturePlans(arch_class_name="ResidualEncoderUNet", arch_kwargs=arch_kwargs)
+        arch_plan = ArchitecturePlans(
+            arch_class_name="ResidualEncoderUNet", arch_kwargs=arch_kwargs
+        )
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plan,
             pretrain_plan=self.plan,
@@ -271,7 +289,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_M(BaseMAETrainer_BS8_1000ep):
             deep_supervision=False,
         )
 
-        assert network.state_dict().keys() == network_old.state_dict().keys(), "State dicts do not match"
+        assert (
+            network.state_dict().keys() == network_old.state_dict().keys()
+        ), "State dicts do not match"
         for k in network.state_dict().keys():
             if network.state_dict()[k].shape != network_old.state_dict()[k].shape:
                 print(
@@ -310,7 +330,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_L(BaseMAETrainer_BS8_1000ep):
             output_channels=1,
             deep_supervision=False,
         )
-        arch_plan = ArchitecturePlans(arch_class_name="ResidualEncoderUNet", arch_kwargs=arch_kwargs)
+        arch_plan = ArchitecturePlans(
+            arch_class_name="ResidualEncoderUNet", arch_kwargs=arch_kwargs
+        )
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plan,
             pretrain_plan=self.plan,
@@ -338,7 +360,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_L(BaseMAETrainer_BS8_1000ep):
             deep_supervision=False,
         )
 
-        assert network.state_dict().keys() == network_old.state_dict().keys(), "State dicts do not match"
+        assert (
+            network.state_dict().keys() == network_old.state_dict().keys()
+        ), "State dicts do not match"
         for k in network.state_dict().keys():
             if network.state_dict()[k].shape != network_old.state_dict()[k].shape:
                 print(
@@ -378,7 +402,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_M_Depth_M(BaseMAETrainer_BS8_1000ep):
             output_channels=1,
             deep_supervision=False,
         )
-        arch_plan = ArchitecturePlans(arch_class_name="ResidualEncoderUNet", arch_kwargs=arch_kwargs)
+        arch_plan = ArchitecturePlans(
+            arch_class_name="ResidualEncoderUNet", arch_kwargs=arch_kwargs
+        )
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plan,
             pretrain_plan=self.plan,
@@ -406,7 +432,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_M_Depth_M(BaseMAETrainer_BS8_1000ep):
             deep_supervision=False,
         )
 
-        assert network.state_dict().keys() == network_old.state_dict().keys(), "State dicts do not match"
+        assert (
+            network.state_dict().keys() == network_old.state_dict().keys()
+        ), "State dicts do not match"
         for k in network.state_dict().keys():
             if network.state_dict()[k].shape != network_old.state_dict()[k].shape:
                 print(
@@ -417,7 +445,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_M_Depth_M(BaseMAETrainer_BS8_1000ep):
         return network, adapt_plan
 
 
-class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_LayerNorm(BaseMAETrainer_BS8_1000ep):
+class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_LayerNorm(
+    BaseMAETrainer_BS8_1000ep
+):
 
     def build_architecture_and_adaptation_plan(self, *args, **kwargs) -> nn.Module:
         # Move to same plan as SPARK
@@ -446,7 +476,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_LayerNorm(BaseMAETrainer_BS
             output_channels=1,
             deep_supervision=False,
         )
-        arch_plan = ArchitecturePlans(arch_class_name="ResidualEncoderUNet", arch_kwargs=arch_kwargs)
+        arch_plan = ArchitecturePlans(
+            arch_class_name="ResidualEncoderUNet", arch_kwargs=arch_kwargs
+        )
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plan,
             pretrain_plan=self.plan,
@@ -474,7 +506,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_LayerNorm(BaseMAETrainer_BS
             deep_supervision=False,
         )
 
-        assert network.state_dict().keys() == network_old.state_dict().keys(), "State dicts do not match"
+        assert (
+            network.state_dict().keys() == network_old.state_dict().keys()
+        ), "State dicts do not match"
         for k in network.state_dict().keys():
             if network.state_dict()[k].shape != network_old.state_dict()[k].shape:
                 print(
@@ -514,7 +548,9 @@ class BaseMAETrainer_BS1_ep1000_Arch_Width_B_Depth_B_LayerNorm(BaseMAETrainer_BS
             output_channels=1,
             deep_supervision=False,
         )
-        arch_plan = ArchitecturePlans(arch_class_name="ResidualEncoderUNet", arch_kwargs=arch_kwargs)
+        arch_plan = ArchitecturePlans(
+            arch_class_name="ResidualEncoderUNet", arch_kwargs=arch_kwargs
+        )
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plan,
             pretrain_plan=self.plan,
@@ -542,7 +578,9 @@ class BaseMAETrainer_BS1_ep1000_Arch_Width_B_Depth_B_LayerNorm(BaseMAETrainer_BS
             deep_supervision=False,
         )
 
-        assert network.state_dict().keys() == network_old.state_dict().keys(), "State dicts do not match"
+        assert (
+            network.state_dict().keys() == network_old.state_dict().keys()
+        ), "State dicts do not match"
         for k in network.state_dict().keys():
             if network.state_dict()[k].shape != network_old.state_dict()[k].shape:
                 print(
@@ -553,7 +591,9 @@ class BaseMAETrainer_BS1_ep1000_Arch_Width_B_Depth_B_LayerNorm(BaseMAETrainer_BS
         return network, adapt_plan
 
 
-class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_BatchNorm(BaseMAETrainer_BS8_1000ep):
+class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_BatchNorm(
+    BaseMAETrainer_BS8_1000ep
+):
 
     def build_architecture_and_adaptation_plan(self, *args, **kwargs) -> nn.Module:
         # Move to same plan as SPARK
@@ -582,7 +622,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_BatchNorm(BaseMAETrainer_BS
             output_channels=1,
             deep_supervision=False,
         )
-        arch_plan = ArchitecturePlans(arch_class_name="ResidualEncoderUNet", arch_kwargs=arch_kwargs)
+        arch_plan = ArchitecturePlans(
+            arch_class_name="ResidualEncoderUNet", arch_kwargs=arch_kwargs
+        )
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plan,
             pretrain_plan=self.plan,
@@ -610,7 +652,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_BatchNorm(BaseMAETrainer_BS
             deep_supervision=False,
         )
 
-        assert network.state_dict().keys() == network_old.state_dict().keys(), "State dicts do not match"
+        assert (
+            network.state_dict().keys() == network_old.state_dict().keys()
+        ), "State dicts do not match"
         for k in network.state_dict().keys():
             if network.state_dict()[k].shape != network_old.state_dict()[k].shape:
                 print(
@@ -650,7 +694,9 @@ class BaseMAETrainer_BS1_ep1000_Arch_Width_B_Depth_B_BatchNorm(BaseMAETrainer_BS
             output_channels=1,
             deep_supervision=False,
         )
-        arch_plan = ArchitecturePlans(arch_class_name="ResidualEncoderUNet", arch_kwargs=arch_kwargs)
+        arch_plan = ArchitecturePlans(
+            arch_class_name="ResidualEncoderUNet", arch_kwargs=arch_kwargs
+        )
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plan,
             pretrain_plan=self.plan,
@@ -678,7 +724,9 @@ class BaseMAETrainer_BS1_ep1000_Arch_Width_B_Depth_B_BatchNorm(BaseMAETrainer_BS
             deep_supervision=False,
         )
 
-        assert network.state_dict().keys() == network_old.state_dict().keys(), "State dicts do not match"
+        assert (
+            network.state_dict().keys() == network_old.state_dict().keys()
+        ), "State dicts do not match"
         for k in network.state_dict().keys():
             if network.state_dict()[k].shape != network_old.state_dict()[k].shape:
                 print(
@@ -689,7 +737,9 @@ class BaseMAETrainer_BS1_ep1000_Arch_Width_B_Depth_B_BatchNorm(BaseMAETrainer_BS
         return network, adapt_plan
 
 
-class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop005(BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B):
+class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop005(
+    BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B
+):
 
     def build_architecture_and_adaptation_plan(self, *args, **kwargs) -> nn.Module:
         # Move to same plan as SPARK
@@ -719,7 +769,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop005(BaseMAETrainer_BS8_
             deep_supervision=False,
             allow_init=False,
         )
-        arch_plan = ArchitecturePlans(arch_class_name="ResidualEncoderUNet", arch_kwargs=arch_kwargs)
+        arch_plan = ArchitecturePlans(
+            arch_class_name="ResidualEncoderUNet", arch_kwargs=arch_kwargs
+        )
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plan,
             pretrain_plan=self.plan,
@@ -749,7 +801,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop005(BaseMAETrainer_BS8_
             deep_supervision=False,
         )
 
-        assert network.state_dict().keys() == network_old.state_dict().keys(), "State dicts do not match"
+        assert (
+            network.state_dict().keys() == network_old.state_dict().keys()
+        ), "State dicts do not match"
         for k in network.state_dict().keys():
             if network.state_dict()[k].shape != network_old.state_dict()[k].shape:
                 print(
@@ -760,7 +814,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop005(BaseMAETrainer_BS8_
         return network, adapt_plan
 
 
-class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop01(BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B):
+class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop01(
+    BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B
+):
 
     def build_architecture_and_adaptation_plan(self, *args, **kwargs) -> nn.Module:
         # Move to same plan as SPARK
@@ -790,7 +846,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop01(BaseMAETrainer_BS8_e
             deep_supervision=False,
             allow_init=False,
         )
-        arch_plan = ArchitecturePlans(arch_class_name="ResidualEncoderUNet", arch_kwargs=arch_kwargs)
+        arch_plan = ArchitecturePlans(
+            arch_class_name="ResidualEncoderUNet", arch_kwargs=arch_kwargs
+        )
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plan,
             pretrain_plan=self.plan,
@@ -820,7 +878,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop01(BaseMAETrainer_BS8_e
             deep_supervision=False,
         )
 
-        assert network.state_dict().keys() == network_old.state_dict().keys(), "State dicts do not match"
+        assert (
+            network.state_dict().keys() == network_old.state_dict().keys()
+        ), "State dicts do not match"
         for k in network.state_dict().keys():
             if network.state_dict()[k].shape != network_old.state_dict()[k].shape:
                 print(
@@ -831,7 +891,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop01(BaseMAETrainer_BS8_e
         return network, adapt_plan
 
 
-class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop015(BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B):
+class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop015(
+    BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B
+):
 
     def build_architecture_and_adaptation_plan(self, *args, **kwargs) -> nn.Module:
         # Move to same plan as SPARK
@@ -861,7 +923,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop015(BaseMAETrainer_BS8_
             deep_supervision=False,
             allow_init=False,
         )
-        arch_plan = ArchitecturePlans(arch_class_name="ResidualEncoderUNet", arch_kwargs=arch_kwargs)
+        arch_plan = ArchitecturePlans(
+            arch_class_name="ResidualEncoderUNet", arch_kwargs=arch_kwargs
+        )
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plan,
             pretrain_plan=self.plan,
@@ -891,7 +955,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop015(BaseMAETrainer_BS8_
             deep_supervision=False,
         )
 
-        assert network.state_dict().keys() == network_old.state_dict().keys(), "State dicts do not match"
+        assert (
+            network.state_dict().keys() == network_old.state_dict().keys()
+        ), "State dicts do not match"
         for k in network.state_dict().keys():
             if network.state_dict()[k].shape != network_old.state_dict()[k].shape:
                 print(
@@ -902,7 +968,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop015(BaseMAETrainer_BS8_
         return network, adapt_plan
 
 
-class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop02(BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B):
+class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop02(
+    BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B
+):
 
     def build_architecture_and_adaptation_plan(self, *args, **kwargs) -> nn.Module:
         # Move to same plan as SPARK
@@ -932,7 +1000,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop02(BaseMAETrainer_BS8_e
             deep_supervision=False,
             allow_init=False,
         )
-        arch_plan = ArchitecturePlans(arch_class_name="ResidualEncoderUNet", arch_kwargs=arch_kwargs)
+        arch_plan = ArchitecturePlans(
+            arch_class_name="ResidualEncoderUNet", arch_kwargs=arch_kwargs
+        )
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plan,
             pretrain_plan=self.plan,
@@ -962,7 +1032,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop02(BaseMAETrainer_BS8_e
             deep_supervision=False,
         )
 
-        assert network.state_dict().keys() == network_old.state_dict().keys(), "State dicts do not match"
+        assert (
+            network.state_dict().keys() == network_old.state_dict().keys()
+        ), "State dicts do not match"
         for k in network.state_dict().keys():
             if network.state_dict()[k].shape != network_old.state_dict()[k].shape:
                 print(
@@ -973,7 +1045,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Drop02(BaseMAETrainer_BS8_e
         return network, adapt_plan
 
 
-class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Bneck(BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B):
+class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Bneck(
+    BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B
+):
 
     def build_architecture_and_adaptation_plan(self, *args, **kwargs) -> nn.Module:
         # Move to same plan as SPARK
@@ -1002,7 +1076,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Bneck(BaseMAETrainer_BS8_ep
             output_channels=1,
             deep_supervision=False,
         )
-        arch_plan = ArchitecturePlans(arch_class_name="ResidualEncoderUNet", arch_kwargs=arch_kwargs)
+        arch_plan = ArchitecturePlans(
+            arch_class_name="ResidualEncoderUNet", arch_kwargs=arch_kwargs
+        )
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plan,
             pretrain_plan=self.plan,
@@ -1032,7 +1108,9 @@ class BaseMAETrainer_BS8_ep1000_Arch_Width_B_Depth_B_Bneck(BaseMAETrainer_BS8_ep
             bottleneck_channels=[64, 128, 256, 512, 640, 640],
         )
 
-        assert network.state_dict().keys() == network_old.state_dict().keys(), "State dicts do not match"
+        assert (
+            network.state_dict().keys() == network_old.state_dict().keys()
+        ), "State dicts do not match"
         for k in network.state_dict().keys():
             if network.state_dict()[k].shape != network_old.state_dict()[k].shape:
                 print(

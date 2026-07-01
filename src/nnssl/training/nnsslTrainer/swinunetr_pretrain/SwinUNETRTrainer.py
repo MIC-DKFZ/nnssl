@@ -11,7 +11,9 @@ from nnssl.training.loss.swinunetr_loss import SwinUNETRLoss
 
 from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
 from nnssl.utilities.default_n_proc_DA import get_allowed_n_proc_DA
-from batchgenerators.dataloading.single_threaded_augmenter import SingleThreadedAugmenter
+from batchgenerators.dataloading.single_threaded_augmenter import (
+    SingleThreadedAugmenter,
+)
 from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
 from torch import autocast
 from nnssl.utilities.helpers import dummy_context
@@ -44,12 +46,19 @@ class SwinUNETRTrainer(AbstractBaseTrainer):
     @override
     def build_loss(self):
         return SwinUNETRLoss(
-            self.batch_size, self.device, self.rec_loss_weight, self.contrast_loss_weight, self.rot_loss_weight
+            self.batch_size,
+            self.device,
+            self.rec_loss_weight,
+            self.contrast_loss_weight,
+            self.rot_loss_weight,
         )
 
     @override
     def build_architecture_and_adaptation_plan(
-        self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
+        self,
+        config_plan: ConfigurationPlan,
+        num_input_channels: int,
+        num_output_channels: int,
     ) -> nn.Module:
         encoder = get_network_by_name(
             config_plan,
@@ -67,7 +76,10 @@ class SwinUNETRTrainer(AbstractBaseTrainer):
             pretrain_num_input_channels=num_input_channels,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
-            keys_to_in_proj=("encoder.stem.convs.0.conv", "encoder.stem.convs.0.all_modules.0"),
+            keys_to_in_proj=(
+                "encoder.stem.convs.0.conv",
+                "encoder.stem.convs.0.all_modules.0",
+            ),
         )
         return architecture, adapt_plan
 
@@ -77,34 +89,9 @@ class SwinUNETRTrainer(AbstractBaseTrainer):
         tr_transforms = self.get_training_transforms()
         val_transforms = self.get_validation_transforms()
 
-        dl_tr, dl_val = self.get_plain_dataloaders(initial_patch_size=self.config_plan.patch_size)
-
-        allowed_num_processes = get_allowed_n_proc_DA()
-        if allowed_num_processes == 0:
-            mt_gen_train = SingleThreadedAugmenter(dl_tr, tr_transforms)
-            mt_gen_val = SingleThreadedAugmenter(dl_val, val_transforms)
-        else:
-            mt_gen_train = LimitedLenWrapper(
-                self.num_iterations_per_epoch,
-                data_loader=dl_tr,
-                transform=tr_transforms,
-                num_processes=allowed_num_processes,
-                num_cached=6,
-                seeds=None,
-                pin_memory=self.device.type == "cuda",
-                wait_time=0.02,
-            )
-            mt_gen_val = LimitedLenWrapper(
-                self.num_val_iterations_per_epoch,
-                data_loader=dl_val,
-                transform=val_transforms,
-                num_processes=max(1, allowed_num_processes // 2),
-                num_cached=3,
-                seeds=None,
-                pin_memory=self.device.type == "cuda",
-                wait_time=0.02,
-            )
-        return mt_gen_train, mt_gen_val
+        return self.make_generators(
+            self.config_plan.patch_size, tr_transforms, val_transforms
+        )
 
     # @override
     # def configure_optimizers(self):
@@ -127,16 +114,26 @@ class SwinUNETRTrainer(AbstractBaseTrainer):
 
         imgs_rotated = torch.cat([imgs1_rotated, imgs2_rotated], dim=0)
         rotations = torch.cat([rotations1, rotations2], dim=0)
-        imgs_rotated_cutout = torch.cat([imgs1_rotated_cutout, imgs2_rotated_cutout], dim=0)
+        imgs_rotated_cutout = torch.cat(
+            [imgs1_rotated_cutout, imgs2_rotated_cutout], dim=0
+        )
 
         imgs_rotated = imgs_rotated.to(self.device, non_blocking=True)
         rotations = rotations.to(self.device, non_blocking=True)
         imgs_rotated_cutout = imgs_rotated_cutout.to(self.device, non_blocking=True)
 
         self.optimizer.zero_grad(set_to_none=True)
-        with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
-            rotations_pred, contrast_pred, reconstructions = self.network(imgs_rotated_cutout)
-            l = self.loss(rotations_pred, rotations, contrast_pred, reconstructions, imgs_rotated)
+        with (
+            autocast(self.device.type, enabled=True)
+            if self.device.type == "cuda"
+            else dummy_context()
+        ):
+            rotations_pred, contrast_pred, reconstructions = self.network(
+                imgs_rotated_cutout
+            )
+            l = self.loss(
+                rotations_pred, rotations, contrast_pred, reconstructions, imgs_rotated
+            )
 
         if self.grad_scaler is not None:
             self.grad_scaler.scale(l).backward()
@@ -158,16 +155,30 @@ class SwinUNETRTrainer(AbstractBaseTrainer):
 
         imgs_rotated = torch.cat([imgs1_rotated, imgs2_rotated], dim=0)
         rotations = torch.cat([rotations1, rotations2], dim=0)
-        imgs_rotated_cutout = torch.cat([imgs1_rotated_cutout, imgs2_rotated_cutout], dim=0)
+        imgs_rotated_cutout = torch.cat(
+            [imgs1_rotated_cutout, imgs2_rotated_cutout], dim=0
+        )
 
         imgs_rotated = imgs_rotated.to(self.device, non_blocking=True)
         rotations = rotations.to(self.device, non_blocking=True)
         imgs_rotated_cutout = imgs_rotated_cutout.to(self.device, non_blocking=True)
 
         with torch.no_grad():
-            with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
-                rotations_pred, contrast_pred, reconstructions = self.network(imgs_rotated_cutout)
-                l = self.loss(rotations_pred, rotations, contrast_pred, reconstructions, imgs_rotated)
+            with (
+                autocast(self.device.type, enabled=True)
+                if self.device.type == "cuda"
+                else dummy_context()
+            ):
+                rotations_pred, contrast_pred, reconstructions = self.network(
+                    imgs_rotated_cutout
+                )
+                l = self.loss(
+                    rotations_pred,
+                    rotations,
+                    contrast_pred,
+                    reconstructions,
+                    imgs_rotated,
+                )
 
         return {"loss": l.detach().cpu().numpy()}
 
@@ -176,7 +187,9 @@ class SwinUNETRTrainer(AbstractBaseTrainer):
         tr_transforms = []
 
         tr_transforms.append(SwinUNETRTransform())
-        tr_transforms.append(NumpyToTensor(cast_to="float", keys=["imgs_rotated", "imgs_rotated_cutout"]))
+        tr_transforms.append(
+            NumpyToTensor(cast_to="float", keys=["imgs_rotated", "imgs_rotated_cutout"])
+        )
         tr_transforms.append(NumpyToTensor(cast_to="long", keys="rotations"))
         tr_transforms = Compose(tr_transforms)
         return tr_transforms
@@ -234,16 +247,31 @@ class SwinUNETRTrainer_two_forward_passes(SwinUNETRTrainer):
         imgs2_rotated_cutout = imgs2_rotated_cutout.to(self.device, non_blocking=True)
 
         self.optimizer.zero_grad(set_to_none=True)
-        with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
-            rotations1_pred, contrast1_pred, reconstructions1 = self.network(imgs1_rotated_cutout)
-            rotations2_pred, contrast2_pred, reconstructions2 = self.network(imgs2_rotated_cutout)
+        with (
+            autocast(self.device.type, enabled=True)
+            if self.device.type == "cuda"
+            else dummy_context()
+        ):
+            rotations1_pred, contrast1_pred, reconstructions1 = self.network(
+                imgs1_rotated_cutout
+            )
+            rotations2_pred, contrast2_pred, reconstructions2 = self.network(
+                imgs2_rotated_cutout
+            )
 
             rotations_pred = torch.cat([rotations1_pred, rotations2_pred], dim=0)
             rotations = torch.cat([rotations1, rotations2], dim=0)
             reconstructions = torch.cat([reconstructions1, reconstructions2], dim=0)
             imgs_rotated = torch.cat([imgs1_rotated, imgs2_rotated], dim=0)
 
-            l = self.loss(rotations_pred, rotations, contrast1_pred, contrast2_pred, reconstructions, imgs_rotated)
+            l = self.loss(
+                rotations_pred,
+                rotations,
+                contrast1_pred,
+                contrast2_pred,
+                reconstructions,
+                imgs_rotated,
+            )
 
         if self.grad_scaler is not None:
             self.grad_scaler.scale(l).backward()
@@ -271,9 +299,17 @@ class SwinUNETRTrainer_two_forward_passes(SwinUNETRTrainer):
         imgs2_rotated_cutout = imgs2_rotated_cutout.to(self.device, non_blocking=True)
 
         with torch.no_grad():
-            with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
-                rotations1_pred, contrast1_pred, reconstructions1 = self.network(imgs1_rotated_cutout)
-                rotations2_pred, contrast2_pred, reconstructions2 = self.network(imgs2_rotated_cutout)
+            with (
+                autocast(self.device.type, enabled=True)
+                if self.device.type == "cuda"
+                else dummy_context()
+            ):
+                rotations1_pred, contrast1_pred, reconstructions1 = self.network(
+                    imgs1_rotated_cutout
+                )
+                rotations2_pred, contrast2_pred, reconstructions2 = self.network(
+                    imgs2_rotated_cutout
+                )
 
                 rotations_pred = torch.cat([rotations1_pred, rotations2_pred], dim=0)
                 rotations = torch.cat([rotations1, rotations2], dim=0)
@@ -281,7 +317,12 @@ class SwinUNETRTrainer_two_forward_passes(SwinUNETRTrainer):
                 imgs_rotated = torch.cat([imgs1_rotated, imgs2_rotated], dim=0)
 
                 l = self.loss(
-                    rotations_pred, rotations, contrast1_pred, contrast2_pred, reconstructions, imgs_rotated
+                    rotations_pred,
+                    rotations,
+                    contrast1_pred,
+                    contrast2_pred,
+                    reconstructions,
+                    imgs_rotated,
                 )
 
         return {"loss": l.detach().cpu().numpy()}

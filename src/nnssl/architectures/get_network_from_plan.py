@@ -4,6 +4,7 @@ from typing import Union
 
 from nnssl.utilities.find_class_by_name import recursive_find_python_class
 from batchgenerators.utilities.file_and_folder_operations import join
+
 # from dynamic_network_architectures.architectures.abstract_arch import AbstractDynamicNetworkArchitectures
 
 
@@ -14,7 +15,8 @@ def get_network_from_plans(
     input_channels,
     output_channels,
     allow_init=True,
-    deep_supervision: Union[bool, None] = None):
+    deep_supervision: Union[bool, None] = None,
+):
     network_class = arch_class_name
     architecture_kwargs = dict(**arch_kwargs)
     for ri in arch_kwargs_req_import:
@@ -38,13 +40,19 @@ def get_network_from_plans(
         if nw_class is not None:
             print(f"FOUND IT: {nw_class}")
         else:
-            raise ImportError("Network class could not be found, please check/correct your plans file")
+            raise ImportError(
+                "Network class could not be found, please check/correct your plans file"
+            )
 
     if deep_supervision is not None:
         if network_class != "Primus":
             architecture_kwargs["deep_supervision"] = deep_supervision
 
-    network = nw_class(input_channels=input_channels, num_classes=output_channels, **architecture_kwargs)
+    network = nw_class(
+        input_channels=input_channels,
+        num_classes=output_channels,
+        **architecture_kwargs,
+    )
 
     if hasattr(network, "initialize") and allow_init:
         network.apply(network.initialize)

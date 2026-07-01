@@ -5,7 +5,10 @@ from torch.optim import AdamW
 from typing_extensions import override
 
 from nnssl.architectures.get_network_by_name import get_network_by_name
-from nnssl.architectures.gvsl_architecture import GVSLArchitecture, GVSLArchitecture_recon_only
+from nnssl.architectures.gvsl_architecture import (
+    GVSLArchitecture,
+    GVSLArchitecture_recon_only,
+)
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.ssl_data.dataloading.data_loader_3d import nnsslCenterCropDataLoader3D
 from nnssl.ssl_data.dataloading.gvsl_transform import GVSLTransform, SpatialTransforms
@@ -14,7 +17,9 @@ from nnssl.training.loss.gvsl_loss import GVSLLoss, L_mse
 from nnssl.training.lr_scheduler.polylr import PolyLRScheduler
 from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
 from nnssl.utilities.default_n_proc_DA import get_allowed_n_proc_DA
-from batchgenerators.dataloading.single_threaded_augmenter import SingleThreadedAugmenter
+from batchgenerators.dataloading.single_threaded_augmenter import (
+    SingleThreadedAugmenter,
+)
 from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
 from torch import autocast
 from nnssl.utilities.helpers import dummy_context
@@ -48,7 +53,10 @@ class GVSLTrainer(AbstractBaseTrainer):
 
     @override
     def build_architecture_and_adaptation_plan(
-        self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
+        self,
+        config_plan: ConfigurationPlan,
+        num_input_channels: int,
+        num_output_channels: int,
     ) -> nn.Module:
         architecture = get_network_by_name(
             config_plan,
@@ -68,32 +76,9 @@ class GVSLTrainer(AbstractBaseTrainer):
 
         dl_tr, dl_val = self.get_centercrop_dataloaders_with_doubled_batch_size()
 
-        allowed_num_processes = get_allowed_n_proc_DA()
-        if allowed_num_processes == 0:
-            mt_gen_train = SingleThreadedAugmenter(dl_tr, tr_transforms)
-            mt_gen_val = SingleThreadedAugmenter(dl_val, val_transforms)
-        else:
-            mt_gen_train = LimitedLenWrapper(
-                self.num_iterations_per_epoch,
-                data_loader=dl_tr,
-                transform=tr_transforms,
-                num_processes=allowed_num_processes,
-                num_cached=6,
-                seeds=None,
-                pin_memory=self.device.type == "cuda",
-                wait_time=0.02,
-            )
-            mt_gen_val = LimitedLenWrapper(
-                self.num_val_iterations_per_epoch,
-                data_loader=dl_val,
-                transform=val_transforms,
-                num_processes=max(1, allowed_num_processes // 2),
-                num_cached=3,
-                seeds=None,
-                pin_memory=self.device.type == "cuda",
-                wait_time=0.02,
-            )
-        return mt_gen_train, mt_gen_val
+        return self.handle_multi_threaded_generators(
+            dl_tr, dl_val, tr_transforms, val_transforms
+        )
 
     def get_centercrop_dataloaders_with_doubled_batch_size(self):
         dataset_tr, dataset_val = self.get_tr_and_val_datasets()
@@ -125,14 +110,18 @@ class GVSLTrainer(AbstractBaseTrainer):
         - save_path (str): Path to save the visualization.
         - row_view (bool): If True, arrange slices in a row; otherwise, arrange them in a column.
         """
-        assert batch_tensor.dim() == 5, "Expected input tensor shape: (batch_size, channels, depth, height, width)"
+        assert (
+            batch_tensor.dim() == 5
+        ), "Expected input tensor shape: (batch_size, channels, depth, height, width)"
         batch_size = batch_tensor.size(0)
 
         slices = []
         for i in range(batch_size):
             brain_image = batch_tensor[i][0]  # Assume first channel is the relevant one
             depth_index = brain_image.shape[0] // 2  # Middle depth index
-            slice_2d = brain_image[depth_index, :, :].cpu().numpy()  # Convert to numpy for plotting
+            slice_2d = (
+                brain_image[depth_index, :, :].cpu().numpy()
+            )  # Convert to numpy for plotting
             slices.append(slice_2d)
 
         # Determine figure layout
@@ -142,7 +131,9 @@ class GVSLTrainer(AbstractBaseTrainer):
             nrows, ncols = batch_size, 1
 
         # Plot slices
-        fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(6 * ncols, 6 * nrows))
+        fig, axes = plt.subplots(
+            nrows=nrows, ncols=ncols, figsize=(6 * ncols, 6 * nrows)
+        )
         axes = np.atleast_1d(axes)  # Ensure axes is always iterable
 
         for i, (ax, slice_2d) in enumerate(zip(axes.flatten(), slices)):
@@ -188,7 +179,9 @@ class GVSLTrainer(AbstractBaseTrainer):
                     self.batch_size, self.config_plan.patch_size
                 )
                 imgsA = self.spatial_transforms.augment_spatial(imgsA, affine_mat, flow)
-                imgsA_app = self.spatial_transforms.augment_spatial(imgsA_app, affine_mat, flow)
+                imgsA_app = self.spatial_transforms.augment_spatial(
+                    imgsA_app, affine_mat, flow
+                )
                 imgsB = self.spatial_transforms.augment_spatial(imgsB, affine_mat, flow)
 
             # self.visualize_brain_slices(imgsA, "imgsA.png")
@@ -198,7 +191,11 @@ class GVSLTrainer(AbstractBaseTrainer):
             # return {"loss": np.array(1)}
 
             self.optimizer.zero_grad(set_to_none=True)
-            with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+            with (
+                autocast(self.device.type, enabled=True)
+                if self.device.type == "cuda"
+                else dummy_context()
+            ):
                 recon_A, warped_BA, flow_BA = self.network(imgsA_app, imgsB)
 
             # NCC loss tends to get NANs with float16, thus we will not use autocast for loss calculation
@@ -237,10 +234,16 @@ class GVSLTrainer(AbstractBaseTrainer):
                     self.batch_size, self.config_plan.patch_size
                 )
                 imgsA = self.spatial_transforms.augment_spatial(imgsA, affine_mat, flow)
-                imgsA_app = self.spatial_transforms.augment_spatial(imgsA_app, affine_mat, flow)
+                imgsA_app = self.spatial_transforms.augment_spatial(
+                    imgsA_app, affine_mat, flow
+                )
                 imgsB = self.spatial_transforms.augment_spatial(imgsB, affine_mat, flow)
 
-            with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+            with (
+                autocast(self.device.type, enabled=True)
+                if self.device.type == "cuda"
+                else dummy_context()
+            ):
                 recon_A, warped_BA, flow_BA = self.network(imgsA_app, imgsB)
 
             # l = self.loss(imgsA, recon_A, warped_BA, flow_BA)
@@ -254,7 +257,9 @@ class GVSLTrainer(AbstractBaseTrainer):
         tr_transforms = []
 
         tr_transforms.append(GVSLTransform())
-        tr_transforms.append(NumpyToTensor(cast_to="float", keys=["imgsA", "imgsA_app", "imgsB"]))
+        tr_transforms.append(
+            NumpyToTensor(cast_to="float", keys=["imgsA", "imgsA_app", "imgsB"])
+        )
         tr_transforms = Compose(tr_transforms)
         return tr_transforms
 
@@ -272,7 +277,9 @@ class GVSLTrainer_do_spatial(GVSLTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        super().__init__(plan, configuration_name, fold, pretrain_json, device, do_spatial_aug=True)
+        super().__init__(
+            plan, configuration_name, fold, pretrain_json, device, do_spatial_aug=True
+        )
 
 
 class GVSLTrainer_no_spatial(GVSLTrainer):
@@ -284,7 +291,9 @@ class GVSLTrainer_no_spatial(GVSLTrainer):
         pretrain_json: dict,
         device: torch.device = torch.device("cuda"),
     ):
-        super().__init__(plan, configuration_name, fold, pretrain_json, device, do_spatial_aug=False)
+        super().__init__(
+            plan, configuration_name, fold, pretrain_json, device, do_spatial_aug=False
+        )
 
 
 class GVSLTrainer_test(GVSLTrainer_do_spatial):
@@ -350,7 +359,10 @@ class GVSLTrainer_recon_only(GVSLTrainer_no_spatial):
         self.num_iterations_per_epoch = 100
 
     def build_architecture_and_adaptation_plan(
-        self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
+        self,
+        config_plan: ConfigurationPlan,
+        num_input_channels: int,
+        num_output_channels: int,
     ) -> nn.Module:
         backbone = get_network_by_name(
             config_plan,
@@ -383,7 +395,9 @@ class GVSLTrainer_recon_only(GVSLTrainer_no_spatial):
                     self.batch_size, self.config_plan.patch_size
                 )
                 imgsA = self.spatial_transforms.augment_spatial(imgsA, affine_mat, flow)
-                imgsA_app = self.spatial_transforms.augment_spatial(imgsA_app, affine_mat, flow)
+                imgsA_app = self.spatial_transforms.augment_spatial(
+                    imgsA_app, affine_mat, flow
+                )
                 imgsB = self.spatial_transforms.augment_spatial(imgsB, affine_mat, flow)
 
             # self.visualize_brain_slices(imgsA, "imgsA_no_aug.png")
@@ -391,7 +405,11 @@ class GVSLTrainer_recon_only(GVSLTrainer_no_spatial):
             # return {"loss": np.array(1)}
 
             self.optimizer.zero_grad(set_to_none=True)
-            with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+            with (
+                autocast(self.device.type, enabled=True)
+                if self.device.type == "cuda"
+                else dummy_context()
+            ):
                 recon_A = self.network(imgsA_app, imgsB)
 
             # NCC loss tends to get NANs with float16, thus we will not use autocast for loss calculation
@@ -429,10 +447,16 @@ class GVSLTrainer_recon_only(GVSLTrainer_no_spatial):
                     self.batch_size, self.config_plan.patch_size
                 )
                 imgsA = self.spatial_transforms.augment_spatial(imgsA, affine_mat, flow)
-                imgsA_app = self.spatial_transforms.augment_spatial(imgsA_app, affine_mat, flow)
+                imgsA_app = self.spatial_transforms.augment_spatial(
+                    imgsA_app, affine_mat, flow
+                )
                 imgsB = self.spatial_transforms.augment_spatial(imgsB, affine_mat, flow)
 
-            with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+            with (
+                autocast(self.device.type, enabled=True)
+                if self.device.type == "cuda"
+                else dummy_context()
+            ):
                 recon_A = self.network(imgsA_app, imgsB)
 
             # l = self.loss(imgsA, recon_A, warped_BA, flow_BA)
@@ -458,7 +482,10 @@ class GVSLTrainer_recon_only_with_spatial(GVSLTrainer_do_spatial):
         self.num_iterations_per_epoch = 100
 
     def build_architecture_and_adaptation_plan(
-        self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
+        self,
+        config_plan: ConfigurationPlan,
+        num_input_channels: int,
+        num_output_channels: int,
     ) -> nn.Module:
         backbone = get_network_by_name(
             config_plan,
@@ -490,7 +517,9 @@ class GVSLTrainer_recon_only_with_spatial(GVSLTrainer_do_spatial):
                     self.batch_size, self.config_plan.patch_size
                 )
                 imgsA = self.spatial_transforms.augment_spatial(imgsA, affine_mat, flow)
-                imgsA_app = self.spatial_transforms.augment_spatial(imgsA_app, affine_mat, flow)
+                imgsA_app = self.spatial_transforms.augment_spatial(
+                    imgsA_app, affine_mat, flow
+                )
                 imgsB = self.spatial_transforms.augment_spatial(imgsB, affine_mat, flow)
 
             # self.visualize_brain_slices(imgsA, "imgsA_no_aug.png")
@@ -498,7 +527,11 @@ class GVSLTrainer_recon_only_with_spatial(GVSLTrainer_do_spatial):
             # return {"loss": np.array(1)}
 
             self.optimizer.zero_grad(set_to_none=True)
-            with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+            with (
+                autocast(self.device.type, enabled=True)
+                if self.device.type == "cuda"
+                else dummy_context()
+            ):
                 recon_A = self.network(imgsA_app, imgsB)
 
             # NCC loss tends to get NANs with float16, thus we will not use autocast for loss calculation
@@ -536,10 +569,16 @@ class GVSLTrainer_recon_only_with_spatial(GVSLTrainer_do_spatial):
                     self.batch_size, self.config_plan.patch_size
                 )
                 imgsA = self.spatial_transforms.augment_spatial(imgsA, affine_mat, flow)
-                imgsA_app = self.spatial_transforms.augment_spatial(imgsA_app, affine_mat, flow)
+                imgsA_app = self.spatial_transforms.augment_spatial(
+                    imgsA_app, affine_mat, flow
+                )
                 imgsB = self.spatial_transforms.augment_spatial(imgsB, affine_mat, flow)
 
-            with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+            with (
+                autocast(self.device.type, enabled=True)
+                if self.device.type == "cuda"
+                else dummy_context()
+            ):
                 recon_A = self.network(imgsA_app, imgsB)
 
             # l = self.loss(imgsA, recon_A, warped_BA, flow_BA)

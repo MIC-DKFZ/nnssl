@@ -29,7 +29,9 @@ def get_pretrain_json_or_create_new(raw_dataset_folder: str) -> dict:
     if os.path.exists(expected_pretrain_json_path):
         return load_json(join(raw_dataset_folder, "pretrain_data.json"))
     else:
-        raise FileNotFoundError("dataset.json or imagesTr folder does not exist in the given folder")
+        raise FileNotFoundError(
+            "dataset.json or imagesTr folder does not exist in the given folder"
+        )
 
 
 def get_train_collection(raw_dataset_folder: str) -> Collection:

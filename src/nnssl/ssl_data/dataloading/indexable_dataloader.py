@@ -1,4 +1,6 @@
-from nnssl.ssl_data.dataloading.data_loader_3d import nnsslIndexableCenterCropDataLoader3D
+from nnssl.ssl_data.dataloading.data_loader_3d import (
+    nnsslIndexableCenterCropDataLoader3D,
+)
 
 
 class IndexableSingleThreadedAugmenter(object):

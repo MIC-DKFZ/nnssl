@@ -56,9 +56,16 @@ def no_resample_preprocess_case(
     properties["shape_after_cropping_and_before_resampling"] = data.shape[1:]
 
     norm_mask = masks[0]
-    data = normalize_arr(data, norm_mask, config_plan.normalization_schemes, config_plan.use_mask_for_norm)
+    data = normalize_arr(
+        data,
+        norm_mask,
+        config_plan.normalization_schemes,
+        config_plan.use_mask_for_norm,
+    )
 
-    new_shape = data.shape[1:]  # compute_new_shape(data.shape[1:], original_spacing, original_spacing)
+    new_shape = data.shape[
+        1:
+    ]  # compute_new_shape(data.shape[1:], original_spacing, original_spacing)
     old_shape = data.shape[1:]
 
     if verbose:

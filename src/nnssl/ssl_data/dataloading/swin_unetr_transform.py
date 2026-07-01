@@ -3,7 +3,13 @@ from random import randint
 import numpy as np
 
 
-def patch_rand_drop(img: np.ndarray, img_rep: None | np.ndarray = None, max_drop=0.3, max_block_sz=0.25, tolr=0.05):
+def patch_rand_drop(
+    img: np.ndarray,
+    img_rep: None | np.ndarray = None,
+    max_drop=0.3,
+    max_block_sz=0.25,
+    tolr=0.05,
+):
     c, h, w, z = img.shape
     n_drop_pix = np.random.uniform(0, max_drop) * h * w * z
     mx_blk_height = int(h * max_block_sz)
@@ -19,14 +25,19 @@ def patch_rand_drop(img: np.ndarray, img_rep: None | np.ndarray = None, max_drop
         rnd_w = min(randint(tolr[1], mx_blk_width) + rnd_c, w)
         rnd_z = min(randint(tolr[2], mx_blk_slices) + rnd_s, z)
         if img_rep is None:
-            noisy_patch = np.random.normal(loc=0.0, scale=1.0,
-                                                     size=(c, rnd_h - rnd_r, rnd_w - rnd_c, rnd_z - rnd_s))
+            noisy_patch = np.random.normal(
+                loc=0.0,
+                scale=1.0,
+                size=(c, rnd_h - rnd_r, rnd_w - rnd_c, rnd_z - rnd_s),
+            )
             noisy_patch = (noisy_patch - np.min(noisy_patch)) / (
-                    np.max(noisy_patch) - np.min(noisy_patch)
+                np.max(noisy_patch) - np.min(noisy_patch)
             )
             img[:, rnd_r:rnd_h, rnd_c:rnd_w, rnd_s:rnd_z] = noisy_patch
         else:
-            img[:, rnd_r:rnd_h, rnd_c:rnd_w, rnd_s:rnd_z] = img_rep[:, rnd_r:rnd_h, rnd_c:rnd_w, rnd_s:rnd_z]
+            img[:, rnd_r:rnd_h, rnd_c:rnd_w, rnd_s:rnd_z] = img_rep[
+                :, rnd_r:rnd_h, rnd_c:rnd_w, rnd_s:rnd_z
+            ]
         total_pix = total_pix + (rnd_h - rnd_r) * (rnd_w - rnd_c) * (rnd_z - rnd_s)
     return img
 
@@ -43,7 +54,7 @@ def inner_cutout_rand(imgs: np.ndarray):
     imgs_aug = imgs.copy()
     for i in range(img_n):
         imgs_aug[i] = patch_rand_drop(imgs_aug[i])
-        idx_rnd = randint(0, img_n-1)
+        idx_rnd = randint(0, img_n - 1)
         if idx_rnd != i:
             imgs_aug[i] = patch_rand_drop(imgs_aug[i], imgs_aug[idx_rnd])
     return imgs_aug
@@ -86,39 +97,13 @@ class SwinUNETRTransform(AbstractTransform):
         new_data_dict = {
             "imgs_rotated": (imgs1_rotated, imgs2_rotated),
             "rotations": (rotations1, rotations2),
-            "imgs_rotated_cutout": (imgs1_rotated_cutout, imgs2_rotated_cutout)
+            "imgs_rotated_cutout": (imgs1_rotated_cutout, imgs2_rotated_cutout),
         }
 
         return new_data_dict
-
 
 
 # if __name__ == "__main__":
 #     tr = SwinUNETRTransform()
 #     x = np.random.normal(size=(2, 1, 96, 96, 96))
 #     tr(data=x)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -10,10 +10,11 @@ def softmax_helper_dim1(x: torch.Tensor) -> torch.Tensor:
 
 
 def empty_cache(device: torch.device):
-    if device.type == 'cuda':
+    if device.type == "cuda":
         torch.cuda.empty_cache()
-    elif device.type == 'mps':
+    elif device.type == "mps":
         from torch import mps
+
         mps.empty_cache()
     else:
         pass

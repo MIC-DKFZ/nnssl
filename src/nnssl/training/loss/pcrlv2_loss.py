@@ -16,16 +16,26 @@ class PCRLv2Loss(nn.Module):
         self.mse = F.mse_loss
 
     def get_rand_stage(self):
-        return random.randint(0, self.num_mid_stages-1)
+        return random.randint(0, self.num_mid_stages - 1)
 
     def pcrl_cosine_sim(self, embeddings_1, embeddings_2):
         rand_idx = self.get_rand_stage()
         emb_1 = embeddings_1[rand_idx]
         emb_2 = embeddings_2[rand_idx]
-        return -0.5 * (self.cosine_sim(emb_1[1], emb_2[0].detach()).mean()
-                       + self.cosine_sim(emb_2[1], emb_1[0].detach()).mean())
+        return -0.5 * (
+            self.cosine_sim(emb_1[1], emb_2[0].detach()).mean()
+            + self.cosine_sim(emb_2[1], emb_1[0].detach()).mean()
+        )
 
-    def __call__(self, recon_A, mid_stage_recon_A, gt_recon_A, embeddings_A, embeddings_B, local_embeddings):
+    def __call__(
+        self,
+        recon_A,
+        mid_stage_recon_A,
+        gt_recon_A,
+        embeddings_A,
+        embeddings_B,
+        local_embeddings,
+    ):
         recon_loss = self.mse(recon_A, gt_recon_A)
 
         rand_idx = self.get_rand_stage()
@@ -34,14 +44,14 @@ class PCRLv2Loss(nn.Module):
 
         local_sim_loss = 0
         for i in range(self.num_locals):
-            _local_embeddings = [t[:, ::self.num_locals] for t in local_embeddings]
-            local_sim_loss += (self.pcrl_cosine_sim(embeddings_A, _local_embeddings)
-                               + self.pcrl_cosine_sim(embeddings_B, _local_embeddings))
+            _local_embeddings = [t[:, :: self.num_locals] for t in local_embeddings]
+            local_sim_loss += self.pcrl_cosine_sim(
+                embeddings_A, _local_embeddings
+            ) + self.pcrl_cosine_sim(embeddings_B, _local_embeddings)
 
         # return recon_loss + mid_recon_loss + global_sim_loss + local_sim_loss
-        return recon_loss , mid_recon_loss , global_sim_loss , local_sim_loss
+        return recon_loss, mid_recon_loss, global_sim_loss, local_sim_loss
+
 
 if __name__ == "__main__":
     pass
-
-

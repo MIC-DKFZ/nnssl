@@ -37,7 +37,7 @@ def L_ncc(I, J, win=None):
     ndims = I.dim() - 2
     if win is None:
         win = [9] * ndims
-    sum_filt = torch.ones([1, 1, *win]) #.cuda()
+    sum_filt = torch.ones([1, 1, *win])  # .cuda()
     pad_no = math.floor(win[0] / 2)
 
     stride = (1, 1, 1)
@@ -76,5 +76,3 @@ def compute_local_sums(I, J, filt, stride, padding, win):
 
 if __name__ == "__main__":
     pass
-
-

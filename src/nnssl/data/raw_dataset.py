@@ -22,11 +22,16 @@ def resolve_relative_paths(pot_rel_path: str) -> str:
 def recursive_dataclass_to_dict(dataclass_instance):
     """Recursively convert any of the dataclasses below to a dictionary that is serializable."""
     if hasattr(dataclass_instance, "__dict__"):
-        return {k: recursive_dataclass_to_dict(v) for k, v in dataclass_instance.__dict__.items()}
+        return {
+            k: recursive_dataclass_to_dict(v)
+            for k, v in dataclass_instance.__dict__.items()
+        }
     elif isinstance(dataclass_instance, list):
         return [recursive_dataclass_to_dict(i) for i in dataclass_instance]
     elif isinstance(dataclass_instance, dict):
-        return {k: recursive_dataclass_to_dict(v) for k, v in dataclass_instance.items()}
+        return {
+            k: recursive_dataclass_to_dict(v) for k, v in dataclass_instance.items()
+        }
     else:
         return dataclass_instance
 
@@ -76,7 +81,9 @@ class IndependentImage:
         elif img_type == "anat_mask":
             suffix = f"__anat"
         else:
-            raise ValueError("Invalid image type. Must be one of 'image', 'anon_mask', 'anat_mask'.")
+            raise ValueError(
+                "Invalid image type. Must be one of 'image', 'anon_mask', 'anat_mask'."
+            )
 
         if ext is not None:
             suffix += ext
@@ -84,16 +91,14 @@ class IndependentImage:
         return f"{self.collection_name}/{self.dataset_index}/{self.subject_id}/{self.session_id}/{image_name_wo_extension}{suffix}"
 
     def get_unique_id(self) -> str:
-        return (
-            f"{self.collection_name}__{self.dataset_index}__{self.subject_id}__{self.session_id}__{self.image_name}"
-        )
+        return f"{self.collection_name}__{self.dataset_index}__{self.subject_id}__{self.session_id}__{self.image_name}"
 
     def get_unique_subject_id(self) -> str:
-        return (
-            f"{self.collection_name}__{self.dataset_index}__{self.subject_id}"
-        )
+        return f"{self.collection_name}__{self.dataset_index}__{self.subject_id}"
 
-    def get_absolute_pp_path(self, dataset_name: str, data_identifier: str, ext: str) -> str:
+    def get_absolute_pp_path(
+        self, dataset_name: str, data_identifier: str, ext: str
+    ) -> str:
         """
         Allows to get the absolute path where the preprocessed images will be located.
 
@@ -102,12 +107,8 @@ class IndependentImage:
             data_identifier (str): The data identifier. e.g. `nnsslPlans_3d_fullres`
         """
         img_path = f"{nnssl_preprocessed}/{dataset_name}/{data_identifier}/{self.get_output_path('image', ext)}"
-        anon_mask_path = (
-            f"{nnssl_preprocessed}/{dataset_name}/{data_identifier}/{self.get_output_path('anon_mask', ext)}"
-        )
-        anat_mask_path = (
-            f"{nnssl_preprocessed}/{dataset_name}/{data_identifier}/{self.get_output_path('anat_mask', ext)}"
-        )
+        anon_mask_path = f"{nnssl_preprocessed}/{dataset_name}/{data_identifier}/{self.get_output_path('anon_mask', ext)}"
+        anat_mask_path = f"{nnssl_preprocessed}/{dataset_name}/{data_identifier}/{self.get_output_path('anat_mask', ext)}"
         return img_path, anon_mask_path, anat_mask_path
 
     def to_dict(self):
@@ -175,10 +176,16 @@ class Dataset:
         for subject in self.subjects.values():
             for session in subject.sessions.values():
                 for img in session.images:
-                    img.image_path = self._change_extension_of_path(img.image_path, new_extension)
+                    img.image_path = self._change_extension_of_path(
+                        img.image_path, new_extension
+                    )
                     if img.associated_masks is not None:
                         for k, v in asdict(img.associated_masks).items():
-                            setattr(img.associated_masks, k, self._change_extension_of_path(v, new_extension))
+                            setattr(
+                                img.associated_masks,
+                                k,
+                                self._change_extension_of_path(v, new_extension),
+                            )
 
     def _absolute_to_relative_path(self, path) -> str:
         # Relevant paths are nnssl_raw, nnssl_pp, E132Rohdaten, E132Projekte
@@ -196,7 +203,11 @@ class Dataset:
                         for k, v in asdict(img.associated_masks).items():
                             if v is None:
                                 continue
-                            setattr(img.associated_masks, k, self._absolute_to_relative_path(v))
+                            setattr(
+                                img.associated_masks,
+                                k,
+                                self._absolute_to_relative_path(v),
+                            )
 
     def resolve_paths(self):
         for _, subject in self.subjects.items():
@@ -206,7 +217,9 @@ class Dataset:
                     if img.associated_masks is not None:
                         assoc_mask = AssociatedMasks()
                         if img.associated_masks.anatomy_mask is not None:
-                            assoc_mask.anatomy_mask = resolve_relative_paths(img.associated_masks["anatomy_mask"])
+                            assoc_mask.anatomy_mask = resolve_relative_paths(
+                                img.associated_masks["anatomy_mask"]
+                            )
                         if img.associated_masks.anonymization_mask is not None:
                             assoc_mask.anonymization_mask = resolve_relative_paths(
                                 img.associated_masks["anonymization_mask"]
@@ -214,9 +227,11 @@ class Dataset:
 
     @staticmethod
     def from_dict(data: dict) -> "Dataset":
-        ds = Dataset(dataset_index=data["dataset_index"],
-                     name=data.get("name", None),
-                     dataset_info=data.get("dataset_info", None))
+        ds = Dataset(
+            dataset_index=data["dataset_index"],
+            name=data.get("name", None),
+            dataset_info=data.get("dataset_info", None),
+        )
         for subject_id, subject in data["subjects"].items():
             s = Subject(subject_id)
             s.subject_info = subject.get("subject_info", None)
@@ -229,7 +244,9 @@ class Dataset:
                     if img.associated_masks is not None:
                         assoc_mask = AssociatedMasks()
                         if img.associated_masks["anatomy_mask"] is not None:
-                            assoc_mask.anatomy_mask = resolve_relative_paths(img.associated_masks["anatomy_mask"])
+                            assoc_mask.anatomy_mask = resolve_relative_paths(
+                                img.associated_masks["anatomy_mask"]
+                            )
                         if img.associated_masks["anonymization_mask"] is not None:
                             assoc_mask.anonymization_mask = resolve_relative_paths(
                                 img.associated_masks["anonymization_mask"]
@@ -269,13 +286,22 @@ class Collection:
         not_found_imgs = []
         not_found_anon_masks = []
         not_found_anat_masks = []
-        for img in tqdm(all_imgs, disable=True if (("LSF_JOBID" in os.environ) or ("SLURM_JOB_ID" in os.environ)) else False):
+        for img in tqdm(
+            all_imgs,
+            disable=(
+                True
+                if (("LSF_JOBID" in os.environ) or ("SLURM_JOB_ID" in os.environ))
+                else False
+            ),
+        ):
             if not os.path.exists(img.image_path + ".b2nd"):
                 not_found_imgs.append(img)
             if img.associated_masks is not None:
                 if img.associated_masks.anonymization_mask is not None:
                     if not os.path.exists(img.associated_masks.anonymization_mask):
-                        not_found_anon_masks.append(img.associated_masks.anonymization_mask)
+                        not_found_anon_masks.append(
+                            img.associated_masks.anonymization_mask
+                        )
                 if img.associated_masks.anatomy_mask is not None:
                     if not os.path.exists(img.associated_masks.anatomy_mask):
                         not_found_anat_masks.append(img.associated_masks.anatomy_mask)
@@ -312,7 +338,9 @@ class Collection:
         elif example_path.endswith(".mha"):
             ext = ".mha"
         else:
-            raise NotImplementedError("Only nii, nii.gz, nrrd, mha files are supported.")
+            raise NotImplementedError(
+                "Only nii, nii.gz, nrrd, mha files are supported."
+            )
 
         # all_others = [str(img) for img in self.get_all_image_paths() if not str(img).endswith(ext)]
         # if len(all_others) > 0:
@@ -348,7 +376,8 @@ class Collection:
                                     image_path=img.image_path,
                                     image_modality=img.modality,
                                     associated_masks=AssociatedMasks(
-                                        img.associated_masks.anonymization_mask, img.associated_masks.anatomy_mask
+                                        img.associated_masks.anonymization_mask,
+                                        img.associated_masks.anatomy_mask,
                                     ),
                                     dataset_info=dataset.dataset_info,
                                     subject_info=subject.subject_info,
@@ -383,15 +412,22 @@ class Collection:
 
     def raw_to_pp_path(self, data_identifier: str, ext: str | None = None) -> None:
         independent_imgs = self.to_independent_images()
-        pp_path = [img.get_absolute_pp_path(self.collection_name, data_identifier, ext) for img in independent_imgs]
+        pp_path = [
+            img.get_absolute_pp_path(self.collection_name, data_identifier, ext)
+            for img in independent_imgs
+        ]
         for img, pp_path in zip(independent_imgs, pp_path):
             subj_id = img.subject_id
             sess_id = img.session_id
             dataset_index = img.dataset_index
-            session_imgs = self.datasets[str(dataset_index)].subjects[subj_id].sessions[sess_id]
+            session_imgs = (
+                self.datasets[str(dataset_index)].subjects[subj_id].sessions[sess_id]
+            )
             session_imgs: Session
             imgs = [i for i in session_imgs.images if i.name == img.image_name]
-            assert len(imgs) == 1, f"Found more than one image with the name {imgs[0].image_name}"
+            assert (
+                len(imgs) == 1
+            ), f"Found more than one image with the name {imgs[0].image_name}"
             img = imgs[0]
             img.image_path = pp_path[0]
             if img.associated_masks is not None:

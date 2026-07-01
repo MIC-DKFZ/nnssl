@@ -7,8 +7,13 @@ from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan
 import torch
 from torch import autocast, distributed as dist
 
-from nnssl.ssl_data.data_augmentation.transforms_for_dummy_2d import Convert3DTo2DTransform
-from nnssl.ssl_data.dataloading.data_loader_3d import nnsslDataLoader3D, nnsslCenterCropDataLoader3D
+from nnssl.ssl_data.data_augmentation.transforms_for_dummy_2d import (
+    Convert3DTo2DTransform,
+)
+from nnssl.ssl_data.dataloading.data_loader_3d import (
+    nnsslDataLoader3D,
+    nnsslCenterCropDataLoader3D,
+)
 from nnssl.ssl_data.dataloading.volume_fusion_transform import VolumeFusionTransform
 from nnssl.training.loss.compound_losses import DC_and_CE_loss
 from nnssl.training.loss.dice import MemoryEfficientSoftDiceLoss
@@ -20,11 +25,18 @@ from batchgenerators.transforms.color_transforms import (
     ContrastAugmentationTransform,
     GammaTransform,
 )
-from batchgenerators.transforms.noise_transforms import GaussianNoiseTransform, GaussianBlurTransform
-from batchgenerators.transforms.resample_transforms import SimulateLowResolutionTransform
+from batchgenerators.transforms.noise_transforms import (
+    GaussianNoiseTransform,
+    GaussianBlurTransform,
+)
+from batchgenerators.transforms.resample_transforms import (
+    SimulateLowResolutionTransform,
+)
 from batchgenerators.transforms.spatial_transforms import MirrorTransform
 from batchgenerators.transforms.utility_transforms import NumpyToTensor
-from batchgenerators.dataloading.single_threaded_augmenter import SingleThreadedAugmenter
+from batchgenerators.dataloading.single_threaded_augmenter import (
+    SingleThreadedAugmenter,
+)
 from batchgenerators.utilities.file_and_folder_operations import save_json
 from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
 from nnssl.utilities.default_n_proc_DA import get_allowed_n_proc_DA
@@ -107,14 +119,24 @@ class VolumeFusionTrainer(AbstractBaseTrainer):
         self.vf_mixing_coefficients = np.linspace(
             0, 1, foreground_classes, endpoint=True
         )  # [0, 0.25, 0.5, 0.75, 1.0] if foreground_classes=5
-        self.vf_subpatch_count = (10, 40)  # U(10, 40) upper bound is excluded in the range
+        self.vf_subpatch_count = (
+            10,
+            40,
+        )  # U(10, 40) upper bound is excluded in the range
 
         # Max depth, height, width patch scale.
-        self.vf_subpatch_size = [(8, int(0.625 * s) + 1) for s in self.config_plan.patch_size]
+        self.vf_subpatch_size = [
+            (8, int(0.625 * s) + 1) for s in self.config_plan.patch_size
+        ]
 
     @override
     def build_architecture_and_adaptation_plan(
-        self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int, *args, **kwargs
+        self,
+        config_plan: ConfigurationPlan,
+        num_input_channels: int,
+        num_output_channels: int,
+        *args,
+        **kwargs,
     ) -> Module:
         architecture = get_network_by_name(
             config_plan,
@@ -129,7 +151,10 @@ class VolumeFusionTrainer(AbstractBaseTrainer):
             pretrain_num_input_channels=num_input_channels,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
-            keys_to_in_proj=("encoder.stem.convs.0.conv", "encoder.stem.convs.0.all_modules.0"),
+            keys_to_in_proj=(
+                "encoder.stem.convs.0.conv",
+                "encoder.stem.convs.0.all_modules.0",
+            ),
         )
         return architecture, adapt_plan
 
@@ -206,7 +231,11 @@ class VolumeFusionTrainer(AbstractBaseTrainer):
         # If the device_type is 'cpu' then it's slow as heck and needs to be disabled.
         # If the device_type is 'mps' then it will complain that mps is not implemented, even if enabled=False is set. Whyyyyyyy. (this is why we don't make use of enabled=False)
         # So autocast will only be active if we have a cuda device.
-        with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+        with (
+            autocast(self.device.type, enabled=True)
+            if self.device.type == "cuda"
+            else dummy_context()
+        ):
             output = self.network(data)
             # del data
             l = self.loss(output, label)
@@ -234,7 +263,11 @@ class VolumeFusionTrainer(AbstractBaseTrainer):
         # If the device_type is 'mps' then it will complain that mps is not implemented, even if enabled=False is set. Whyyyyyyy. (this is why we don't make use of enabled=False)
         # So autocast will only be active if we have a cuda device.
         with torch.no_grad():
-            with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+            with (
+                autocast(self.device.type, enabled=True)
+                if self.device.type == "cuda"
+                else dummy_context()
+            ):
                 output = self.network(data)
                 # del data
                 l = self.loss(output, label)
@@ -262,32 +295,9 @@ class VolumeFusionTrainer(AbstractBaseTrainer):
         dl_tr, dl_val = self.get_centercrop_dataloaders_with_doubled_batch_size()
         # dl_tr, dl_val = self.get_plain_dataloaders(patch_size)
 
-        allowed_num_processes = get_allowed_n_proc_DA()
-        if allowed_num_processes == 0:
-            mt_gen_train = SingleThreadedAugmenter(dl_tr, tr_transforms)
-            mt_gen_val = SingleThreadedAugmenter(dl_val, val_transforms)
-        else:
-            mt_gen_train = LimitedLenWrapper(
-                self.num_iterations_per_epoch,
-                data_loader=dl_tr,
-                transform=tr_transforms,
-                num_processes=allowed_num_processes,
-                num_cached=6,
-                seeds=None,
-                pin_memory=self.device.type == "cuda",
-                wait_time=0.02,
-            )
-            mt_gen_val = LimitedLenWrapper(
-                self.num_val_iterations_per_epoch,
-                data_loader=dl_val,
-                transform=val_transforms,
-                num_processes=max(1, allowed_num_processes // 2),
-                num_cached=3,
-                seeds=None,
-                pin_memory=self.device.type == "cuda",
-                wait_time=0.02,
-            )
-        return mt_gen_train, mt_gen_val
+        return self.handle_multi_threaded_generators(
+            dl_tr, dl_val, tr_transforms, val_transforms
+        )
 
     def get_training_transforms(
         self,
@@ -305,9 +315,18 @@ class VolumeFusionTrainer(AbstractBaseTrainer):
 
         tr_transforms.append(GaussianNoiseTransform(p_per_sample=0.1))
         tr_transforms.append(
-            GaussianBlurTransform((0.5, 1.0), different_sigma_per_channel=True, p_per_sample=0.2, p_per_channel=0.5)
+            GaussianBlurTransform(
+                (0.5, 1.0),
+                different_sigma_per_channel=True,
+                p_per_sample=0.2,
+                p_per_channel=0.5,
+            )
         )
-        tr_transforms.append(BrightnessMultiplicativeTransform(multiplier_range=(0.75, 1.25), p_per_sample=0.15))
+        tr_transforms.append(
+            BrightnessMultiplicativeTransform(
+                multiplier_range=(0.75, 1.25), p_per_sample=0.15
+            )
+        )
         tr_transforms.append(ContrastAugmentationTransform(p_per_sample=0.15))
         tr_transforms.append(
             SimulateLowResolutionTransform(
@@ -320,15 +339,23 @@ class VolumeFusionTrainer(AbstractBaseTrainer):
                 ignore_axes=None,
             )
         )
-        tr_transforms.append(GammaTransform((0.7, 1.5), True, True, retain_stats=True, p_per_sample=0.1))
-        tr_transforms.append(GammaTransform((0.7, 1.5), False, True, retain_stats=True, p_per_sample=0.3))
+        tr_transforms.append(
+            GammaTransform((0.7, 1.5), True, True, retain_stats=True, p_per_sample=0.1)
+        )
+        tr_transforms.append(
+            GammaTransform((0.7, 1.5), False, True, retain_stats=True, p_per_sample=0.3)
+        )
 
         if mirror_axes is not None and len(mirror_axes) > 0:
             tr_transforms.append(MirrorTransform(mirror_axes))
 
         # -------- This is the important trafo or the Volume Fusion Transform -------- #
         tr_transforms.append(
-            VolumeFusionTransform(self.vf_mixing_coefficients, self.vf_subpatch_count, self.vf_subpatch_size)
+            VolumeFusionTransform(
+                self.vf_mixing_coefficients,
+                self.vf_subpatch_count,
+                self.vf_subpatch_size,
+            )
         )
         tr_transforms.append(NumpyToTensor(["input", "target"], "float"))
         tr_transforms = Compose(tr_transforms)
@@ -339,7 +366,11 @@ class VolumeFusionTrainer(AbstractBaseTrainer):
 
         # -------- This is the important trafo or the Volume Fusion Transform -------- #
         val_transforms.append(
-            VolumeFusionTransform(self.vf_mixing_coefficients, self.vf_subpatch_count, self.vf_subpatch_size)
+            VolumeFusionTransform(
+                self.vf_mixing_coefficients,
+                self.vf_subpatch_count,
+                self.vf_subpatch_size,
+            )
         )
         val_transforms.append(NumpyToTensor(["input", "target"], "float"))
         val_transforms = Compose(val_transforms)
@@ -467,7 +498,9 @@ class VolumeFusionTrainer_BS8_lr_1e3_wd_3e5_C3(VolumeFusionTrainer):
         device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
-        super().__init__(plan, configuration_name, fold, pretrain_json, device, foreground_classes=3)
+        super().__init__(
+            plan, configuration_name, fold, pretrain_json, device, foreground_classes=3
+        )
         self.total_batch_size = 8
         self.initial_lr = 1e-3
         self.weight_decay = 3e-5
@@ -484,7 +517,9 @@ class VolumeFusionTrainer_BS8_lr_1e3_wd_3e5_C9(VolumeFusionTrainer):
         device: torch.device = torch.device("cuda"),
     ):
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
-        super().__init__(plan, configuration_name, fold, pretrain_json, device, foreground_classes=9)
+        super().__init__(
+            plan, configuration_name, fold, pretrain_json, device, foreground_classes=9
+        )
         self.total_batch_size = 8
         self.initial_lr = 1e-3
         self.weight_decay = 3e-5

@@ -5,7 +5,9 @@ import numpy as np
 import torch
 from torch import nn
 from torch.optim.adamw import AdamW
-from batchgenerators.dataloading.single_threaded_augmenter import SingleThreadedAugmenter
+from batchgenerators.dataloading.single_threaded_augmenter import (
+    SingleThreadedAugmenter,
+)
 from batchgenerators.transforms.abstract_transforms import AbstractTransform, Compose
 from batchgenerators.transforms.utility_transforms import NumpyToTensor
 
@@ -22,7 +24,9 @@ from einops import rearrange
 
 
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
-from nnssl.ssl_data.configure_basic_dummyDA import configure_rotation_dummyDA_mirroring_and_inital_patch_size
+from nnssl.ssl_data.configure_basic_dummyDA import (
+    configure_rotation_dummyDA_mirroring_and_inital_patch_size,
+)
 from nnssl.ssl_data.dataloading.voco_transform import VocoTransform
 from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
 
@@ -106,7 +110,9 @@ class VoCoTrainer(AbstractBaseTrainer):
 
     def build_loss(self) -> nn.Module:
         """Implements the VoCo loss, which forces rep similarity to be proportional to the volumetric overlap and for non-overlapping base crops to be orthogonal."""
-        return VoCoLoss(pred_weight=self.pred_loss_weight, reg_weight=self.reg_loss_weight)
+        return VoCoLoss(
+            pred_weight=self.pred_loss_weight, reg_weight=self.reg_loss_weight
+        )
 
     def get_training_transforms(
         self,
@@ -121,7 +127,9 @@ class VoCoTrainer(AbstractBaseTrainer):
         tr_transforms = []
 
         if do_dummy_2d_data_aug:
-            raise NotImplementedError("We don't do dummy 2d aug here anymore. Data should be isotropic!")
+            raise NotImplementedError(
+                "We don't do dummy 2d aug here anymore. Data should be isotropic!"
+            )
 
         # --------------------------- VoCo Transformation --------------------------- #
         # All train augmentations are moved to the VoCoTransform class.
@@ -137,7 +145,9 @@ class VoCoTrainer(AbstractBaseTrainer):
         )
         # From here on out we are working with base crops and target crops!
 
-        tr_transforms.append(NumpyToTensor(["all_crops", "base_target_crop_overlaps"], "float"))
+        tr_transforms.append(
+            NumpyToTensor(["all_crops", "base_target_crop_overlaps"], "float")
+        )
         tr_transforms = Compose(tr_transforms)
         return tr_transforms
 
@@ -155,7 +165,9 @@ class VoCoTrainer(AbstractBaseTrainer):
             )
         )
 
-        val_transforms.append(NumpyToTensor(["all_crops", "base_target_crop_overlaps"], "float"))
+        val_transforms.append(
+            NumpyToTensor(["all_crops", "base_target_crop_overlaps"], "float")
+        )
         val_transforms = Compose(val_transforms)
         return val_transforms
 
@@ -185,37 +197,13 @@ class VoCoTrainer(AbstractBaseTrainer):
         # ----------------------- Validation data augmentations ---------------------- #
 
         # We don't do non-90 degree rotations for the VoCo Trainer.
-        dl_tr, dl_val = self.get_plain_dataloaders(patch_size)
-
-        allowed_num_processes = get_allowed_n_proc_DA()
-        if allowed_num_processes == 0:
-            mt_gen_train = SingleThreadedAugmenter(dl_tr, tr_transforms)
-            mt_gen_val = SingleThreadedAugmenter(dl_val, val_transforms)
-        else:
-            mt_gen_train = LimitedLenWrapper(
-                self.num_iterations_per_epoch,
-                data_loader=dl_tr,
-                transform=tr_transforms,
-                num_processes=allowed_num_processes,
-                num_cached=6,
-                seeds=None,
-                pin_memory=self.device.type == "cuda",
-                wait_time=0.02,
-            )
-            mt_gen_val = LimitedLenWrapper(
-                self.num_val_iterations_per_epoch,
-                data_loader=dl_val,
-                transform=val_transforms,
-                num_processes=max(1, allowed_num_processes // 2),
-                num_cached=3,
-                seeds=None,
-                pin_memory=self.device.type == "cuda",
-                wait_time=0.02,
-            )
-        return mt_gen_train, mt_gen_val
+        return self.make_generators(patch_size, tr_transforms, val_transforms)
 
     def build_architecture_and_adaptation_plan(
-        self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
+        self,
+        config_plan: ConfigurationPlan,
+        num_input_channels: int,
+        num_output_channels: int,
     ) -> nn.Module:
         encoder = get_network_by_name(
             config_plan,
@@ -237,7 +225,10 @@ class VoCoTrainer(AbstractBaseTrainer):
             pretrain_num_input_channels=num_input_channels,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
-            keys_to_in_proj=("encoder.stem.convs.0.conv", "encoder.stem.convs.0.all_modules.0"),
+            keys_to_in_proj=(
+                "encoder.stem.convs.0.conv",
+                "encoder.stem.convs.0.all_modules.0",
+            ),
         )
         return architecture, adapt_plan
 
@@ -254,10 +245,18 @@ class VoCoTrainer(AbstractBaseTrainer):
         # If the device_type is 'cpu' then it's slow as heck and needs to be disabled.
         # If the device_type is 'mps' then it will complain that mps is not implemented, even if enabled=False is set. Whyyyyyyy. (this is why we don't make use of enabled=False)
         # So autocast will only be active if we have a cuda device.
-        with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+        with (
+            autocast(self.device.type, enabled=True)
+            if self.device.type == "cuda"
+            else dummy_context()
+        ):
             embeddings = self.network(all_crops)
-            base_embeddings = rearrange(embeddings[:NBASE], "(b NBASE) c -> b NBASE c", b=self.batch_size)
-            target_embeddings = rearrange(embeddings[NBASE:], "(b nTARGET) c -> b nTARGET c", b=self.batch_size)
+            base_embeddings = rearrange(
+                embeddings[:NBASE], "(b NBASE) c -> b NBASE c", b=self.batch_size
+            )
+            target_embeddings = rearrange(
+                embeddings[NBASE:], "(b nTARGET) c -> b nTARGET c", b=self.batch_size
+            )
 
             # del data
             l = self.loss(base_embeddings, target_embeddings, gt_overlaps)
@@ -287,12 +286,22 @@ class VoCoTrainer(AbstractBaseTrainer):
         # If the device_type is 'mps' then it will complain that mps is not implemented, even if enabled=False is set. Whyyyyyyy. (this is why we don't make use of enabled=False)
         # So autocast will only be active if we have a cuda device.
         with torch.no_grad():
-            with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+            with (
+                autocast(self.device.type, enabled=True)
+                if self.device.type == "cuda"
+                else dummy_context()
+            ):
                 embeddings = self.network(all_crops)
                 # base_embeddings = embeddings[:NBASE]
                 # target_embeddings = embeddings[NBASE:]
-                base_embeddings = rearrange(embeddings[:NBASE], "(b NBASE) c -> b NBASE c ", b=self.batch_size)
-                target_embeddings = rearrange(embeddings[NBASE:], "(b nTARGET) c -> b nTARGET c", b=self.batch_size)
+                base_embeddings = rearrange(
+                    embeddings[:NBASE], "(b NBASE) c -> b NBASE c ", b=self.batch_size
+                )
+                target_embeddings = rearrange(
+                    embeddings[NBASE:],
+                    "(b nTARGET) c -> b nTARGET c",
+                    b=self.batch_size,
+                )
 
                 # del data
                 l = self.loss(base_embeddings, target_embeddings, gt_overlaps)

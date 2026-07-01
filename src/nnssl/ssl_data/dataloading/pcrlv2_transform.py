@@ -5,8 +5,14 @@ from random import choice
 
 import torch
 from batchgenerators.transforms.color_transforms import GammaTransform
-from batchgenerators.transforms.noise_transforms import GaussianNoiseTransform, GaussianBlurTransform
-from batchgenerators.transforms.spatial_transforms import MirrorTransform, SpatialTransform
+from batchgenerators.transforms.noise_transforms import (
+    GaussianNoiseTransform,
+    GaussianBlurTransform,
+)
+from batchgenerators.transforms.spatial_transforms import (
+    MirrorTransform,
+    SpatialTransform,
+)
 from numpy.random import randint
 from typing import TypeAlias
 from batchgenerators.transforms.abstract_transforms import AbstractTransform, Compose
@@ -14,13 +20,21 @@ import numpy as np
 import torch.nn.functional as F
 import torchio
 
-BoundingBox3D: TypeAlias = tuple[int, int, int, int, int, int]  # x_start, y_start, z_start, xs, ys, zs
-Shape3D: TypeAlias = tuple[int, int, int]   # x_size, y_size, z_size
+BoundingBox3D: TypeAlias = tuple[
+    int, int, int, int, int, int
+]  # x_start, y_start, z_start, xs, ys, zs
+Shape3D: TypeAlias = tuple[int, int, int]  # x_size, y_size, z_size
 
 
 class RandomSwap(AbstractTransform):
 
-    def __init__(self, patch_size: tuple[int, int, int], num_swaps: int, data_key="data", label_key="seg"):
+    def __init__(
+        self,
+        patch_size: tuple[int, int, int],
+        num_swaps: int,
+        data_key="data",
+        label_key="seg",
+    ):
         self.data_key = data_key
         self.label_key = label_key
         self.d, self.h, self.w = patch_size
@@ -35,14 +49,30 @@ class RandomSwap(AbstractTransform):
 
         for b in range(len(data)):
             for _ in range(self.num_swaps):
-                d1, h1, w1 = np.random.randint(0, depth - patch_d), np.random.randint(0, height - patch_h), np.random.randint(0, width - patch_w)
-                d2, h2, w2 = np.random.randint(0, depth - patch_d), np.random.randint(0, height - patch_h), np.random.randint(0, width - patch_w)
+                d1, h1, w1 = (
+                    np.random.randint(0, depth - patch_d),
+                    np.random.randint(0, height - patch_h),
+                    np.random.randint(0, width - patch_w),
+                )
+                d2, h2, w2 = (
+                    np.random.randint(0, depth - patch_d),
+                    np.random.randint(0, height - patch_h),
+                    np.random.randint(0, width - patch_w),
+                )
 
-                patch1 = aug_data[b, :, d1:d1 + patch_d, h1:h1 + patch_h, w1:w1 + patch_w].copy()
-                patch2 = aug_data[b, :, d2:d2 + patch_d, h2:h2 + patch_h, w2:w2 + patch_w].copy()
+                patch1 = aug_data[
+                    b, :, d1 : d1 + patch_d, h1 : h1 + patch_h, w1 : w1 + patch_w
+                ].copy()
+                patch2 = aug_data[
+                    b, :, d2 : d2 + patch_d, h2 : h2 + patch_h, w2 : w2 + patch_w
+                ].copy()
 
-                aug_data[b, :, d1:d1 + patch_d, h1:h1 + patch_h, w1:w1 + patch_w] = patch2
-                aug_data[b, :, d2:d2 + patch_d, h2:h2 + patch_h, w2:w2 + patch_w] = patch1
+                aug_data[
+                    b, :, d1 : d1 + patch_d, h1 : h1 + patch_h, w1 : w1 + patch_w
+                ] = patch2
+                aug_data[
+                    b, :, d2 : d2 + patch_d, h2 : h2 + patch_h, w2 : w2 + patch_w
+                ] = patch1
 
         data_dict[self.data_key] = aug_data
         return data_dict
@@ -51,15 +81,15 @@ class RandomSwap(AbstractTransform):
 class PCLRv2Transform(AbstractTransform):
 
     def __init__(
-            self,
-            global_patch_sizes: tuple[Shape3D],
-            global_input_size: Shape3D,
-            local_patch_sizes: tuple[Shape3D],
-            local_input_size: Shape3D,
-            num_locals: int,
-            min_IoU: float,
-            data_key="data"
-        ):
+        self,
+        global_patch_sizes: tuple[Shape3D],
+        global_input_size: Shape3D,
+        local_patch_sizes: tuple[Shape3D],
+        local_input_size: Shape3D,
+        num_locals: int,
+        min_IoU: float,
+        data_key="data",
+    ):
         self.data_key = data_key
         self.global_input_size = global_input_size
         self.local_patch_sizes = local_patch_sizes
@@ -75,8 +105,8 @@ class PCLRv2Transform(AbstractTransform):
             if max_overlap / (v1 + v2 - max_overlap) >= self.min_IoU:
                 self.global_patch_size_pairs.append((p1, p2))
 
-        # self.spatial_transforms = torchio.transforms.Compose([
-        #     torchio.transforms.RandomFlip(),
+            # self.spatial_transforms = torchio.transforms.Compose([
+            #     torchio.transforms.RandomFlip(),
             torchio.transforms.RandomAffine(),
         # ])
         # self.local_transforms = torchio.transforms.Compose([
@@ -94,37 +124,47 @@ class PCLRv2Transform(AbstractTransform):
         #     # torchio.transforms.ZNormalization()
         # ])
 
-        self.global_spatial_transforms = Compose([
-            MirrorTransform(axes=(0, 1, 2)),
-            SpatialTransform(patch_size=global_input_size,
-                             angle_x=(-np.pi/18, np.pi/18),
-                             angle_y=(-np.pi/18, np.pi/18),
-                             angle_z=(-np.pi/18, np.pi/18),
-                             do_elastic_deform=False,
-                             scale=(0.9, 1.1),
-                             random_crop=False)
-        ])
+        self.global_spatial_transforms = Compose(
+            [
+                MirrorTransform(axes=(0, 1, 2)),
+                SpatialTransform(
+                    patch_size=global_input_size,
+                    angle_x=(-np.pi / 18, np.pi / 18),
+                    angle_y=(-np.pi / 18, np.pi / 18),
+                    angle_z=(-np.pi / 18, np.pi / 18),
+                    do_elastic_deform=False,
+                    scale=(0.9, 1.1),
+                    random_crop=False,
+                ),
+            ]
+        )
 
-        self.global_visual_transforms = Compose([
-            GaussianNoiseTransform(noise_variance=(0, 0.25)),
-            GaussianBlurTransform(blur_sigma=(0, 2)),
-            GammaTransform((0.75, 1.35))
-        ])
+        self.global_visual_transforms = Compose(
+            [
+                GaussianNoiseTransform(noise_variance=(0, 0.25)),
+                GaussianBlurTransform(blur_sigma=(0, 2)),
+                GammaTransform((0.75, 1.35)),
+            ]
+        )
 
-        self.local_transforms = Compose([
-            MirrorTransform(axes=(0, 1, 2)),
-            SpatialTransform(patch_size=local_input_size,
-                             angle_x=(-np.pi/18, np.pi/18),
-                             angle_y=(-np.pi/18, np.pi/18),
-                             angle_z=(-np.pi/18, np.pi/18),
-                             do_elastic_deform=False,
-                             scale=(0.9, 1.1),
-                             random_crop=False),
-            GaussianNoiseTransform(noise_variance=(0, 0.25)),
-            GaussianBlurTransform(blur_sigma=(0, 2)),
-            GammaTransform((0.75, 1.35))
-            # RandomSwap(patch_size=(12, 12, 12), num_swaps=50)
-        ])
+        self.local_transforms = Compose(
+            [
+                MirrorTransform(axes=(0, 1, 2)),
+                SpatialTransform(
+                    patch_size=local_input_size,
+                    angle_x=(-np.pi / 18, np.pi / 18),
+                    angle_y=(-np.pi / 18, np.pi / 18),
+                    angle_z=(-np.pi / 18, np.pi / 18),
+                    do_elastic_deform=False,
+                    scale=(0.9, 1.1),
+                    random_crop=False,
+                ),
+                GaussianNoiseTransform(noise_variance=(0, 0.25)),
+                GaussianBlurTransform(blur_sigma=(0, 2)),
+                GammaTransform((0.75, 1.35)),
+                # RandomSwap(patch_size=(12, 12, 12), num_swaps=50)
+            ]
+        )
 
     # def apply_global_transforms(self, global_crops: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     #     sp_global_crops = []
@@ -141,13 +181,14 @@ class PCLRv2Transform(AbstractTransform):
     #         aug_local_crops.append(self.local_transforms(self.spatial_transforms(local_crops[i])))
     #     return np.stack(aug_local_crops)
 
-
     def __call__(self, **data_dict):
         imgs = data_dict.get(self.data_key)
         if imgs is None:
             raise ValueError(f"No data found for key {self.data_key}")
 
-        global_crops_A, global_crops_B, local_crops = self.get_global_and_local_crops(imgs)
+        global_crops_A, global_crops_B, local_crops = self.get_global_and_local_crops(
+            imgs
+        )
 
         # global_crops_A, aug_global_crops_A = self.apply_global_transforms(global_crops_A.numpy())
         # global_crops_B, aug_global_crops_B = self.apply_global_transforms(global_crops_B.numpy())
@@ -161,7 +202,7 @@ class PCLRv2Transform(AbstractTransform):
 
         aug_local_crops = self.local_transforms(data=local_crops)["data"]
 
-        #DEBUG
+        # DEBUG
         # aug_global_crops_A = global_crops_A
         # aug_global_crops_B = global_crops_B
         # aug_local_crops = local_crops
@@ -180,15 +221,27 @@ class PCLRv2Transform(AbstractTransform):
         for i in range(batch_size):
             image = imgs[i]
             g_patch_size_A, g_patch_size_B = choice(self.global_patch_size_pairs)
-            big_bbox = self.get_rand_big_bbox((X, Y, Z), g_patch_size_A, g_patch_size_B, self.min_IoU)   # [x_start, y_start, z_start, x_end, y_end, z_end]
-            g_bbox_A, g_bbox_B = self.get_global_bboxes(g_patch_size_A, g_patch_size_B, big_bbox)
+            big_bbox = self.get_rand_big_bbox(
+                (X, Y, Z), g_patch_size_A, g_patch_size_B, self.min_IoU
+            )  # [x_start, y_start, z_start, x_end, y_end, z_end]
+            g_bbox_A, g_bbox_B = self.get_global_bboxes(
+                g_patch_size_A, g_patch_size_B, big_bbox
+            )
 
-            g_crop_A, g_crop_B = self.get_crop(image, g_bbox_A), self.get_crop(image, g_bbox_B)
+            g_crop_A, g_crop_B = self.get_crop(image, g_bbox_A), self.get_crop(
+                image, g_bbox_B
+            )
 
             # The original codebase uses skimage.transform.resize, which is very slow, that's also (partly) why they
             # moved their augmentations to the data preprocessing step, resulting in limited augmentations.
-            g_crop_A, g_crop_B = F.interpolate(torch.from_numpy(g_crop_A)[None, ...], self.global_input_size).numpy(), \
-                                 F.interpolate(torch.from_numpy(g_crop_B)[None, ...], self.global_input_size).numpy()
+            g_crop_A, g_crop_B = (
+                F.interpolate(
+                    torch.from_numpy(g_crop_A)[None, ...], self.global_input_size
+                ).numpy(),
+                F.interpolate(
+                    torch.from_numpy(g_crop_B)[None, ...], self.global_input_size
+                ).numpy(),
+            )
 
             # get the minimum sized bounding box that holds both global bboxes
             min_bbox = self.get_min_bbox(g_bbox_A, g_bbox_B)
@@ -198,21 +251,24 @@ class PCLRv2Transform(AbstractTransform):
                 local_patch_size = choice(self.local_patch_sizes)
                 l_bbox = self.get_rand_inner_bbox(min_bbox, local_patch_size)
                 l_crop = self.get_crop(image, l_bbox)
-                l_crop = F.interpolate(torch.from_numpy(l_crop)[None, ...], self.local_input_size).numpy()
+                l_crop = F.interpolate(
+                    torch.from_numpy(l_crop)[None, ...], self.local_input_size
+                ).numpy()
                 local_crops.append(l_crop)
 
             global_crops_A.append(g_crop_A)
             global_crops_B.append(g_crop_B)
             all_local_crops.extend(local_crops)
 
-        global_crops_A = np.concat(global_crops_A)                # [B, C, X, Y, Z]
-        global_crops_B = np.concat(global_crops_B)                # [B, C, X, Y, Z]
-        all_local_crops = np.concat(all_local_crops)              # [B*num_locals, C, X, Y, Z]
+        global_crops_A = np.concat(global_crops_A)  # [B, C, X, Y, Z]
+        global_crops_B = np.concat(global_crops_B)  # [B, C, X, Y, Z]
+        all_local_crops = np.concat(all_local_crops)  # [B*num_locals, C, X, Y, Z]
 
         return global_crops_A, global_crops_B, all_local_crops
 
-    def get_global_bboxes(self, g_patch_size_A: Shape3D, g_patch_size_B: Shape3D, big_bbox: BoundingBox3D) -> tuple[
-        BoundingBox3D, BoundingBox3D]:
+    def get_global_bboxes(
+        self, g_patch_size_A: Shape3D, g_patch_size_B: Shape3D, big_bbox: BoundingBox3D
+    ) -> tuple[BoundingBox3D, BoundingBox3D]:
         g_bbox_A = self.get_rand_inner_bbox(big_bbox, g_patch_size_A)
         # tries = 0
         while True:
@@ -223,28 +279,37 @@ class PCLRv2Transform(AbstractTransform):
                 break
         return g_bbox_A, g_bbox_B
 
-
-    def get_min_bbox(self, bbox_A: BoundingBox3D, bbox_B: BoundingBox3D) -> BoundingBox3D:
+    def get_min_bbox(
+        self, bbox_A: BoundingBox3D, bbox_B: BoundingBox3D
+    ) -> BoundingBox3D:
         min_bbox_starts = [min(bbox_A[i], bbox_B[i]) for i in range(3)]
-        min_bbox_ends = [max(bbox_A[i] + bbox_A[3+i], bbox_B[i] + bbox_B[3+i]) for i in range(3)]
+        min_bbox_ends = [
+            max(bbox_A[i] + bbox_A[3 + i], bbox_B[i] + bbox_B[3 + i]) for i in range(3)
+        ]
         min_bbox_shape = [min_bbox_ends[i] - min_bbox_starts[i] for i in range(3)]
         return BoundingBox3D(min_bbox_starts + min_bbox_shape)
-
 
     @staticmethod
     def calculate_IoU(bbox_1: BoundingBox3D, bbox_2: BoundingBox3D) -> float:
         overlaps_per_axis = [
-            max(0, min(bbox_1[i] + bbox_1[3 + i], bbox_2[i] + bbox_2[3 + i]) - max(bbox_1[0 + i], bbox_2[0 + i]))
+            max(
+                0,
+                min(bbox_1[i] + bbox_1[3 + i], bbox_2[i] + bbox_2[3 + i])
+                - max(bbox_1[0 + i], bbox_2[0 + i]),
+            )
             for i in range(3)
         ]
         overlapping_volume = prod(overlaps_per_axis)
         v1, v2 = prod(bbox_1[3:]), prod(bbox_2[3:])
         return overlapping_volume / (v1 + v2 - overlapping_volume)
 
-
     @staticmethod
-    def get_rand_big_bbox(img_shape: Shape3D, g_patch_size_A: Shape3D, g_patch_size_B: Shape3D,
-                          min_IoU: float) -> BoundingBox3D:
+    def get_rand_big_bbox(
+        img_shape: Shape3D,
+        g_patch_size_A: Shape3D,
+        g_patch_size_B: Shape3D,
+        min_IoU: float,
+    ) -> BoundingBox3D:
         """
         The original implementation gets two global views with an IoU restriction by randomly sampling two global
         global views repeatedly from the image until the IoU threshold is reached. While this is not optimal, the smallest
@@ -257,7 +322,10 @@ class PCLRv2Transform(AbstractTransform):
         """
         big_bbox_shape = []
         max_overlaps = [min(A, B) for A, B in zip(g_patch_size_A, g_patch_size_B)]
-        max_areas = [side_1 * side_2 for side_1, side_2 in reversed(list(combinations(max_overlaps, r=2)))]
+        max_areas = [
+            side_1 * side_2
+            for side_1, side_2 in reversed(list(combinations(max_overlaps, r=2)))
+        ]
         volume_A, volume_B = prod(g_patch_size_A), prod(g_patch_size_B)
 
         # for each axis, calculate the minimum intersection of A and B, so that if the overlapping area of the
@@ -270,23 +338,33 @@ class PCLRv2Transform(AbstractTransform):
             # -> Start from this equation:
             #   ((min_side_intersect * max_area) / (V1 + V2 - min_side_intersect * max_area) > min_IoU
             # -> solve for min_side_intersect, then we get the following:
-            min_side_intersection = ceil( (volume_A+volume_B)*min_IoU / ((1+min_IoU)*max_areas[i]) )
-            big_bbox_shape.append(min(img_shape[i], side_A + side_B - min_side_intersection))
+            min_side_intersection = ceil(
+                (volume_A + volume_B) * min_IoU / ((1 + min_IoU) * max_areas[i])
+            )
+            big_bbox_shape.append(
+                min(img_shape[i], side_A + side_B - min_side_intersection)
+            )
 
-        big_bbox_starts = [randint(0, img_shape[i] - big_bbox_shape[i] + 1) for i in range(3)]
+        big_bbox_starts = [
+            randint(0, img_shape[i] - big_bbox_shape[i] + 1) for i in range(3)
+        ]
         return BoundingBox3D(big_bbox_starts + big_bbox_shape)
 
     @staticmethod
     def get_crop(image: np.ndarray, bbox: BoundingBox3D):
         x_start, y_start, z_start, xs, ys, zs = bbox
-        return image[:, x_start:x_start+xs, y_start:y_start+ys, z_start:z_start+zs]
-
+        return image[
+            :, x_start : x_start + xs, y_start : y_start + ys, z_start : z_start + zs
+        ]
 
     @staticmethod
-    def get_rand_inner_bbox(bbox: BoundingBox3D, inner_bbox_shape: Shape3D) -> BoundingBox3D:
-        inner_bbox_start = tuple([bbox[i] + randint(0, bbox[3+i] - inner_bbox_shape[i]) for i in range(3)])
+    def get_rand_inner_bbox(
+        bbox: BoundingBox3D, inner_bbox_shape: Shape3D
+    ) -> BoundingBox3D:
+        inner_bbox_start = tuple(
+            [bbox[i] + randint(0, bbox[3 + i] - inner_bbox_shape[i]) for i in range(3)]
+        )
         return BoundingBox3D(inner_bbox_start + inner_bbox_shape)
-
 
 
 if __name__ == "__main__":
@@ -295,12 +373,17 @@ if __name__ == "__main__":
     # print(PCRLv2Transform.calculate_IoU(bbox_1, bbox_2))
 
     trafo = PCLRv2Transform(
-        global_patch_sizes = ((96, 96, 96), (128, 128, 96), (128, 128, 128), (160, 160, 128)),
-        global_input_size = (128, 128, 128),
-        local_patch_sizes = ((32, 32, 32), (64, 64, 32), (64, 64, 64)),
-        local_input_size = (64, 64, 64),
-        num_locals = 6,
-        min_IoU = 0.3
+        global_patch_sizes=(
+            (96, 96, 96),
+            (128, 128, 96),
+            (128, 128, 128),
+            (160, 160, 128),
+        ),
+        global_input_size=(128, 128, 128),
+        local_patch_sizes=((32, 32, 32), (64, 64, 32), (64, 64, 64)),
+        local_input_size=(64, 64, 64),
+        num_locals=6,
+        min_IoU=0.3,
     )
 
     # _ = trafo.get_rand_big_bbox((160, 160, 160), (96, 96, 96), (96, 96, 96), 0.3)
@@ -316,16 +399,3 @@ if __name__ == "__main__":
             _ = trafo(data=imgs)
         elapsed = time.time() - start
         print(f"Time per iteration: {elapsed/4:.3f}s")
-
-
-
-
-
-
-
-
-
-
-
-
-

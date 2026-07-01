@@ -35,13 +35,17 @@ class nnSSLLogger(object):
         if dict_content is None:
             raise ValueError("Trying to write unknown key to log dict")
         elif len(dict_content) != epoch:
-            raise ValueError(f"Length of {key} list is '{len(dict_content)}'. Expected {epoch}")
+            raise ValueError(
+                f"Length of {key} list is '{len(dict_content)}'. Expected {epoch}"
+            )
         dict_content.append(value)
         return dict_content
 
     def plot_progress_png(self, output_folder):
         # we infer the epoch form our internal logging
-        epoch = min([len(i) for i in self.my_fantastic_logging.values()]) - 1  # lists of epoch 0 have len 1
+        epoch = (
+            min([len(i) for i in self.my_fantastic_logging.values()]) - 1
+        )  # lists of epoch 0 have len 1
         sns.set(font_scale=2.5)
         fig, ax_all = plt.subplots(3, 1, figsize=(30, 54))
         # regular progress.png as we are used to from previous nnU-Net versions
@@ -78,9 +82,9 @@ class nnSSLLogger(object):
             [
                 i - j
                 for i, j in zip(
-                self.my_fantastic_logging["epoch_end_timestamps"][: epoch + 1],
-                self.my_fantastic_logging["epoch_start_timestamps"],
-            )
+                    self.my_fantastic_logging["epoch_end_timestamps"][: epoch + 1],
+                    self.my_fantastic_logging["epoch_start_timestamps"],
+                )
             ][: epoch + 1],
             color="b",
             ls="-",
@@ -120,7 +124,9 @@ class nnSSLLogger(object):
         # Check that all logs are of the same length. If not we concat to the shortest length and return this length
         max_length = max([len(i) for i in self.my_fantastic_logging.values()])
         min_length = min([len(i) for i in self.my_fantastic_logging.values()])
-        assert max_length - min_length <= 1, "Lengths of logging items differ by more than 1. This is not supported."
+        assert (
+            max_length - min_length <= 1
+        ), "Lengths of logging items differ by more than 1. This is not supported."
         if max_length != min_length:
             logger.warning(
                 f"WARNING: Lengths of logging items are not equal. Truncating all to the length of the shortest item ({min_length})"

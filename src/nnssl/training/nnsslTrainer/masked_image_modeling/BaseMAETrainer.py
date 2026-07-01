@@ -1,6 +1,7 @@
 import os
 from typing import List, Tuple, Union
 import matplotlib.pyplot as plt
+import wandb
 from tqdm import tqdm
 from deprecated import deprecated
 from typing_extensions import override
@@ -8,26 +9,44 @@ from dataclasses import asdict
 
 
 import torch
-from nnssl.adaptation_planning.adaptation_plan import AdaptationPlan, ArchitecturePlans, DynamicArchitecturePlans
+from nnssl.adaptation_planning.adaptation_plan import (
+    AdaptationPlan,
+    ArchitecturePlans,
+    DynamicArchitecturePlans,
+)
 from nnssl.architectures.get_network_by_name import get_network_by_name
 from nnssl.architectures.get_network_from_plan import get_network_from_plans
 from nnssl.data.nnsslFilter.iqs_filter import OpenMindIQSFilter
 from nnssl.data.nnsslFilter.modality_filter import ModalityFilter
 from nnssl.data.raw_dataset import Collection
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
-from nnssl.ssl_data.configure_basic_dummyDA import configure_rotation_dummyDA_mirroring_and_inital_patch_size
-from nnssl.ssl_data.data_augmentation.transforms_for_dummy_2d import Convert2DTo3DTransform, Convert3DTo2DTransform
-from nnssl.ssl_data.dataloading.data_loader_3d import nnsslIndexableCenterCropDataLoader3D
-from nnssl.ssl_data.dataloading.indexable_dataloader import IndexableSingleThreadedAugmenter
+from nnssl.ssl_data.configure_basic_dummyDA import (
+    configure_rotation_dummyDA_mirroring_and_inital_patch_size,
+)
+from nnssl.ssl_data.data_augmentation.transforms_for_dummy_2d import (
+    Convert2DTo3DTransform,
+    Convert3DTo2DTransform,
+)
+from nnssl.ssl_data.dataloading.data_loader_3d import (
+    nnsslIndexableCenterCropDataLoader3D,
+)
+from nnssl.ssl_data.dataloading.indexable_dataloader import (
+    IndexableSingleThreadedAugmenter,
+)
 from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
 
 from nnssl.training.loss.mse_loss import MAEMSELoss, LossMaskMSELoss
 from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
 from torch import nn
-from batchgenerators.transforms.spatial_transforms import SpatialTransform, MirrorTransform
+from batchgenerators.transforms.spatial_transforms import (
+    SpatialTransform,
+    MirrorTransform,
+)
 from batchgenerators.transforms.abstract_transforms import AbstractTransform, Compose
 from batchgenerators.transforms.utility_transforms import NumpyToTensor
-from batchgenerators.dataloading.single_threaded_augmenter import SingleThreadedAugmenter
+from batchgenerators.dataloading.single_threaded_augmenter import (
+    SingleThreadedAugmenter,
+)
 from torch import autocast
 from nnssl.utilities.helpers import dummy_context
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -39,7 +58,9 @@ from nnssl.utilities.default_n_proc_DA import get_allowed_n_proc_DA
 import numpy as np
 
 
-def create_blocky_mask(tensor_size, block_size, sparsity_factor=0.75, rng_seed: None | int = None) -> torch.Tensor:
+def create_blocky_mask(
+    tensor_size, block_size, sparsity_factor=0.75, rng_seed: None | int = None
+) -> torch.Tensor:
     """
     Create the smallest binary mask for the encoder by choosing a percentage of pixels at that resolution..
 
@@ -106,7 +127,10 @@ class BaseMAETrainer(AbstractBaseTrainer):
         """
 
         sparsity_factor = mask_percentage
-        mask = [create_blocky_mask(patch_size, block_size, sparsity_factor) for _ in range(batch_size)]
+        mask = [
+            create_blocky_mask(patch_size, block_size, sparsity_factor)
+            for _ in range(batch_size)
+        ]
         mask = torch.stack(mask)[:, None, ...]  # Add channel dimension
         return mask
 
@@ -121,8 +145,13 @@ class BaseMAETrainer(AbstractBaseTrainer):
 
     @override
     def build_architecture_and_adaptation_plan(
-        self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
-    ) -> nn.Module:
+        self,
+        config_plan: ConfigurationPlan,
+        num_input_channels: int,
+        num_output_channels: int,
+        *args,
+        **kwargs,
+    ) -> Tuple[nn.Module, AdaptationPlan]:
         # ---------------------------- Create architecture --------------------------- #
         architecture = get_network_by_name(
             config_plan,
@@ -131,6 +160,10 @@ class BaseMAETrainer(AbstractBaseTrainer):
             num_output_channels,
         )
         # --------------------- Build associated adaptation plan --------------------- #
+        adapt_plan = self.save_adaption_plan(num_input_channels)
+        return architecture, adapt_plan
+
+    def save_adaption_plan(self, num_input_channels):
         arch_plans = ArchitecturePlans(arch_class_name="ResEncL")
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plans,
@@ -139,15 +172,19 @@ class BaseMAETrainer(AbstractBaseTrainer):
             recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
-            keys_to_in_proj=("encoder.stem.convs.0.conv", "encoder.stem.convs.0.all_modules.0"),
+            keys_to_in_proj=(
+                "encoder.stem.convs.0.conv",
+                "encoder.stem.convs.0.all_modules.0",
+            ),
         )
         save_json(adapt_plan.serialize(), self.adaptation_json_plan)
-        return architecture, adapt_plan
+        return adapt_plan
 
     def get_dataloaders(self):
         """
         Dataloader creation is very different depending on the use-case of training.
-        This method has to be implemneted for other use-cases aside from MAE more specifically."""
+        This method has to be implemneted for other use-cases aside from MAE more specifically.
+        """
         # we use the patch size to determine whether we need 2D or 3D dataloaders. We also use it to determine whether
         # we need to use dummy 2D augmentation (in case of 3D training) and what our initial patch size should be
         patch_size = self.config_plan.patch_size
@@ -174,50 +211,27 @@ class BaseMAETrainer(AbstractBaseTrainer):
         # ----------------------- Validation data augmentations ---------------------- #
         val_transforms = self.get_validation_transforms()
 
-        dl_tr, dl_val = self.get_plain_dataloaders(initial_patch_size)
-
-        allowed_num_processes = get_allowed_n_proc_DA()
-        if allowed_num_processes == 0:
-            mt_gen_train = SingleThreadedAugmenter(dl_tr, tr_transforms)
-            mt_gen_val = SingleThreadedAugmenter(dl_val, val_transforms)
-        else:
-            mt_gen_train = LimitedLenWrapper(
-                self.num_iterations_per_epoch,
-                data_loader=dl_tr,
-                transform=tr_transforms,
-                num_processes=allowed_num_processes,
-                num_cached=6,
-                seeds=None,
-                pin_memory=self.device.type == "cuda",
-                wait_time=0.02,
-            )
-            mt_gen_val = LimitedLenWrapper(
-                self.num_val_iterations_per_epoch,
-                data_loader=dl_val,
-                transform=val_transforms,
-                num_processes=max(1, allowed_num_processes // 2),
-                num_cached=3,
-                seeds=None,
-                pin_memory=self.device.type == "cuda",
-                wait_time=0.02,
-            )
-        return mt_gen_train, mt_gen_val
+        return self.make_generators(initial_patch_size, tr_transforms, val_transforms)
 
     def train_step(self, batch: dict) -> dict:
         data = batch["data"]
         data = data.to(self.device, non_blocking=True)
 
         # We use the self.batch_size as it is not identical with the plan batch_size in ddp cases.
-        mask = self.mask_creation(self.batch_size, self.config_plan.patch_size, self.mask_percentage).to(
-            self.device, non_blocking=True
-        )
+        mask = self.mask_creation(
+            self.batch_size, self.config_plan.patch_size, self.mask_percentage
+        ).to(self.device, non_blocking=True)
         # Make the mask the same size as the data
         rep_D, rep_H, rep_W = (
             data.shape[2] // mask.shape[2],
             data.shape[3] // mask.shape[3],
             data.shape[4] // mask.shape[4],
         )
-        mask = mask.repeat_interleave(rep_D, dim=2).repeat_interleave(rep_H, dim=3).repeat_interleave(rep_W, dim=4)
+        mask = (
+            mask.repeat_interleave(rep_D, dim=2)
+            .repeat_interleave(rep_H, dim=3)
+            .repeat_interleave(rep_W, dim=4)
+        )
 
         masked_data = data * mask
 
@@ -226,7 +240,11 @@ class BaseMAETrainer(AbstractBaseTrainer):
         # If the device_type is 'cpu' then it's slow as heck and needs to be disabled.
         # If the device_type is 'mps' then it will complain that mps is not implemented, even if enabled=False is set. Whyyyyyyy. (this is why we don't make use of enabled=False)
         # So autocast will only be active if we have a cuda device.
-        with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+        with (
+            autocast(self.device.type, enabled=True)
+            if self.device.type == "cuda"
+            else dummy_context()
+        ):
             output = self.network(masked_data)
             # del data
             l = self.loss(output, data, mask)
@@ -247,16 +265,20 @@ class BaseMAETrainer(AbstractBaseTrainer):
         data = batch["data"]
         data = data.to(self.device, non_blocking=True)
 
-        mask = self.mask_creation(self.batch_size, self.config_plan.patch_size, self.mask_percentage).to(
-            self.device, non_blocking=True
-        )
+        mask = self.mask_creation(
+            self.batch_size, self.config_plan.patch_size, self.mask_percentage
+        ).to(self.device, non_blocking=True)
         # Make the mask the same size as the data
         rep_D, rep_H, rep_W = (
             data.shape[2] // mask.shape[2],
             data.shape[3] // mask.shape[3],
             data.shape[4] // mask.shape[4],
         )
-        mask = mask.repeat_interleave(rep_D, dim=2).repeat_interleave(rep_H, dim=3).repeat_interleave(rep_W, dim=4)
+        mask = (
+            mask.repeat_interleave(rep_D, dim=2)
+            .repeat_interleave(rep_H, dim=3)
+            .repeat_interleave(rep_W, dim=4)
+        )
 
         masked_data = data * mask
 
@@ -264,23 +286,22 @@ class BaseMAETrainer(AbstractBaseTrainer):
         # If the device_type is 'cpu' then it's slow as heck and needs to be disabled.
         # If the device_type is 'mps' then it will complain that mps is not implemented, even if enabled=False is set. Whyyyyyyy. (this is why we don't make use of enabled=False)
         # So autocast will only be active if we have a cuda device.
-        with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+        with (
+            autocast(self.device.type, enabled=True)
+            if self.device.type == "cuda"
+            else dummy_context()
+        ):
             output = self.network(masked_data)
             l = self.loss(output, data, mask)
 
         return {"loss": l.detach().cpu().numpy()}
 
-    @deprecated
-    @staticmethod
-    def rescale_images(
-        img_arr: torch.Tensor, recon_arr: torch.Tensor, full_img_min: float, full_img_max: float
-    ) -> np.ndarray:
-        img_arr = (img_arr - full_img_min) / (full_img_max - full_img_min)
-        rec_arr = (recon_arr - full_img_min) / (full_img_max - full_img_min)
-        return img_arr, rec_arr
-
     def log_img_volume(
-        self, img: np.ndarray | torch.Tensor, meta_info: dict, filename: str, dtype: np.dtype = np.float32
+        self,
+        img: np.ndarray | torch.Tensor,
+        meta_info: dict,
+        filename: str,
+        dtype: np.dtype = np.float32,
     ):
         """Logs a 3D numpy array given the meta info to output folder with filename for visual inspection"""
         if isinstance(img, torch.Tensor):
@@ -318,20 +339,42 @@ class BaseMAETrainer(AbstractBaseTrainer):
         )
         return dl_val
 
-    def run_training(self):
+    def run_training(self, using_wandb: bool = False):
         try:
             self.on_train_start()
             for epoch in range(self.current_epoch, self.num_epochs):
                 self.on_epoch_start()
 
-                self.on_train_epoch_start()
+                self.on_train_epoch_start(using_wandb)
                 train_outputs = []
                 for batch_id in tqdm(
                     range(self.num_iterations_per_epoch),
                     desc=f"Epoch {epoch}",
-                    disable=True if (("LSF_JOBID" in os.environ) or ("SLURM_JOB_ID" in os.environ)) else False,
+                    disable=(
+                        True
+                        if (
+                            ("LSF_JOBID" in os.environ)
+                            or ("SLURM_JOB_ID" in os.environ)
+                        )
+                        else False
+                    ),
                 ):
-                    train_outputs.append(self.train_step(next(self.dataloader_train)))
+                    step_metrics = self.train_step(next(self.dataloader_train))
+                    train_outputs.append(step_metrics)
+                    if using_wandb and wandb.run is not None and self.local_rank == 0:
+                        if isinstance(step_metrics, dict):
+                            # add train/ prefix to all keys
+                            to_log_metrics = {
+                                f"train/{k}": v
+                                for k, v in step_metrics.items()
+                                if not k.startswith("train/")
+                                and k not in ["epoch", "step"]
+                            }
+                            to_log_metrics["epoch"] = epoch
+                            to_log_metrics["step"] = (
+                                batch_id + epoch * self.num_iterations_per_epoch
+                            )
+                            wandb.log(to_log_metrics)
                 self.on_train_epoch_end(train_outputs)
 
                 with torch.no_grad():
@@ -340,7 +383,7 @@ class BaseMAETrainer(AbstractBaseTrainer):
                     for batch_id in range(self.num_val_iterations_per_epoch):
                         val_batch = next(self.dataloader_val)
                         val_outputs.append(self.validation_step(val_batch))
-                    self.on_validation_epoch_end(val_outputs)
+                    self.on_validation_epoch_end(val_outputs, using_wandb)
 
                 self.on_epoch_end()
                 if self.exit_training_flag:
@@ -459,32 +502,9 @@ class BaseMAETrainer_ANAT(BaseMAETrainer):
 
         dl_tr, dl_val = self.get_foreground_dataloaders(initial_patch_size)
 
-        allowed_num_processes = get_allowed_n_proc_DA()
-        if allowed_num_processes == 0:
-            mt_gen_train = SingleThreadedAugmenter(dl_tr, tr_transforms)
-            mt_gen_val = SingleThreadedAugmenter(dl_val, val_transforms)
-        else:
-            mt_gen_train = LimitedLenWrapper(
-                self.num_iterations_per_epoch,
-                data_loader=dl_tr,
-                transform=tr_transforms,
-                num_processes=allowed_num_processes,
-                num_cached=6,
-                seeds=None,
-                pin_memory=self.device.type == "cuda",
-                wait_time=0.02,
-            )
-            mt_gen_val = LimitedLenWrapper(
-                self.num_val_iterations_per_epoch,
-                data_loader=dl_val,
-                transform=val_transforms,
-                num_processes=max(1, allowed_num_processes // 2),
-                num_cached=3,
-                seeds=None,
-                pin_memory=self.device.type == "cuda",
-                wait_time=0.02,
-            )
-        return mt_gen_train, mt_gen_val
+        return self.handle_multi_threaded_generators(
+            dl_tr, dl_val, tr_transforms, val_transforms
+        )
 
 
 class BaseMAETrainer_ANON(BaseMAETrainer):
@@ -499,23 +519,31 @@ class BaseMAETrainer_ANON(BaseMAETrainer):
         anon = anon.to(self.device, non_blocking=True)
 
         # We use the self.batch_size as it is not identical with the plan batch_size in ddp cases.
-        mask = self.mask_creation(self.batch_size, self.config_plan.patch_size, self.mask_percentage).to(
-            self.device, non_blocking=True
-        )
+        mask = self.mask_creation(
+            self.batch_size, self.config_plan.patch_size, self.mask_percentage
+        ).to(self.device, non_blocking=True)
         # Make the mask the same size as the data
         rep_D, rep_H, rep_W = (
             data.shape[2] // mask.shape[2],
             data.shape[3] // mask.shape[3],
             data.shape[4] // mask.shape[4],
         )
-        mask = mask.repeat_interleave(rep_D, dim=2).repeat_interleave(rep_H, dim=3).repeat_interleave(rep_W, dim=4)
+        mask = (
+            mask.repeat_interleave(rep_D, dim=2)
+            .repeat_interleave(rep_H, dim=3)
+            .repeat_interleave(rep_W, dim=4)
+        )
 
         masked_data = data * mask
         loss_mask = (1 - mask) * (1 - anon)
 
         self.optimizer.zero_grad(set_to_none=True)
 
-        with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+        with (
+            autocast(self.device.type, enabled=True)
+            if self.device.type == "cuda"
+            else dummy_context()
+        ):
             output = self.network(masked_data)
             # del data
             l = self.loss(output, data, loss_mask)
@@ -538,21 +566,29 @@ class BaseMAETrainer_ANON(BaseMAETrainer):
         data = data.to(self.device, non_blocking=True)
         anon = anon.to(self.device, non_blocking=True)
 
-        mask = self.mask_creation(self.batch_size, self.config_plan.patch_size, self.mask_percentage).to(
-            self.device, non_blocking=True
-        )
+        mask = self.mask_creation(
+            self.batch_size, self.config_plan.patch_size, self.mask_percentage
+        ).to(self.device, non_blocking=True)
         # Make the mask the same size as the data
         rep_D, rep_H, rep_W = (
             data.shape[2] // mask.shape[2],
             data.shape[3] // mask.shape[3],
             data.shape[4] // mask.shape[4],
         )
-        mask = mask.repeat_interleave(rep_D, dim=2).repeat_interleave(rep_H, dim=3).repeat_interleave(rep_W, dim=4)
+        mask = (
+            mask.repeat_interleave(rep_D, dim=2)
+            .repeat_interleave(rep_H, dim=3)
+            .repeat_interleave(rep_W, dim=4)
+        )
 
         masked_data = data * mask
         loss_mask = (1 - mask) * (1 - anon)
 
-        with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+        with (
+            autocast(self.device.type, enabled=True)
+            if self.device.type == "cuda"
+            else dummy_context()
+        ):
             output = self.network(masked_data)
             l = self.loss(output, data, loss_mask)
 
@@ -607,7 +643,9 @@ class BaseMAETrainer_BS8_IQS1_5(BaseMAETrainer):
     ):
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.total_batch_size = 8
-        self.iimg_filters.append(OpenMindIQSFilter(Collection.from_dict(self.pretrain_json), 1.5))
+        self.iimg_filters.append(
+            OpenMindIQSFilter(Collection.from_dict(self.pretrain_json), 1.5)
+        )
 
 
 class BaseMAETrainer_BS8_IQS2_5(BaseMAETrainer):
@@ -621,7 +659,9 @@ class BaseMAETrainer_BS8_IQS2_5(BaseMAETrainer):
     ):
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.total_batch_size = 8
-        self.iimg_filters.append(OpenMindIQSFilter(Collection.from_dict(self.pretrain_json), 2.5))
+        self.iimg_filters.append(
+            OpenMindIQSFilter(Collection.from_dict(self.pretrain_json), 2.5)
+        )
 
 
 class BaseMAETrainer_BS8_IQS3_0(BaseMAETrainer):
@@ -635,7 +675,9 @@ class BaseMAETrainer_BS8_IQS3_0(BaseMAETrainer):
     ):
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.total_batch_size = 8
-        self.iimg_filters.append(OpenMindIQSFilter(Collection.from_dict(self.pretrain_json), 3.0))
+        self.iimg_filters.append(
+            OpenMindIQSFilter(Collection.from_dict(self.pretrain_json), 3.0)
+        )
 
 
 class BaseMAETrainer_BS8_T1w_T2w_FLAIR(BaseMAETrainer):
@@ -649,7 +691,9 @@ class BaseMAETrainer_BS8_T1w_T2w_FLAIR(BaseMAETrainer):
     ):
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.total_batch_size = 8
-        self.iimg_filters.append(ModalityFilter(valid_modalities=["T1w", "T2w", "FLAIR"]))
+        self.iimg_filters.append(
+            ModalityFilter(valid_modalities=["T1w", "T2w", "FLAIR"])
+        )
 
 
 class BaseMAETrainer_BS8_IQS3_5_FA(BaseMAETrainer):
@@ -753,14 +797,15 @@ class BaseMAETrainer_Test(BaseMAETrainer):
         self.total_batch_size = 2
         self.num_epochs = 3
 
+
 class BaseMAETrainer_Test_defaultpatch(BaseMAETrainer):
     def __init__(
-            self,
-            plan: Plan,
-            configuration_name: str,
-            fold: int,
-            pretrain_json: dict,
-            device: torch.device = torch.device("cuda"),
+        self,
+        plan: Plan,
+        configuration_name: str,
+        fold: int,
+        pretrain_json: dict,
+        device: torch.device = torch.device("cuda"),
     ):
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.config_plan.patch_size = (160, 160, 160)
@@ -771,6 +816,7 @@ class BaseMAETrainer_Test_defaultpatch(BaseMAETrainer):
         ), "Patch size not preserved to downsteam"
         self.total_batch_size = 2
         self.num_epochs = 3
+
 
 class BaseMAETrainer_ANAT_ANON_test(BaseMAETrainer_ANAT_ANON):
     def __init__(
@@ -796,7 +842,9 @@ class BaseMAETrainer_BS8_IQS_test(BaseMAETrainer):
         device: torch.device = torch.device("cuda"),
     ):
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
-        self.iimg_filter = OpenMindIQSFilter(Collection.from_dict(self.pretrain_json), 2.5)
+        self.iimg_filter = OpenMindIQSFilter(
+            Collection.from_dict(self.pretrain_json), 2.5
+        )
         self.total_batch_size = 1
 
 
@@ -815,8 +863,22 @@ class NonResEncL_BaseMAETrainer_Test(BaseMAETrainer_Test):
                 "n_stages": 6,
                 "features_per_stage": [32, 64, 128, 256, 512, 512],
                 "conv_op": "torch.nn.modules.conv.Conv3d",
-                "kernel_sizes": [[3, 3, 3], [3, 3, 3], [3, 3, 3], [3, 3, 3], [3, 3, 3], [3, 3, 3]],
-                "strides": [[1, 1, 1], [2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2]],
+                "kernel_sizes": [
+                    [3, 3, 3],
+                    [3, 3, 3],
+                    [3, 3, 3],
+                    [3, 3, 3],
+                    [3, 3, 3],
+                    [3, 3, 3],
+                ],
+                "strides": [
+                    [1, 1, 1],
+                    [2, 2, 2],
+                    [2, 2, 2],
+                    [2, 2, 2],
+                    [2, 2, 2],
+                    [2, 2, 2],
+                ],
                 "n_blocks_per_stage": [1, 3, 4, 6, 6, 6],
                 "n_conv_per_stage_decoder": [1, 1, 1, 1, 1],
                 "conv_bias": True,
@@ -841,7 +903,9 @@ class NonResEncL_BaseMAETrainer_Test(BaseMAETrainer_Test):
             output_channels=num_output_channels,
             deep_supervision=False,
         )
-        arch_plans = ArchitecturePlans(arch_class_name="ResidualEncoderUNet", arch_kwargs=self.architecture_kwargs)
+        arch_plans = ArchitecturePlans(
+            arch_class_name="ResidualEncoderUNet", arch_kwargs=self.architecture_kwargs
+        )
         adapt_plan = AdaptationPlan(
             architecture_plans=arch_plans,
             pretrain_plan=self.plan,
@@ -849,6 +913,9 @@ class NonResEncL_BaseMAETrainer_Test(BaseMAETrainer_Test):
             recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
-            keys_to_in_proj=("encoder.stem.convs.0.conv", "encoder.stem.convs.0.all_modules.0"),
+            keys_to_in_proj=(
+                "encoder.stem.convs.0.conv",
+                "encoder.stem.convs.0.all_modules.0",
+            ),
         )
         return architecture, adapt_plan

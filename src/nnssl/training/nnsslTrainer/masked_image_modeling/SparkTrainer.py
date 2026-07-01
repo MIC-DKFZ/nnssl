@@ -8,7 +8,9 @@ from nnssl.architectures.spark_utils import convert_to_spark_cnn
 from nnssl.experiment_planning.experiment_planners.plan import ConfigurationPlan, Plan
 from nnssl.training.loss.spark_loss import SparkLoss
 from nnssl.training.lr_scheduler.polylr import PolyLRScheduler
-from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import BaseMAETrainer
+from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import (
+    BaseMAETrainer,
+)
 from torch import nn
 
 from torch import autocast
@@ -45,7 +47,10 @@ class SparkMAETrainer(BaseMAETrainer):
         return SparkLoss()
 
     def build_architecture_and_adaptation_plan(
-        self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
+        self,
+        config_plan: ConfigurationPlan,
+        num_input_channels: int,
+        num_output_channels: int,
     ) -> nn.Module:
         network = get_network_by_name(
             config_plan,
@@ -66,7 +71,10 @@ class SparkMAETrainer(BaseMAETrainer):
             recommended_downstream_patchsize=self.recommended_downstream_patchsize,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
-            keys_to_in_proj=("encoder.stem.convs.0.conv", "encoder.stem.convs.0.all_modules.0"),
+            keys_to_in_proj=(
+                "encoder.stem.convs.0.conv",
+                "encoder.stem.convs.0.all_modules.0",
+            ),
         )
         return actual_network, adapt_plan
 
@@ -75,16 +83,20 @@ class SparkMAETrainer(BaseMAETrainer):
         data = data.to(self.device, non_blocking=True)
         target = data
 
-        mask = self.mask_creation(self.batch_size, self.config_plan.patch_size, self.mask_percentage).to(
-            self.device, non_blocking=True
-        )
+        mask = self.mask_creation(
+            self.batch_size, self.config_plan.patch_size, self.mask_percentage
+        ).to(self.device, non_blocking=True)
         spark_utils._cur_active = mask
         self.optimizer.zero_grad(set_to_none=True)
         # Autocast is a little bitch.
         # If the device_type is 'cpu' then it's slow as heck and needs to be disabledq.
         # If the device_type is 'mps' then it will complain that mps is not implemented, even if enabled=False is set. Whyyyyyyy. (this is why we don't make use of enabled=False)
         # So autocast will only be active if we have a cuda device.
-        with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+        with (
+            autocast(self.device.type, enabled=True)
+            if self.device.type == "cuda"
+            else dummy_context()
+        ):
             output = self.network(data)
             # del data
             l = self.loss(prediction=output, groundtruth=target, mask=mask)
@@ -121,7 +133,11 @@ class SparkMAETrainer(BaseMAETrainer):
                     "network_weights": mod.state_dict(),
                     "spark_weights": spk.state_dict(),
                     "optimizer_state": self.optimizer.state_dict(),
-                    "grad_scaler_state": self.grad_scaler.state_dict() if self.grad_scaler is not None else None,
+                    "grad_scaler_state": (
+                        self.grad_scaler.state_dict()
+                        if self.grad_scaler is not None
+                        else None
+                    ),
                     "logging": self.logger.get_checkpoint(),
                     "_best_ema": self._best_ema,
                     "current_epoch": self.current_epoch + 1,
@@ -131,7 +147,9 @@ class SparkMAETrainer(BaseMAETrainer):
                 checkpoint = self._convert_numpy(checkpoint)
                 torch.save(checkpoint, filename)
             else:
-                self.print_to_log_file("No checkpoint written, checkpointing is disabled")
+                self.print_to_log_file(
+                    "No checkpoint written, checkpointing is disabled"
+                )
 
     def load_checkpoint(self, filename_or_checkpoint: Union[dict, str]) -> None:
         if not self.was_initialized:
@@ -144,7 +162,9 @@ class SparkMAETrainer(BaseMAETrainer):
         new_state_dict = {}
         for k, value in checkpoint["spark_weights"].items():
             key = k
-            if key not in self.network.state_dict().keys() and key.startswith("module."):
+            if key not in self.network.state_dict().keys() and key.startswith(
+                "module."
+            ):
                 key = key[7:]
             new_state_dict[key] = value
 
@@ -178,15 +198,19 @@ class SparkMAETrainer(BaseMAETrainer):
             data = data.to(self.device, non_blocking=True)
             target = data
 
-            mask = self.mask_creation(self.batch_size, self.config_plan.patch_size, self.mask_percentage).to(
-                self.device, non_blocking=True
-            )
+            mask = self.mask_creation(
+                self.batch_size, self.config_plan.patch_size, self.mask_percentage
+            ).to(self.device, non_blocking=True)
             spark_utils._cur_active = mask
             # Autocast is a little bitch.
             # If the device_type is 'cpu' then it's slow as heck and needs to be disabledq.
             # If the device_type is 'mps' then it will complain that mps is not implemented, even if enabled=False is set. Whyyyyyyy. (this is why we don't make use of enabled=False)
             # So autocast will only be active if we have a cuda device.
-            with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+            with (
+                autocast(self.device.type, enabled=True)
+                if self.device.type == "cuda"
+                else dummy_context()
+            ):
                 output = self.network(data)
                 # del data
                 l = self.loss(prediction=output, groundtruth=target, mask=mask)
@@ -473,7 +497,9 @@ class SparkMAETrainerBS2_AdamW_1e_3(SparkMAETrainerBS2):
         self.weight_decay = 1e-2
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.network.parameters(), self.initial_lr, weight_decay=self.weight_decay)
+        optimizer = torch.optim.AdamW(
+            self.network.parameters(), self.initial_lr, weight_decay=self.weight_decay
+        )
         lr_scheduler = PolyLRScheduler(optimizer, self.initial_lr, self.num_epochs)
         return optimizer, lr_scheduler
 
@@ -492,7 +518,9 @@ class SparkMAETrainerBS2_AdamW_5e_3(SparkMAETrainerBS2):
         self.weight_decay = 1e-2
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.network.parameters(), self.initial_lr, weight_decay=self.weight_decay)
+        optimizer = torch.optim.AdamW(
+            self.network.parameters(), self.initial_lr, weight_decay=self.weight_decay
+        )
         lr_scheduler = PolyLRScheduler(optimizer, self.initial_lr, self.num_epochs)
         return optimizer, lr_scheduler
 
@@ -511,7 +539,9 @@ class SparkMAETrainerBS2_AdamW_1e_2(SparkMAETrainerBS2):
         self.weight_decay = 1e-2
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.network.parameters(), self.initial_lr, weight_decay=self.weight_decay)
+        optimizer = torch.optim.AdamW(
+            self.network.parameters(), self.initial_lr, weight_decay=self.weight_decay
+        )
         lr_scheduler = PolyLRScheduler(optimizer, self.initial_lr, self.num_epochs)
         return optimizer, lr_scheduler
 

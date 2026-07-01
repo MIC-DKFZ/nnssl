@@ -6,7 +6,14 @@ from tqdm import tqdm
 from batchgenerators.utilities.file_and_folder_operations import *
 from loguru import logger
 
-from nnssl.data.raw_dataset import Dataset, Subject, Session, Image, Collection, AssociatedMasks
+from nnssl.data.raw_dataset import (
+    Dataset,
+    Subject,
+    Session,
+    Image,
+    Collection,
+    AssociatedMasks,
+)
 
 # Possible Query options: where, limit
 # Possible Conditions options: equal, range, above, below, not_in, in_
@@ -123,8 +130,12 @@ def karols_old_queries():
     print("Number of queried images: ", len(result))
     print("-----")
 
-    print("Get all images from the manufacturer 'Varian Imaging Laboratories, Switzerland':")
-    q = Query().where(Conditions.equal("r_manufacturer", "Varian Imaging Laboratories, Switzerland"))
+    print(
+        "Get all images from the manufacturer 'Varian Imaging Laboratories, Switzerland':"
+    )
+    q = Query().where(
+        Conditions.equal("r_manufacturer", "Varian Imaging Laboratories, Switzerland")
+    )
     paginated_result = interface.query(q)
     result = [item for item in tqdm(paginated_result, desc="Querying")]
     print("Number of queried images: ", len(result))
@@ -143,7 +154,9 @@ def karols_old_queries():
     print("Number of queried images: ", len(result))
     print("-----")
 
-    print("Get all CT images, but limit the returned tags per image to only include the 'a_spacing' tag:")
+    print(
+        "Get all CT images, but limit the returned tags per image to only include the 'a_spacing' tag:"
+    )
     q = Query().where(Conditions.equal("r_modality", "CT")).limit("a_spacing")
     paginated_result = interface.query(q)
     result = [item for item in tqdm(paginated_result, desc="Querying")]
@@ -153,8 +166,14 @@ def karols_old_queries():
         print("No results for this query.")
     print("-----")
 
-    print("Get all CT images, but limit the returned tags per image to only include the 'data_storage_filepath' tag:")
-    q = Query().where(Conditions.equal("r_modality", "CT")).limit("data_storage_filepath")
+    print(
+        "Get all CT images, but limit the returned tags per image to only include the 'data_storage_filepath' tag:"
+    )
+    q = (
+        Query()
+        .where(Conditions.equal("r_modality", "CT"))
+        .limit("data_storage_filepath")
+    )
     paginated_result = interface.query(q)
     result = [item for item in tqdm(paginated_result, desc="Querying")]
     if len(result) > 0:
@@ -193,7 +212,16 @@ def save_images_to_collection(all_images: list[dict], filename: str):
     collection = Collection(collection_index=800, collection_name="Rocket_v1")
     # Add images to dataset
 
-    modalities_to_exclude = ["SEG", "RTSTRUCT", "RTDOSE", "RTPLAN", "SM", "OCT", "DM", "DF"]
+    modalities_to_exclude = [
+        "SEG",
+        "RTSTRUCT",
+        "RTDOSE",
+        "RTPLAN",
+        "SM",
+        "OCT",
+        "DM",
+        "DF",
+    ]
 
     for image in tqdm(all_images):
         dataset_id = image["dataset_id"]
@@ -244,10 +272,14 @@ def save_images_to_collection(all_images: list[dict], filename: str):
         # --------------------------- Always add the image --------------------------- #
         image_path = "$RocketDBRoot/" + image["data_storage_filepath"]
         anon_mask_path = (
-            "$RocketDBRoot/" + image["d_anonymization_mask_path"] if image["d_anonymization_mask_path"] else None
+            "$RocketDBRoot/" + image["d_anonymization_mask_path"]
+            if image["d_anonymization_mask_path"]
+            else None
         )
         anatomy_mask_path = (
-            "$RocketDBRoot/" + image["d_foreground_mask_path"] if image["d_foreground_mask_path"] else None
+            "$RocketDBRoot/" + image["d_foreground_mask_path"]
+            if image["d_foreground_mask_path"]
+            else None
         )
         image = Image(
             name=image_id,

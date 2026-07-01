@@ -4,7 +4,13 @@ from pathlib import Path
 from tqdm import tqdm
 import shutil
 from multiprocessing import Pool
-from batchgenerators.utilities.file_and_folder_operations import join, maybe_mkdir_p, isdir, load_json, save_json
+from batchgenerators.utilities.file_and_folder_operations import (
+    join,
+    maybe_mkdir_p,
+    isdir,
+    load_json,
+    save_json,
+)
 
 from nnssl.data.raw_dataset import Collection, Dataset, Image, Subject, Session
 
@@ -20,7 +26,9 @@ def get_nii_files_in_subtree(root_dir):
             for entry in entries:
                 if entry.is_dir(follow_symlinks=False):  # Recurse into directories
                     scan_directory(entry.path)
-                elif entry.is_file() and entry.name.endswith(".nii"):  # Check for .nii files
+                elif entry.is_file() and entry.name.endswith(
+                    ".nii"
+                ):  # Check for .nii files
                     nii_files.append(entry.path)
 
     scan_directory(root_dir)
@@ -45,7 +53,9 @@ def copy_over_files(source_path, target_path):
 def create_collection_json():
     target_path = path_to_abcd / Path("abcd_bids")
     dataset_name = "Dataset743_ABCD_NIH"
-    cluster_target_path = Path(f"/mnt/cluster-data-all/t006d/nnunetv2/nnssl_raw/{dataset_name}")
+    cluster_target_path = Path(
+        f"/mnt/cluster-data-all/t006d/nnunetv2/nnssl_raw/{dataset_name}"
+    )
     cluster_target_path.mkdir(exist_ok=True, parents=True)
     all_nifti_paths = get_nii_files_in_subtree(target_path)
 
@@ -74,7 +84,13 @@ def create_collection_json():
             subj.sessions[session_id] = sess
         sess = subj.sessions[session_id]
 
-        img = Image(name=image_name, image_path=nifti_path, modality=modality, image_info=None, associated_masks=None)
+        img = Image(
+            name=image_name,
+            image_path=nifti_path,
+            modality=modality,
+            image_info=None,
+            associated_masks=None,
+        )
         sess.images.append(img)
     collection_dict = collection.to_dict(relative_paths=True)
     save_json(collection_dict, os.path.join(cluster_target_path, "pretrain_data.json"))

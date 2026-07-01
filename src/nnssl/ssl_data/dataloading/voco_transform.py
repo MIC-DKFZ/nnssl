@@ -1,9 +1,21 @@
 from typing import Literal, Tuple
 from batchgenerators.transforms.abstract_transforms import AbstractTransform, Compose
-from batchgenerators.transforms.spatial_transforms import Rot90Transform, MirrorTransform, SpatialTransform
-from batchgenerators.transforms.noise_transforms import GaussianNoiseTransform, GaussianBlurTransform
-from batchgenerators.transforms.resample_transforms import SimulateLowResolutionTransform
-from batchgenerators.transforms.spatial_transforms import SpatialTransform, MirrorTransform
+from batchgenerators.transforms.spatial_transforms import (
+    Rot90Transform,
+    MirrorTransform,
+    SpatialTransform,
+)
+from batchgenerators.transforms.noise_transforms import (
+    GaussianNoiseTransform,
+    GaussianBlurTransform,
+)
+from batchgenerators.transforms.resample_transforms import (
+    SimulateLowResolutionTransform,
+)
+from batchgenerators.transforms.spatial_transforms import (
+    SpatialTransform,
+    MirrorTransform,
+)
 from batchgenerators.transforms.utility_transforms import RenameTransform, NumpyToTensor
 from batchgenerators.transforms.color_transforms import (
     BrightnessMultiplicativeTransform,
@@ -64,11 +76,18 @@ class VocoTransform(AbstractTransform):
         if aug == "train":
             self.crop_augmentations: Compose = Compose(
                 [
-                    GaussianNoiseTransform(p_per_sample=0.1),  # We just rotate in the axial plane
+                    GaussianNoiseTransform(
+                        p_per_sample=0.1
+                    ),  # We just rotate in the axial plane
                     GaussianBlurTransform(
-                        (0.5, 1.0), different_sigma_per_channel=True, p_per_sample=0.2, p_per_channel=0.5
+                        (0.5, 1.0),
+                        different_sigma_per_channel=True,
+                        p_per_sample=0.2,
+                        p_per_channel=0.5,
                     ),
-                    BrightnessMultiplicativeTransform(multiplier_range=(0.75, 1.25), p_per_sample=0.15),
+                    BrightnessMultiplicativeTransform(
+                        multiplier_range=(0.75, 1.25), p_per_sample=0.15
+                    ),
                     ContrastAugmentationTransform(p_per_sample=0.15),
                     SimulateLowResolutionTransform(
                         zoom_range=(0.5, 1),
@@ -79,8 +98,12 @@ class VocoTransform(AbstractTransform):
                         p_per_sample=0.1,
                         ignore_axes=None,
                     ),
-                    GammaTransform((0.7, 1.5), True, True, retain_stats=True, p_per_sample=0.1),
-                    GammaTransform((0.7, 1.5), False, True, retain_stats=True, p_per_sample=0.3),
+                    GammaTransform(
+                        (0.7, 1.5), True, True, retain_stats=True, p_per_sample=0.1
+                    ),
+                    GammaTransform(
+                        (0.7, 1.5), False, True, retain_stats=True, p_per_sample=0.3
+                    ),
                     MirrorTransform(axes=(0,)),
                     MirrorTransform(axes=(1,)),
                     MirrorTransform(axes=(2,)),
@@ -109,7 +132,6 @@ class VocoTransform(AbstractTransform):
                     ]
                     base_crops.append(crop)
         return np.stack(base_crops, axis=1)
-
 
     def get_target_crops(self, data: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """
@@ -142,15 +164,26 @@ class VocoTransform(AbstractTransform):
                 # Calculate overlap with base crops
                 target_base_crop_overlaps = []
                 for bbox in self.bounding_boxes:
-                    overlap_x = max(0, min(x_offset + crop_size[0], bbox[3]) - max(x_offset, bbox[0]))
-                    overlap_y = max(0, min(y_offset + crop_size[1], bbox[4]) - max(y_offset, bbox[1]))
-                    overlap_z = max(0, min(z_offset + crop_size[2], bbox[5]) - max(z_offset, bbox[2]))
+                    overlap_x = max(
+                        0,
+                        min(x_offset + crop_size[0], bbox[3]) - max(x_offset, bbox[0]),
+                    )
+                    overlap_y = max(
+                        0,
+                        min(y_offset + crop_size[1], bbox[4]) - max(y_offset, bbox[1]),
+                    )
+                    overlap_z = max(
+                        0,
+                        min(z_offset + crop_size[2], bbox[5]) - max(z_offset, bbox[2]),
+                    )
                     overlap_volume = overlap_x * overlap_y * overlap_z
                     overlap_ratio = overlap_volume / total_volume
                     target_base_crop_overlaps.append(overlap_ratio)
                 target_overlaps.append(np.array(target_base_crop_overlaps))
             image_wise_crop.append(np.stack(target_crops, axis=0))
-            image_wise_overlaps.append(np.stack(target_overlaps, axis=0))  # [N_target_subcrops, N_base_subcrops]
+            image_wise_overlaps.append(
+                np.stack(target_overlaps, axis=0)
+            )  # [N_target_subcrops, N_base_subcrops]
 
         return np.stack(image_wise_crop, axis=0), np.stack(image_wise_overlaps, axis=0)
 
@@ -159,17 +192,23 @@ class VocoTransform(AbstractTransform):
         if data is None:
             raise ValueError(f"No data found for key {self.data_key}")
 
-        base_crops = self.get_base_crops(data)  # [B, N_base_subcrops, C, X_subcrop, Y_subcrop, Z_subcrop]
+        base_crops = self.get_base_crops(
+            data
+        )  # [B, N_base_subcrops, C, X_subcrop, Y_subcrop, Z_subcrop]
         target_crops, gt_overlap = self.get_target_crops(data)
         # target_crops: [B, N_target_subcrops, C, X_subcrop, Y_subcrop, Z_subcrop]
         # gt_overlap: [B, N_target_subcrops, N_base_subcrops]
         B = base_crops.shape[0]
         if self.aug == "train":
             base_crops = rearrange(base_crops, "b n c x y z  -> (b n) c x y z")
-            base_crops = self.crop_augmentations(**{"data": base_crops, "seg": None})["data"]
+            base_crops = self.crop_augmentations(**{"data": base_crops, "seg": None})[
+                "data"
+            ]
             base_crops = rearrange(base_crops, "(b n) c x y z -> b n c x y z", b=B)
             target_crops = rearrange(target_crops, "b n c x y z -> (b n) c x y z")
-            target_crops = self.crop_augmentations(**{"data": target_crops, "seg": None})["data"]
+            target_crops = self.crop_augmentations(
+                **{"data": target_crops, "seg": None}
+            )["data"]
             target_crops = rearrange(target_crops, "(b n) c x y z -> b n c x y z", b=B)
 
         base_crops_flat = rearrange(base_crops, "b n c x y z -> (b n) c x y z")

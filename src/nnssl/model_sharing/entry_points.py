@@ -35,7 +35,9 @@ def download_by_url():
 def install_from_zip_entry_point():
     import argparse
 
-    parser = argparse.ArgumentParser(description="Use this to install a zip file containing a pretrained model.")
+    parser = argparse.ArgumentParser(
+        description="Use this to install a zip file containing a pretrained model."
+    )
     parser.add_argument("zip", type=str, help="zip file")
     args = parser.parse_args()
     zip = args.zip
@@ -45,7 +47,9 @@ def install_from_zip_entry_point():
 def export_pretrained_model_entry():
     import argparse
 
-    parser = argparse.ArgumentParser(description="Use this to export a trained model as a zip file.")
+    parser = argparse.ArgumentParser(
+        description="Use this to export a trained model as a zip file."
+    )
     parser.add_argument("-d", type=str, required=True, help="Dataset name or id")
     parser.add_argument("-o", type=str, required=True, help="Output file name")
     parser.add_argument(
@@ -56,8 +60,12 @@ def export_pretrained_model_entry():
         default=("3d_lowres", "3d_fullres", "2d", "3d_cascade_fullres"),
         help="List of configuration names",
     )
-    parser.add_argument("-tr", required=False, type=str, default="nnUNetTrainer", help="Trainer class")
-    parser.add_argument("-p", required=False, type=str, default="nnUNetPlans", help="plans identifier")
+    parser.add_argument(
+        "-tr", required=False, type=str, default="nnUNetTrainer", help="Trainer class"
+    )
+    parser.add_argument(
+        "-p", required=False, type=str, default="nnUNetPlans", help="plans identifier"
+    )
     parser.add_argument(
         "-chk",
         required=False,

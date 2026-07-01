@@ -1,16 +1,22 @@
-from datetime import timedelta
 import os
+import signal
 import socket
+
+from typing import get_args
+from datetime import timedelta
 from typing import Type, Union, Optional
 
-from loguru import logger
-
-import nnssl
+import wandb
 import torch.cuda
 import torch.distributed as dist
 import torch.multiprocessing as mp
+
+from loguru import logger
 from batchgenerators.utilities.file_and_folder_operations import join, isfile, load_json
+
+import nnssl
 from nnssl.experiment_planning.experiment_planners.plan_wandb import Plan_wandb
+from nnssl.experiment_planning.experiment_planners.plan import PREPROCESS_SPACING_STYLES
 from nnssl.paths import nnssl_preprocessed
 from nnssl.run.load_pretrained_weights import load_pretrained_weights
 from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
@@ -42,14 +48,13 @@ def get_trainer_from_args(
     # *args,
     **kwargs,
 ):
-
     # load nnunet class and do sanity checks
     nnssl_trainer_cls: Type[AbstractBaseTrainer] = recursive_find_python_class(
-        join(nnssl.__path__[0], "training", "nnsslTrainer"), trainer_name, "nnssl.training.nnsslTrainer"
+        join(nnssl.__path__[0], "training", "nnsslTrainer"),
+        trainer_name,
+        "nnssl.training.nnsslTrainer",
     )
-    print(nnssl_trainer_cls, trainer_name)
     if nnssl_trainer_cls is None:
-
         raise RuntimeError(
             f"Could not find requested nnunet trainer {trainer_name} in "
             f"nnssl.training.nnsslTrainer ("
@@ -74,29 +79,14 @@ def get_trainer_from_args(
             )
 
     # initialize nnunet trainer
-    preprocessed_dataset_folder_base = join(nnssl_preprocessed, maybe_convert_to_dataset_name(dataset_name_or_id))
+    preprocessed_dataset_folder_base = join(
+        nnssl_preprocessed, maybe_convert_to_dataset_name(dataset_name_or_id)
+    )
     plans_file = join(preprocessed_dataset_folder_base, plans_identifier + ".json")
-    plans: Plan = Plan_wandb.load_from_file(plans_file)
-    for param in kwargs:
-        if param in ["mask_ratio", "initial_lr", "vit_patch_size", "attention_drop_rate"]:
-            plans.plans_name = (
-                plans.plans_name
-                + "__"
-                + param
-                + str(kwargs[param])
-                .replace(".", "")
-                .replace("[", "")
-                .replace("]", "")
-                .replace(",", "")
-                .replace(" ", "")
-            )
-        else:
-            plans.plans_name = plans.plans_name + "__" + param + str(kwargs[param])
-        for config in plans.configurations:
-            plans.configurations[config][param] = kwargs[param]
-
-    pretrain_json = load_json(join(preprocessed_dataset_folder_base, "pretrain_data.json"))
-
+    plans: Plan_wandb = Plan_wandb.load_from_file(plans_file)
+    pretrain_json = load_json(
+        join(preprocessed_dataset_folder_base, f"pretrain_data__{configuration}.json")
+    )
     nnssl_trainer: AbstractBaseTrainer = nnssl_trainer_cls(
         plans,
         configuration,
@@ -123,42 +113,63 @@ def maybe_load_checkpoint(
 
     if continue_training:
         logger.info("Attempting to continue training...")
-        expected_checkpoint_file = join(nnunet_trainer.output_folder, "checkpoint_final.pth")
+        expected_checkpoint_file = join(
+            nnunet_trainer.output_folder, "checkpoint_final.pth"
+        )
         if not isfile(expected_checkpoint_file):
-            expected_checkpoint_file = join(nnunet_trainer.output_folder, "checkpoint_latest.pth")
+            expected_checkpoint_file = join(
+                nnunet_trainer.output_folder, "checkpoint_latest.pth"
+            )
         # special case where --c is used to run a previously aborted validation
         if not isfile(expected_checkpoint_file):
-            expected_checkpoint_file = join(nnunet_trainer.output_folder, "checkpoint_best.pth")
-        if not isfile(expected_checkpoint_file):
-            print(
-                f"WARNING: Cannot continue training because there seems to be no checkpoint available to "
-                f"continue from. Starting a new training..."
+            expected_checkpoint_file = join(
+                nnunet_trainer.output_folder, "checkpoint_best.pth"
             )
-            raise RuntimeError(
-                f"Cannot continue training because there seems to be no checkpoint available to continue from. Starting a new training..."
+        # if not isfile(expected_checkpoint_file):
+        #     print(
+        #         f"WARNING: Cannot continue training because there seems to be no checkpoint available to "
+        #         f"continue from. Starting a new training..."
+        #     )
+        # raise RuntimeError(
+        #     f"Cannot continue training because there seems to be no checkpoint available to continue from. Starting a new training..."
+        # )
+        if isfile(expected_checkpoint_file):
+            logger.info(
+                f"Using {expected_checkpoint_file} as the starting checkpoint for training..."
             )
-        logger.info(f"Using {expected_checkpoint_file} as the starting checkpoint for training...")
-
+        else:
+            expected_checkpoint_file = None
+            logger.info(f"No starting checkpoint available, starting a new training...")
     elif validation_only:
-        expected_checkpoint_file = join(nnunet_trainer.output_folder, "checkpoint_final.pth")
+        expected_checkpoint_file = join(
+            nnunet_trainer.output_folder, "checkpoint_final.pth"
+        )
         if not isfile(expected_checkpoint_file):
-            raise RuntimeError(f"Cannot run validation because the training is not finished yet!")
+            raise RuntimeError(
+                f"Cannot run validation because the training is not finished yet!"
+            )
     else:
         if pretrained_weights_file is not None:
             if not nnunet_trainer.was_initialized:
                 nnunet_trainer.initialize()
-            load_pretrained_weights(nnunet_trainer.network, pretrained_weights_file, verbose=True)
+            load_pretrained_weights(
+                nnunet_trainer.network, pretrained_weights_file, verbose=True
+            )
         expected_checkpoint_file = None
 
     if expected_checkpoint_file is not None:
-        nnunet_trainer.load_checkpoint(expected_checkpoint_file)
+        try:
+            nnunet_trainer.load_checkpoint(expected_checkpoint_file)
+        except EOFError:
+            os.remove(expected_checkpoint_file)
 
 
 def setup_ddp(rank, world_size):
     # initialize the process group
     # Unpacking actually takes about
-    dist.init_process_group("nccl", rank=rank, world_size=world_size, timeout=timedelta(minutes=25))
-    torch.cuda.set_device(rank)
+    dist.init_process_group(
+        "nccl", rank=rank, world_size=world_size, timeout=timedelta(minutes=25)
+    )
 
 
 def cleanup_ddp():
@@ -180,13 +191,14 @@ def run_ddp(
     val_with_best,
     world_size,
     add_params,
+    use_wandb: bool = False,
 ):
     setup_ddp(rank, world_size)
-
-    # torch.cuda.set_device(torch.device("cuda", dist.get_rank()))
-
+    torch.cuda.set_device(torch.device("cuda", dist.get_rank()))
     device = torch.device(f"cuda:{rank}")
-    nnunet_trainer = get_trainer_from_args(dataset_name_or_id, configuration, fold, tr, p, device, **add_params)
+    nnunet_trainer = get_trainer_from_args(
+        dataset_name_or_id, configuration, fold, tr, p, device, **add_params
+    )
 
     if disable_checkpointing:
         nnunet_trainer.disable_checkpointing = disable_checkpointing
@@ -199,11 +211,17 @@ def run_ddp(
         cudnn.deterministic = False
         cudnn.benchmark = True
 
+    # Prepare the auto-exiting in case wall-time is exceeded.
+    #  This sets a internal flag, letting the trainer know it's 10 minutes till wall-clock time is up.
+    signal.signal(signal.SIGUSR1, nnunet_trainer.exit_training)
+
     if not val:
-        nnunet_trainer.run_training()
+        nnunet_trainer.run_training(use_wandb)
 
     if val_with_best:
-        nnunet_trainer.load_checkpoint(join(nnunet_trainer.output_folder, "checkpoint_best.pth"))
+        nnunet_trainer.load_checkpoint(
+            join(nnunet_trainer.output_folder, "checkpoint_best.pth")
+        )
     nnunet_trainer.perform_actual_validation(npz)
     cleanup_ddp()
 
@@ -236,7 +254,27 @@ def run_training(
                 raise e
 
     if val_with_best:
-        assert not disable_checkpointing, "--val_best is not compatible with --disable_checkpointing"
+        assert (
+            not disable_checkpointing
+        ), "--val_best is not compatible with --disable_checkpointing"
+
+    try:
+        entity = os.environ.get("WANDB_ENTITY", None)
+        project = os.environ.get("WANDB_PROJECT", "nnssl")
+        run_id = os.environ.get("WANDB_RUN_ID", None)
+
+        wandb.init(
+            entity=entity,
+            project=project,
+            id=run_id,
+            name=f"{dataset_name_or_id}_{configuration}_fold{fold}_{trainer_class_name}_{plans_identifier}",
+        )
+    except wandb.Error as e:
+        print(
+            "Failed to initialize wandb. "
+            "Make sure you have set the WANDB_ENTITY and WANDB_PROJECT environment variables correctly."
+        )
+        raise e
 
     if num_gpus > 1:
         assert (
@@ -266,6 +304,7 @@ def run_training(
                 val_with_best,
                 num_gpus,
                 add_params,
+                wandb.run is not None,  # use_wandb
             ),
             nprocs=num_gpus,
             join=True,
@@ -281,6 +320,10 @@ def run_training(
             **kwargs,
         )
 
+        # Prepare the auto-exiting in case wall-time is exceeded.
+        #  This sets a internal flag, letting the trainer know it's 10 minutes till wall-clock time is up.
+        signal.signal(signal.SIGUSR1, nnunet_trainer.exit_training)
+
         if disable_checkpointing:
             nnunet_trainer.disable_checkpointing = disable_checkpointing
 
@@ -288,18 +331,26 @@ def run_training(
             continue_training and only_run_validation
         ), f"Cannot set --c and --val flag at the same time. Dummy."
 
-        maybe_load_checkpoint(nnunet_trainer, continue_training, only_run_validation, pretrained_weights)
+        maybe_load_checkpoint(
+            nnunet_trainer, continue_training, only_run_validation, pretrained_weights
+        )
 
         if torch.cuda.is_available():
             cudnn.deterministic = False
             cudnn.benchmark = True
 
         if not only_run_validation:
-            nnunet_trainer.run_training()
+            nnunet_trainer.run_training(using_wandb=True)
 
         if val_with_best:
-            nnunet_trainer.load_checkpoint(join(nnunet_trainer.output_folder, "checkpoint_best.pth"))
+            nnunet_trainer.load_checkpoint(
+                join(nnunet_trainer.output_folder, "checkpoint_best.pth")
+            )
+
         nnunet_trainer.perform_actual_validation(export_validation_probabilities)
+
+    if wandb.run is not None:
+        wandb.finish()
 
 
 def run_training_entry():
@@ -307,8 +358,15 @@ def run_training_entry():
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("dataset_name_or_id", type=str, help="Dataset name or ID to train with")
-    parser.add_argument("configuration", type=str, help="Configuration that should be trained")
+    parser.add_argument(
+        "dataset_name_or_id", type=str, help="Dataset name or ID to train with"
+    )
+    parser.add_argument(
+        "configuration",
+        type=str,
+        help="Configuration that should be trained",
+        choices=get_args(PREPROCESS_SPACING_STYLES),
+    )
     parser.add_argument(
         "-tr",
         type=str,
@@ -324,6 +382,15 @@ def run_training_entry():
         help="[OPTIONAL] Use this flag to specify a custom plans identifier. Default: nnSSLPlans",
     )
     parser.add_argument(
+        "-fold",
+        type=str,
+        required=False,
+        default="all",
+        help="[OPTIONAL] Use this flag to specify the fold to train on. Default: all. "
+        "If you want to train on a specific fold, use an integer (e.g. 0-5). "
+        "If you want to train on all folds, use 'all'.",
+    )
+    parser.add_argument(
         "-pretrained_weights",
         type=str,
         required=False,
@@ -332,7 +399,11 @@ def run_training_entry():
         "be used when actually training. Beta. Use with caution.",
     )
     parser.add_argument(
-        "-num_gpus", type=int, default=1, required=False, help="Specify the number of GPUs to use for training"
+        "-num_gpus",
+        type=int,
+        default=1,
+        required=False,
+        help="Specify the number of GPUs to use for training",
     )
     parser.add_argument(
         "--npz",
@@ -342,7 +413,10 @@ def run_training_entry():
         "segmentations). Needed for finding the best ensemble.",
     )
     parser.add_argument(
-        "--c", action="store_true", required=False, help="[OPTIONAL] Continue training from latest checkpoint"
+        "--c",
+        action="store_true",
+        required=False,
+        help="[OPTIONAL] Continue training from latest checkpoint",
     )
     parser.add_argument(
         "--val",
@@ -375,16 +449,6 @@ def run_training_entry():
         "(GPU), 'cpu' (CPU) and 'mps' (Apple M1/M2). Do NOT use this to set which GPU ID! "
         "Use CUDA_VISIBLE_DEVICES=X nnUNetv2_train [...] instead!",
     )
-    parser.add_argument("--mask_ratio", required=False, default=0.5, type=float)
-    parser.add_argument("--vit_patch_size", required=False, default=[8, 8, 8], nargs="+", type=int)
-    parser.add_argument("--embed_dim", required=False, default=864, type=int)
-    parser.add_argument("--encoder_eva_depth", required=False, default=16, type=int)
-    parser.add_argument("--encoder_eva_numheads", required=False, default=12, type=int)
-    parser.add_argument("--decoder_eva_depth", required=False, default=6, type=int)
-    parser.add_argument("--decoder_eva_numheads", required=False, default=8, type=int)
-    parser.add_argument("--batch_size", required=False, default=None, type=int)
-    parser.add_argument("--initial_lr", required=False, default=None, type=float)
-    parser.add_argument("--attention_drop_rate", required=False, default=None, type=float)
     args = parser.parse_args()
 
     assert args.device in [
@@ -394,6 +458,7 @@ def run_training_entry():
     ], f"-device must be either cpu, mps or cuda. Other devices are not tested/supported. Got: {args.device}."
 
     # ------------------------------- Post Parsers ------------------------------- #
+
     dataset_name = args.dataset_name_or_id
     config = args.configuration
 
@@ -417,7 +482,7 @@ def run_training_entry():
     run_training(
         dataset_name,
         config,
-        "all",
+        args.fold,
         args.tr,
         args.p,
         args.pretrained_weights,
@@ -428,16 +493,6 @@ def run_training_entry():
         args.disable_checkpointing,
         args.val_best,
         device,
-        mask_ratio=args.mask_ratio,
-        vit_patch_size=args.vit_patch_size,
-        embed_dim=args.embed_dim,
-        encoder_eva_depth=args.encoder_eva_depth,
-        encoder_eva_numheads=args.encoder_eva_numheads,
-        decoder_eva_depth=args.decoder_eva_depth,
-        decoder_eva_numheads=args.decoder_eva_numheads,
-        batch_size=args.batch_size,
-        initial_lr=args.initial_lr,
-        attention_drop_rate=args.attention_drop_rate,
     )
 
 

@@ -6,7 +6,11 @@ from pathlib import Path
 from warnings import warn
 
 import numpy as np
-from batchgenerators.utilities.file_and_folder_operations import isfile, subfiles, load_json
+from batchgenerators.utilities.file_and_folder_operations import (
+    isfile,
+    subfiles,
+    load_json,
+)
 from nnssl.configuration import default_num_processes
 
 from nnssl.data.raw_dataset import Collection, Dataset
@@ -61,7 +65,9 @@ def try_fix_broken_npy(path_do_data_dir: Path, case_ids: set[str], fix_image: bo
                 break
             except ValueError:
                 if i == 4:
-                    raise ValueError(f"Could not unpack {case_id + suffix} after 5 tries!")
+                    raise ValueError(
+                        f"Could not unpack {case_id + suffix} after 5 tries!"
+                    )
                 continue
 
 
@@ -88,12 +94,18 @@ def verify_or_stratify_npys(path_to_data_dir: str | Path) -> None:
         try_fix_broken_npy(path_to_data_dir, failed_seg_ids, fix_image=False)
 
 
-def _convert_to_npy(npz_file: str, unpack_segmentation: bool = True, overwrite_existing: bool = False) -> None:
+def _convert_to_npy(
+    npz_file: str, unpack_segmentation: bool = True, overwrite_existing: bool = False
+) -> None:
     try:
-        a = np.load(npz_file)  # inexpensive, no compression is done here. This just reads metadata
+        a = np.load(
+            npz_file
+        )  # inexpensive, no compression is done here. This just reads metadata
         if overwrite_existing or not isfile(npz_file[:-3] + "npy"):
             np.save(npz_file[:-3] + "npy", a["data"])
-        if unpack_segmentation and (overwrite_existing or not isfile(npz_file[:-4] + "_seg.npy")):
+        if unpack_segmentation and (
+            overwrite_existing or not isfile(npz_file[:-4] + "_seg.npy")
+        ):
             np.save(npz_file[:-4] + "_seg.npy", a["seg"])
     except KeyboardInterrupt:
         if isfile(npz_file[:-3] + "npy"):
@@ -117,7 +129,12 @@ def get_subject_identifiers(folder: str, suffix: str = "npz") -> List[str]:
     #     all_subjects.extend(list(ds.subjects.keys()))
     # return all_subjects
 
-    subject_identifiers = list(set(iimg.get_unique_subject_id() for iimg in pretrain_json.to_independent_images()))
+    subject_identifiers = list(
+        set(
+            iimg.get_unique_subject_id()
+            for iimg in pretrain_json.to_independent_images()
+        )
+    )
     return subject_identifiers
 
 

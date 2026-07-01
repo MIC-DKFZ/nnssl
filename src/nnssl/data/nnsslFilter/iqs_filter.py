@@ -8,7 +8,7 @@ class OpenMindIQSFilter(AbstractFilter):
     """
 
     def __init__(self, collection: Collection, threshold: float):
-        self.threshold = threshold # change this in child classes
+        self.threshold = threshold  # change this in child classes
         self.iqs_dict: dict[frozenset, float] = {}
 
         for dataset in collection.datasets.values():
@@ -23,9 +23,11 @@ class OpenMindIQSFilter(AbstractFilter):
         modality = iimg.image_modality
         derived_from = iimg.image_info.get("derived_from")
 
-        key = frozenset({
-            "dataset_id": dataset_id,
-            "modality": modality,
-            "derived_from": derived_from
-        }.items())
+        key = frozenset(
+            {
+                "dataset_id": dataset_id,
+                "modality": modality,
+                "derived_from": derived_from,
+            }.items()
+        )
         return self.iqs_dict[key] <= self.threshold

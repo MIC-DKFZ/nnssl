@@ -4,6 +4,7 @@ import nibabel as nib
 from multiprocessing import Pool, cpu_count
 import argparse
 
+
 def check_file(path):
     result = {"path": path, "exists": False, "non_empty": False, "readable": False}
     try:
@@ -17,6 +18,7 @@ def check_file(path):
         result["error"] = str(e)
     return result
 
+
 def collect_all_paths(data):
     paths = []
     for dataset in data.get("datasets", {}).values():
@@ -28,6 +30,7 @@ def collect_all_paths(data):
                     masks = image.get("associated_masks", {})
                     paths.extend(masks.values())
     return paths
+
 
 def main(json_path, num_cpus):
     with open(json_path, "r") as f:
@@ -44,12 +47,22 @@ def main(json_path, num_cpus):
     corrupted_or_missing = [r for r in results if not r["readable"]]
     print(f"\nFound {len(corrupted_or_missing)} corrupted/missing files:")
     for r in corrupted_or_missing:
-        print(f"- {r['path']} | exists: {r['exists']} | non-empty: {r['non_empty']} | error: {r.get('error', 'Unreadable')}")
+        print(
+            f"- {r['path']} | exists: {r['exists']} | non-empty: {r['non_empty']} | error: {r.get('error', 'Unreadable')}"
+        )
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Check if dataset files exist, are non-empty, and readable.")
+    parser = argparse.ArgumentParser(
+        description="Check if dataset files exist, are non-empty, and readable."
+    )
     parser.add_argument("json_path", type=str, help="Path to the dataset JSON file.")
-    parser.add_argument("--cpus", type=int, default=cpu_count(), help="Number of CPUs to use (default: all available).")
+    parser.add_argument(
+        "--cpus",
+        type=int,
+        default=cpu_count(),
+        help="Number of CPUs to use (default: all available).",
+    )
     args = parser.parse_args()
 
     main(args.json_path, args.cpus)

@@ -12,6 +12,7 @@
 import torch
 import torch.nn as nn
 import numpy as np
+
 try:
     from monai.networks.nets.swin_unetr import *
     from monai.networks.nets.swin_unetr import SwinTransformer as SwinViT
@@ -132,7 +133,9 @@ def base_loss(bases):
     for i in range(k - 1):
         for j in range(i + 1, k):
             num += 1
-            simi = F.cosine_similarity(bases[i].unsqueeze(0), bases[j].unsqueeze(0), dim=1)
+            simi = F.cosine_similarity(
+                bases[i].unsqueeze(0), bases[j].unsqueeze(0), dim=1
+            )
             simi = F.relu(simi)
             loss_all += simi**2
     loss_all = loss_all / num
@@ -159,15 +162,33 @@ def ce_loss(labels, logits):
 if __name__ == "__main__":
     roi = 48
     parser = argparse.ArgumentParser(description="PyTorch Training")
-    parser.add_argument("--roi_x", default=roi, type=int, help="roi size in x direction")
-    parser.add_argument("--roi_y", default=roi, type=int, help="roi size in y direction")
-    parser.add_argument("--roi_z", default=roi, type=int, help="roi size in z direction")
-    parser.add_argument("--in_channels", default=1, type=int, help="number of input channels")
+    parser.add_argument(
+        "--roi_x", default=roi, type=int, help="roi size in x direction"
+    )
+    parser.add_argument(
+        "--roi_y", default=roi, type=int, help="roi size in y direction"
+    )
+    parser.add_argument(
+        "--roi_z", default=roi, type=int, help="roi size in z direction"
+    )
+    parser.add_argument(
+        "--in_channels", default=1, type=int, help="number of input channels"
+    )
     parser.add_argument("--feature_size", default=48, type=int, help="embedding size")
-    parser.add_argument("--out_channels", default=14, type=int, help="number of output channels")
-    parser.add_argument("--dropout_path_rate", default=0.0, type=float, help="drop path rate")
-    parser.add_argument("--use_checkpoint", action="store_true", help="use gradient checkpointing to save memory")
-    parser.add_argument("--spatial_dims", default=3, type=int, help="spatial dimension of input data")
+    parser.add_argument(
+        "--out_channels", default=14, type=int, help="number of output channels"
+    )
+    parser.add_argument(
+        "--dropout_path_rate", default=0.0, type=float, help="drop path rate"
+    )
+    parser.add_argument(
+        "--use_checkpoint",
+        action="store_true",
+        help="use gradient checkpointing to save memory",
+    )
+    parser.add_argument(
+        "--spatial_dims", default=3, type=int, help="spatial dimension of input data"
+    )
 
     args = parser.parse_args()
     x = torch.rand(2, 1, roi, roi, roi)

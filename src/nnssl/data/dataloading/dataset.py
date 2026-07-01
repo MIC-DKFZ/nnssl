@@ -7,7 +7,13 @@ from typing import List, Union, Type, Tuple
 import numpy as np
 import blosc2
 
-from batchgenerators.utilities.file_and_folder_operations import join, load_pickle, isfile, write_pickle, subfiles
+from batchgenerators.utilities.file_and_folder_operations import (
+    join,
+    load_pickle,
+    isfile,
+    write_pickle,
+    subfiles,
+)
 import math
 
 from nnssl.data.raw_dataset import Collection, Dataset, IndependentImage, Subject
@@ -19,8 +25,13 @@ class nnSSLBaseDataset(ABC):
     Defines the interface
     """
 
-    def __init__(self, dataset_dir: str, collection: Collection, subject_identifiers: List[str] = None,
-                 iimg_filters: list[AbstractFilter] = None):
+    def __init__(
+        self,
+        dataset_dir: str,
+        collection: Collection,
+        subject_identifiers: List[str] = None,
+        iimg_filters: list[AbstractFilter] = None,
+    ):
         """
         Receives a dataset object that is created by loading the `pretrain_data.json`.
         This dataset object holds all the necessary info to load the data from disk.
@@ -31,14 +42,17 @@ class nnSSLBaseDataset(ABC):
         # print('loading dataset')
 
         self.dataset_dir: str = dataset_dir
-        self.subject_identifiers = set(subject_identifiers)  # Make it a set for faster lookup
+        self.subject_identifiers = set(
+            subject_identifiers
+        )  # Make it a set for faster lookup
         self.iimg_filters = iimg_filters if iimg_filters is not None else []
         self.collection = deepcopy(collection)
 
         all_images: list[IndependentImage] = self.collection.to_independent_images()
 
         self.image_dataset: dict[str, IndependentImage] = {
-            im.get_unique_id(): im for im in all_images
+            im.get_unique_id(): im
+            for im in all_images
             if im.get_unique_subject_id() in self.subject_identifiers
             if all(iimg_filter(im) for iimg_filter in self.iimg_filters)
         }
@@ -53,7 +67,12 @@ class nnSSLBaseDataset(ABC):
 
     @staticmethod
     @abstractmethod
-    def save_case(data: np.ndarray, seg: np.ndarray, properties: dict, output_filename_truncated: str):
+    def save_case(
+        data: np.ndarray,
+        seg: np.ndarray,
+        properties: dict,
+        output_filename_truncated: str,
+    ):
         pass
 
     @staticmethod
@@ -64,8 +83,13 @@ class nnSSLBaseDataset(ABC):
 
 class nnSSLDatasetBlosc2(nnSSLBaseDataset):
 
-    def __init__(self, dataset_dir: str, collection: Collection, subject_identifiers: List[str] = None,
-                 iimg_filters: list[AbstractFilter] = None):
+    def __init__(
+        self,
+        dataset_dir: str,
+        collection: Collection,
+        subject_identifiers: List[str] = None,
+        iimg_filters: list[AbstractFilter] = None,
+    ):
         """
         This is a dataset that allows loading data saved in blosc2 format.
         It will hold a
@@ -75,12 +99,18 @@ class nnSSLDatasetBlosc2(nnSSLBaseDataset):
 
     def __getitem__(self, image_identifier):
         try:
-            return self.load_case(self.dataset_dir, self.image_dataset, image_identifier)
+            return self.load_case(
+                self.dataset_dir, self.image_dataset, image_identifier
+            )
         except RuntimeError as e:
             return self.__getitem__(choice(self.image_identifiers))
 
     @staticmethod
-    def load_case(dataset_dir: str, image_dataset: dict[str, IndependentImage], image_identifier: str):
+    def load_case(
+        dataset_dir: str,
+        image_dataset: dict[str, IndependentImage],
+        image_identifier: str,
+    ):
         dparams = {"nthreads": 1}
         img: IndependentImage
         img = image_dataset[image_identifier]
@@ -89,17 +119,23 @@ class nnSSLDatasetBlosc2(nnSSLBaseDataset):
         output_anat_mask_path = img.get_output_path("anat_mask", ext=".b2nd")
         output_anon_mask_path = img.get_output_path("anon_mask", ext=".b2nd")
         data_b2nd_file = join(dataset_dir, output_img_path)
-        data = blosc2.open(urlpath=data_b2nd_file, mode="r", dparams=dparams, mmap_mode="r")
+        data = blosc2.open(
+            urlpath=data_b2nd_file, mode="r", dparams=dparams, mmap_mode="r"
+        )
 
         anon_b2nd_file = join(dataset_dir, output_anon_mask_path)
         if isfile(anon_b2nd_file):
-            anon = blosc2.open(urlpath=anon_b2nd_file, mode="r", dparams=dparams, mmap_mode="r")
+            anon = blosc2.open(
+                urlpath=anon_b2nd_file, mode="r", dparams=dparams, mmap_mode="r"
+            )
         else:
             anon = None
 
         anat_b2nd_file = join(dataset_dir, output_anat_mask_path)
         if isfile(anat_b2nd_file):
-            anat = blosc2.open(urlpath=anat_b2nd_file, mode="r", dparams=dparams, mmap_mode="r")
+            anat = blosc2.open(
+                urlpath=anat_b2nd_file, mode="r", dparams=dparams, mmap_mode="r"
+            )
         else:
             anat = None
 
@@ -119,7 +155,9 @@ class nnSSLDatasetBlosc2(nnSSLBaseDataset):
         output_anat_mask_path = img.get_output_path("anat_mask", ext=".b2nd")
         output_anon_mask_path = img.get_output_path("anon_mask", ext=".b2nd")
         data_b2nd_file = join(dataset_dir, output_img_path)
-        data_and_pkl_exists = isfile(data_b2nd_file) and isfile(join(dataset_dir, output_img_pkl_path))
+        data_and_pkl_exists = isfile(data_b2nd_file) and isfile(
+            join(dataset_dir, output_img_pkl_path)
+        )
 
         anon_b2nd_file = join(dataset_dir, output_anon_mask_path)
         anon_exists = isfile(anon_b2nd_file)
@@ -193,8 +231,14 @@ class nnSSLDatasetBlosc2(nnSSLBaseDataset):
         """
         returns all identifiers in the preprocessed data folder
         """
-        raise NotImplementedError("This method is not supposed to be called for nnSSLDatasetBlosc2")
-        case_identifiers = [i[:-5] for i in os.listdir(folder) if i.endswith(".b2nd") and not i.endswith("_seg.b2nd")]
+        raise NotImplementedError(
+            "This method is not supposed to be called for nnSSLDatasetBlosc2"
+        )
+        case_identifiers = [
+            i[:-5]
+            for i in os.listdir(folder)
+            if i.endswith(".b2nd") and not i.endswith("_seg.b2nd")
+        ]
         return case_identifiers
 
     @staticmethod
@@ -240,21 +284,35 @@ class nnSSLDatasetBlosc2(nnSSLBaseDataset):
         if len(patch_size) == 2:
             patch_size = [1, *patch_size]
         patch_size = np.array(patch_size)
-        block_size = np.array((num_channels, *[2 ** (max(0, math.floor(math.log2(i / 2)))) for i in patch_size]))
+        block_size = np.array(
+            (
+                num_channels,
+                *[2 ** (max(0, math.floor(math.log2(i / 2)))) for i in patch_size],
+            )
+        )
 
         # shrink the block size until it fits in L1
         estimated_nbytes_block = np.prod(block_size) * bytes_per_pixel
-        while estimated_nbytes_block > (l1_cache_size_per_core_in_bytes * safety_factor):
+        while estimated_nbytes_block > (
+            l1_cache_size_per_core_in_bytes * safety_factor
+        ):
             # pick largest deviation from patch_size that is not 1
             axis_order = np.argsort(block_size[1:] / patch_size)[::-1]
             idx = 0
             picked_axis = axis_order[idx]
-            while block_size[picked_axis + 1] == 1 or block_size[picked_axis + 1] == image_size[picked_axis + 1]:
+            while (
+                block_size[picked_axis + 1] == 1
+                or block_size[picked_axis + 1] == image_size[picked_axis + 1]
+            ):
                 idx += 1
                 picked_axis = axis_order[idx]
             # now reduce that axis to the next lowest power of 2
-            block_size[picked_axis + 1] = 2 ** (max(0, math.floor(math.log2(block_size[picked_axis + 1] - 1))))
-            block_size[picked_axis + 1] = min(block_size[picked_axis + 1], image_size[picked_axis + 1])
+            block_size[picked_axis + 1] = 2 ** (
+                max(0, math.floor(math.log2(block_size[picked_axis + 1] - 1)))
+            )
+            block_size[picked_axis + 1] = min(
+                block_size[picked_axis + 1], image_size[picked_axis + 1]
+            )
             estimated_nbytes_block = np.prod(block_size) * bytes_per_pixel
             if all([i == j for i, j in zip(block_size, image_size)]):
                 break
@@ -264,16 +322,23 @@ class nnSSLDatasetBlosc2(nnSSLBaseDataset):
         # now tile the blocks into chunks until we hit image_size or the l3 cache per core limit
         chunk_size = deepcopy(block_size)
         estimated_nbytes_chunk = np.prod(chunk_size) * bytes_per_pixel
-        while estimated_nbytes_chunk < (l3_cache_size_per_core_in_bytes * safety_factor):
+        while estimated_nbytes_chunk < (
+            l3_cache_size_per_core_in_bytes * safety_factor
+        ):
             # find axis that deviates from block_size the most
             axis_order = np.argsort(chunk_size[1:] / block_size[1:])
             idx = 0
             picked_axis = axis_order[idx]
-            while chunk_size[picked_axis + 1] == image_size[picked_axis + 1] or patch_size[picked_axis] == 1:
+            while (
+                chunk_size[picked_axis + 1] == image_size[picked_axis + 1]
+                or patch_size[picked_axis] == 1
+            ):
                 idx += 1
                 picked_axis = axis_order[idx]
             chunk_size[picked_axis + 1] += block_size[picked_axis + 1]
-            chunk_size[picked_axis + 1] = min(chunk_size[picked_axis + 1], image_size[picked_axis + 1])
+            chunk_size[picked_axis + 1] = min(
+                chunk_size[picked_axis + 1], image_size[picked_axis + 1]
+            )
             estimated_nbytes_chunk = np.prod(chunk_size) * bytes_per_pixel
             if patch_size[0] == 1:
                 if all([i == j for i, j in zip(chunk_size[2:], image_size[2:])]):
@@ -288,12 +353,15 @@ file_ending_dataset_mapping = {"b2nd": nnSSLDatasetBlosc2}
 
 
 def infer_dataset_class(folder: str) -> Union[Type[nnSSLDatasetBlosc2]]:
-    file_endings = set([os.path.basename(i).split(".")[-1] for i in subfiles(folder, join=False)])
+    file_endings = set(
+        [os.path.basename(i).split(".")[-1] for i in subfiles(folder, join=False)]
+    )
     if "pkl" in file_endings:
         file_endings.remove("pkl")
     if "npy" in file_endings:
         file_endings.remove("npy")
     assert len(file_endings) == 1, (
-        f"Found more than one file ending in the folder {folder}. " f"Unable to infer nnUNetDataset variant!"
+        f"Found more than one file ending in the folder {folder}. "
+        f"Unable to infer nnUNetDataset variant!"
     )
     return file_ending_dataset_mapping[list(file_endings)[0]]

@@ -1,4 +1,6 @@
-from batchgenerators.dataloading.nondet_multi_threaded_augmenter import NonDetMultiThreadedAugmenter
+from batchgenerators.dataloading.nondet_multi_threaded_augmenter import (
+    NonDetMultiThreadedAugmenter,
+)
 
 
 class LimitedLenWrapper(NonDetMultiThreadedAugmenter):

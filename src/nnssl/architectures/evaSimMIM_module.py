@@ -2,7 +2,11 @@ from typing import Tuple
 
 import torch
 from dynamic_network_architectures.building_blocks.eva import Eva
-from dynamic_network_architectures.building_blocks.patch_encode_decode import PatchEmbed, PatchDecode, LayerNormNd
+from dynamic_network_architectures.building_blocks.patch_encode_decode import (
+    PatchEmbed,
+    PatchDecode,
+    LayerNormNd,
+)
 from dynamic_network_architectures.initialization.weight_init import InitWeights_He
 from einops import rearrange
 from timm.layers import RotaryEmbeddingCat
@@ -54,7 +58,9 @@ class EvaSimMIM(nn.Module):
             embed_dim=embed_dim,
             depth=encoder_eva_depth,
             num_heads=encoder_eva_numheads,
-            ref_feat_shape=tuple([i // ds for i, ds in zip(input_shape, patch_embed_size)]),
+            ref_feat_shape=tuple(
+                [i // ds for i, ds in zip(input_shape, patch_embed_size)]
+            ),
             num_reg_tokens=num_register_tokens,
             use_rot_pos_emb=use_rot_pos_emb,
             use_abs_pos_emb=use_abs_pos_emb,
@@ -71,7 +77,11 @@ class EvaSimMIM(nn.Module):
         # Patch embedding for decoder
         if do_up_projection:
             self.up_projection = PatchDecode(
-                patch_embed_size, embed_dim, output_channels, norm=decoder_norm, activation=decoder_act
+                patch_embed_size,
+                embed_dim,
+                output_channels,
+                norm=decoder_norm,
+                activation=decoder_act,
             )
         else:
             self.up_projection = nn.Identity()

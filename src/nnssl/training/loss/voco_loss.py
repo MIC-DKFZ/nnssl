@@ -38,9 +38,13 @@ class VoCoLoss(nn.Module):
         #       N = sim_dist.shape[-1] * sim_dist.shape[-2]
         #       ce_loss = - torch.sum(torch.log(1 - sim_dist), dim=(1, 2)) / N
         pos_dist = torch.abs(gt_overlaps - logits)
-        pos_pos = torch.where(gt_overlaps > 0, torch.ones_like(gt_overlaps), torch.zeros_like(gt_overlaps))
+        pos_pos = torch.where(
+            gt_overlaps > 0, torch.ones_like(gt_overlaps), torch.zeros_like(gt_overlaps)
+        )
         # pos_loss = ((-torch.log(1 - pos_dist + 1e-6)) * pos_pos).sum() / (pos_pos.sum())
-        pos_loss = ((-torch.log(1 - pos_dist + 1e-6)) * gt_overlaps).sum() / (gt_overlaps.sum())    # use overlap factor
+        pos_loss = ((-torch.log(1 - pos_dist + 1e-6)) * gt_overlaps).sum() / (
+            gt_overlaps.sum()
+        )  # use overlap factor
         neg_loss = ((logits**2) * (1 - pos_pos)).sum() / (1 - pos_pos + 1e-6).sum()
 
         # Best thing is: They are not even consistent in their old and new code version.
@@ -65,14 +69,18 @@ class VoCoLoss(nn.Module):
         inter_crop_sim_relu = F.relu(inter_crop_similarity)
 
         up_tri = torch.ones(
-            inter_crop_sim_relu.shape[-2], inter_crop_sim_relu.shape[-1], device=inter_crop_sim_relu.device
+            inter_crop_sim_relu.shape[-2],
+            inter_crop_sim_relu.shape[-1],
+            device=inter_crop_sim_relu.device,
         ).triu(diagonal=1)[None, ...]
 
         #
         upper_triangular = up_tri * inter_crop_sim_relu
         N = upper_triangular.shape[-1]
         # Aggregate per image cluster then average across batch samples.
-        l_reg = torch.mean(torch.sum(upper_triangular, dim=(-2, -1)) * 2 / (N * (N - 1)))
+        l_reg = torch.mean(
+            torch.sum(upper_triangular, dim=(-2, -1)) * 2 / (N * (N - 1))
+        )
         return l_reg
 
     def forward(
@@ -82,7 +90,9 @@ class VoCoLoss(nn.Module):
         gt_overlaps: torch.Tensor,
     ):
         """Implements the joint VoCo Loss (EQ7) from https://arxiv.org/pdf/2402.17300."""
-        pred_loss = self.prediction_loss(base_embeddings, target_embeddings, gt_overlaps)
+        pred_loss = self.prediction_loss(
+            base_embeddings, target_embeddings, gt_overlaps
+        )
         reg_loss = self.regularization_loss(base_embeddings)
         final_loss = self.pred_weight * pred_loss + self.reg_weight * reg_loss
         return final_loss

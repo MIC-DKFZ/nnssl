@@ -11,7 +11,9 @@ from nnssl.data.nnsslFilter.modality_filter import ModalityFilter
 
 from nnssl.training.nnsslTrainer.AbstractTrainer import AbstractBaseTrainer
 from nnssl.utilities.default_n_proc_DA import get_allowed_n_proc_DA
-from batchgenerators.dataloading.single_threaded_augmenter import SingleThreadedAugmenter
+from batchgenerators.dataloading.single_threaded_augmenter import (
+    SingleThreadedAugmenter,
+)
 from nnssl.ssl_data.limited_len_wrapper import LimitedLenWrapper
 from torch import autocast
 from nnssl.utilities.helpers import dummy_context
@@ -31,7 +33,9 @@ class ModelGenesisTrainer(AbstractBaseTrainer):
         pretrain_json: dict,
         device: torch.device,
     ):
-        super(ModelGenesisTrainer, self).__init__(plan, configuration_name, fold, pretrain_json, device)
+        super(ModelGenesisTrainer, self).__init__(
+            plan, configuration_name, fold, pretrain_json, device
+        )
         self.config_plan.patch_size = (160, 160, 160)
 
     def build_loss(self):
@@ -45,7 +49,10 @@ class ModelGenesisTrainer(AbstractBaseTrainer):
 
     @override
     def build_architecture_and_adaptation_plan(
-        self, config_plan: ConfigurationPlan, num_input_channels: int, num_output_channels: int
+        self,
+        config_plan: ConfigurationPlan,
+        num_input_channels: int,
+        num_output_channels: int,
     ) -> nn.Module:
         network = get_network_by_name(
             config_plan,
@@ -60,14 +67,18 @@ class ModelGenesisTrainer(AbstractBaseTrainer):
             pretrain_num_input_channels=1,
             key_to_encoder="encoder.stages",
             key_to_stem="encoder.stem",
-            keys_to_in_proj=("encoder.stem.convs.0.conv", "encoder.stem.convs.0.all_modules.0"),
+            keys_to_in_proj=(
+                "encoder.stem.convs.0.conv",
+                "encoder.stem.convs.0.all_modules.0",
+            ),
         )
         return network, adapt_plan
 
     def get_dataloaders(self):
         """
         Dataloader creation is very different depending on the use-case of training.
-        This method has to be implemneted for other use-cases aside from MAE more specifically."""
+        This method has to be implemneted for other use-cases aside from MAE more specifically.
+        """
         # we use the patch size to determine whether we need 2D or 3D dataloaders. We also use it to determine whether
         # we need to use dummy 2D augmentation (in case of 3D training) and what our initial patch size should be
         patch_size = self.config_plan.patch_size
@@ -75,34 +86,7 @@ class ModelGenesisTrainer(AbstractBaseTrainer):
         tr_transforms = self.get_training_transforms()
         val_transforms = self.get_validation_transforms()
 
-        dl_tr, dl_val = self.get_plain_dataloaders(initial_patch_size=patch_size)
-
-        allowed_num_processes = get_allowed_n_proc_DA()
-        if allowed_num_processes == 0:
-            mt_gen_train = SingleThreadedAugmenter(dl_tr, tr_transforms)
-            mt_gen_val = SingleThreadedAugmenter(dl_val, val_transforms)
-        else:
-            mt_gen_train = LimitedLenWrapper(
-                self.num_iterations_per_epoch,
-                data_loader=dl_tr,
-                transform=tr_transforms,
-                num_processes=allowed_num_processes,
-                num_cached=6,
-                seeds=None,
-                pin_memory=self.device.type == "cuda",
-                wait_time=0.02,
-            )
-            mt_gen_val = LimitedLenWrapper(
-                self.num_val_iterations_per_epoch,
-                data_loader=dl_val,
-                transform=val_transforms,
-                num_processes=max(1, allowed_num_processes // 2),
-                num_cached=3,
-                seeds=None,
-                pin_memory=self.device.type == "cuda",
-                wait_time=0.02,
-            )
-        return mt_gen_train, mt_gen_val
+        return self.make_generators(patch_size, tr_transforms, val_transforms)
 
     def train_step(self, batch: dict) -> dict:
         in_data = batch["input"]
@@ -115,7 +99,11 @@ class ModelGenesisTrainer(AbstractBaseTrainer):
         # If the device_type is 'cpu' then it's slow as heck and needs to be disabled.
         # If the device_type is 'mps' then it will complain that mps is not implemented, even if enabled=False is set. Whyyyyyyy. (this is why we don't make use of enabled=False)
         # So autocast will only be active if we have a cuda device.
-        with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+        with (
+            autocast(self.device.type, enabled=True)
+            if self.device.type == "cuda"
+            else dummy_context()
+        ):
             output = self.network(in_data)
             # del data
             l = self.loss(target, output)
@@ -139,7 +127,11 @@ class ModelGenesisTrainer(AbstractBaseTrainer):
         target = target.to(self.device, non_blocking=True)
 
         with torch.no_grad():
-            with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+            with (
+                autocast(self.device.type, enabled=True)
+                if self.device.type == "cuda"
+                else dummy_context()
+            ):
                 output = self.network(in_data)
                 # del data
                 l = self.loss(target, output)
@@ -181,7 +173,8 @@ class ModelGenesisTrainer_ANAT(ModelGenesisTrainer):
     def get_dataloaders(self):
         """
         Dataloader creation is very different depending on the use-case of training.
-        This method has to be implemneted for other use-cases aside from MAE more specifically."""
+        This method has to be implemneted for other use-cases aside from MAE more specifically.
+        """
         # we use the patch size to determine whether we need 2D or 3D dataloaders. We also use it to determine whether
         # we need to use dummy 2D augmentation (in case of 3D training) and what our initial patch size should be
         patch_size = self.config_plan.patch_size
@@ -191,32 +184,9 @@ class ModelGenesisTrainer_ANAT(ModelGenesisTrainer):
 
         dl_tr, dl_val = self.get_foreground_dataloaders(initial_patch_size=patch_size)
 
-        allowed_num_processes = get_allowed_n_proc_DA()
-        if allowed_num_processes == 0:
-            mt_gen_train = SingleThreadedAugmenter(dl_tr, tr_transforms)
-            mt_gen_val = SingleThreadedAugmenter(dl_val, val_transforms)
-        else:
-            mt_gen_train = LimitedLenWrapper(
-                self.num_iterations_per_epoch,
-                data_loader=dl_tr,
-                transform=tr_transforms,
-                num_processes=allowed_num_processes,
-                num_cached=6,
-                seeds=None,
-                pin_memory=self.device.type == "cuda",
-                wait_time=0.02,
-            )
-            mt_gen_val = LimitedLenWrapper(
-                self.num_val_iterations_per_epoch,
-                data_loader=dl_val,
-                transform=val_transforms,
-                num_processes=max(1, allowed_num_processes // 2),
-                num_cached=3,
-                seeds=None,
-                pin_memory=self.device.type == "cuda",
-                wait_time=0.02,
-            )
-        return mt_gen_train, mt_gen_val
+        return self.handle_multi_threaded_generators(
+            dl_tr, dl_val, tr_transforms, val_transforms
+        )
 
 
 class ModelGenesisTrainer_ANON(ModelGenesisTrainer):
@@ -235,7 +205,11 @@ class ModelGenesisTrainer_ANON(ModelGenesisTrainer):
         loss_mask = 1 - anon
 
         self.optimizer.zero_grad(set_to_none=True)
-        with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+        with (
+            autocast(self.device.type, enabled=True)
+            if self.device.type == "cuda"
+            else dummy_context()
+        ):
             output = self.network(in_data)
             l = self.loss(output, target, loss_mask)
 
@@ -262,7 +236,11 @@ class ModelGenesisTrainer_ANON(ModelGenesisTrainer):
         loss_mask = 1 - anon
 
         with torch.no_grad():
-            with autocast(self.device.type, enabled=True) if self.device.type == "cuda" else dummy_context():
+            with (
+                autocast(self.device.type, enabled=True)
+                if self.device.type == "cuda"
+                else dummy_context()
+            ):
                 output = self.network(in_data)
                 l = self.loss(output, target, loss_mask)
 
@@ -313,4 +291,6 @@ class ModelGenesisTrainer_ANAT_ANON_BS8_T1w_T2w_FLAIR(ModelGenesisTrainer_ANAT_A
         plan.configurations[configuration_name].patch_size = (160, 160, 160)
         super().__init__(plan, configuration_name, fold, pretrain_json, device)
         self.total_batch_size = 8
-        self.iimg_filters.append(ModalityFilter(valid_modalities=["T1w", "T2w", "FLAIR"]))
+        self.iimg_filters.append(
+            ModalityFilter(valid_modalities=["T1w", "T2w", "FLAIR"])
+        )

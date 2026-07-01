@@ -1,9 +1,18 @@
 from typing import List, Literal, Tuple, Union
 import torch
 from nnssl.experiment_planning.experiment_planners.plan import Plan
-from nnssl.ssl_data.data_augmentation.transforms_for_dummy_2d import Convert2DTo3DTransform, Convert3DTo2DTransform
-from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import BaseMAETrainer, BaseMAETrainer_BS8_1000ep
-from batchgenerators.transforms.spatial_transforms import SpatialTransform, MirrorTransform
+from nnssl.ssl_data.data_augmentation.transforms_for_dummy_2d import (
+    Convert2DTo3DTransform,
+    Convert3DTo2DTransform,
+)
+from nnssl.training.nnsslTrainer.masked_image_modeling.BaseMAETrainer import (
+    BaseMAETrainer,
+    BaseMAETrainer_BS8_1000ep,
+)
+from batchgenerators.transforms.spatial_transforms import (
+    SpatialTransform,
+    MirrorTransform,
+)
 from batchgenerators.transforms.abstract_transforms import AbstractTransform, Compose
 from batchgenerators.transforms.utility_transforms import NumpyToTensor
 from batchgenerators.transforms.abstract_transforms import AbstractTransform, Compose
@@ -12,7 +21,10 @@ from batchgenerators.transforms.color_transforms import (
     ContrastAugmentationTransform,
     GammaTransform,
 )
-from batchgenerators.transforms.local_transforms import BrightnessGradientAdditiveTransform, LocalGammaTransform
+from batchgenerators.transforms.local_transforms import (
+    BrightnessGradientAdditiveTransform,
+    LocalGammaTransform,
+)
 from batchgenerators.transforms.noise_transforms import (
     MedianFilterTransform,
     GaussianBlurTransform,
@@ -20,7 +32,9 @@ from batchgenerators.transforms.noise_transforms import (
     BlankRectangleTransform,
     SharpeningTransform,
 )
-from batchgenerators.transforms.resample_transforms import SimulateLowResolutionTransform
+from batchgenerators.transforms.resample_transforms import (
+    SimulateLowResolutionTransform,
+)
 from batchgenerators.transforms.spatial_transforms import (
     SpatialTransform,
     Rot90Transform,
@@ -44,7 +58,11 @@ def _brightnessadditive_localgamma_transform_scale(x, y):
 
 
 def _brightness_gradient_additive_max_strength(_x, _y):
-    return np.random.uniform(-5, -1) if np.random.uniform() < 0.5 else np.random.uniform(1, 5)
+    return (
+        np.random.uniform(-5, -1)
+        if np.random.uniform() < 0.5
+        else np.random.uniform(1, 5)
+    )
 
 
 class AugmentedMAETrainer(BaseMAETrainer):

@@ -105,12 +105,16 @@ def plot_overlay(
     plt.imsave(output_file, overlay)
 
 
-def plot_overlay_preprocessed(case_file: str, output_file: str, overlay_intensity: float = 0.6, channel_idx=0):
+def plot_overlay_preprocessed(
+    case_file: str, output_file: str, overlay_intensity: float = 0.6, channel_idx=0
+):
     import matplotlib.pyplot as plt
 
     data = np.load(case_file)["data"]
 
-    assert channel_idx < (data.shape[0]), "This dataset only supports channel index up to %d" % (data.shape[0] - 1)
+    assert channel_idx < (
+        data.shape[0]
+    ), "This dataset only supports channel index up to %d" % (data.shape[0] - 1)
 
     image = data[channel_idx]
     imshape = image.shape
@@ -175,8 +179,12 @@ def generate_overlays_from_raw(
     maybe_mkdir_p(output_folder)
     output_files = [join(output_folder, i + ".png") for i in dataset.keys()]
 
-    image_reader_writer = determine_reader_writer_from_dataset_json(dataset_json, image_files[0])()
-    multiprocessing_plot_overlay(image_files, seg_files, image_reader_writer, output_files, num_processes)
+    image_reader_writer = determine_reader_writer_from_dataset_json(
+        dataset_json, image_files[0]
+    )()
+    multiprocessing_plot_overlay(
+        image_files, seg_files, image_reader_writer, output_files, num_processes
+    )
 
 
 def generate_overlays_from_preprocessed(
@@ -208,7 +216,9 @@ def generate_overlays_from_preprocessed(
             f"configuration first!"
         )
 
-    identifiers = [i[:-4] for i in subfiles(preprocessed_folder, suffix=".npz", join=False)]
+    identifiers = [
+        i[:-4] for i in subfiles(preprocessed_folder, suffix=".npz", join=False)
+    ]
 
     output_files = [join(output_folder, i + ".png") for i in identifiers]
     image_files = [join(preprocessed_folder, i + ".npz") for i in identifiers]
@@ -226,7 +236,8 @@ def entry_point_generate_overlay():
     import argparse
 
     parser = argparse.ArgumentParser(
-        "Plots png overlays of the slice with the most foreground. Note that this " "disregards spacing information!"
+        "Plots png overlays of the slice with the most foreground. Note that this "
+        "disregards spacing information!"
     )
     parser.add_argument("-d", type=str, help="Dataset name or id", required=True)
     parser.add_argument("-o", type=str, help="output folder", required=True)
@@ -238,7 +249,11 @@ def entry_point_generate_overlay():
         help=f"number of processes used. Default: {default_num_processes}",
     )
     parser.add_argument(
-        "-channel_idx", type=int, default=0, required=False, help="channel index used (0 = _0000). Default: 0"
+        "-channel_idx",
+        type=int,
+        default=0,
+        required=False,
+        help="channel index used (0 = _0000). Default: 0",
     )
     parser.add_argument(
         "--use_raw",
@@ -272,7 +287,9 @@ def entry_point_generate_overlay():
             args.channel_idx,
         )
     else:
-        generate_overlays_from_preprocessed(args.d, args.o, args.np, args.channel_idx, args.c, args.p)
+        generate_overlays_from_preprocessed(
+            args.d, args.o, args.np, args.channel_idx, args.c, args.p
+        )
 
 
 if __name__ == "__main__":
