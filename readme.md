@@ -1,4 +1,4 @@
-<!-- TODO: nnFoundation banner gif -->
+![nnFoundation](assets/images/nnFoundation_banner.webp)
 
 ## nnFoundation: 3D Foundation Models for Radiology
 <sub>Copyright German Cancer Research Center (DKFZ) and contributors. Please make sure that your usage of this code is in compliance with its license.<sub>
@@ -169,7 +169,7 @@ If you use the **nnFoundation** models or the `nnssl` framework, please cite:
 
 <!-- TODO: nnFoundation arXiv preprint -->
 <details>
-<summary>nnFoundation BibTeX (83 authors)</summary>
+<summary>nnFoundation BibTeX</summary>
 
 ```bibtex
 @article{nnFoundation,
