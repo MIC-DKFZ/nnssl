@@ -16,10 +16,16 @@ This repository holds the code used to pre-train **nnFoundation**, our family of
 
 To fine-tune nnFoundation on your own downstream tasks, use one of our dedicated repositories:
 
-- **Segmentation:** <!-- TODO: link -->
-- **Detection:** <!-- TODO: link -->
-- **Classification:** <!-- TODO: link -->
-- **Report generation:** <!-- TODO: link -->
+- **Segmentation:** [nnU-Net -- Fine-tuning from nnssl checkpoints](https://github.com/MIC-DKFZ/nnUNet/blob/master/documentation/finetuning_from_nnssl_checkpoints.md)
+- **Detection:** TBA
+- **Classification:** TBA
+- **Report generation:** TBA
+
+## OpenMind
+
+This repository also holds the code for *An OpenMind for 3D medical vision self-supervised learning*, the benchmark study of 3D SSL pre-training methods that `nnssl` grew out of.
+
+- **[OpenMind readme](documentation/openmind.md)** -- the benchmarked architectures and pre-training methods, the [OpenMind dataset](https://huggingface.co/datasets/AnonRes/OpenMind), the fine-tuning frameworks, and the released pre-trained checkpoints.
 
 ---
 
@@ -155,3 +161,59 @@ This can be done via the dedicated [downstream repositories](#using-nnfoundation
 
 ## Extending and Contributing
 Due to the lack of established frameworks in the domain of 3D SSL, we are open to code contributions and extensions of the current framework.
+
+
+## Citation
+
+If you use the **nnFoundation** models or the `nnssl` framework, please cite:
+
+<!-- TODO: nnFoundation arXiv preprint -->
+<details>
+<summary>nnFoundation BibTeX (83 authors)</summary>
+
+```bibtex
+@article{nnFoundation,
+    author    = {Constantin Ulrich Harsy and Tassilo Wald and Karol Gotkowski and Yannick Kirchhoff and Marcel
+                  Knopp and Maximilian Rokuss and Elisa Stegmeier and Philipp Schader and Dasha Trofimova and
+                  Raphael Stock and Kim-Celine Kahl and Stephen Schaumann and Selen Erkan and David Zimmerer
+                  and Stefan Denner and Moritz Langenberg and Sebastian Ziegler and Katharina Eckstein and
+                  Maximilian Fischer and Jonathan Suprijadi and Bálint Kovács and Benjamin Hamm and Anand
+                  Deshpande and Dimitrios Bounias and Nico Disch and Shuhan Xiao and Jessica Kächele and Jan
+                  Sellner and Rajesh Baidya and Jeremias Traub and Lars Krämer and Maximilian Zenk and Tim
+                  Rädsch and Stefan Dvoretskii and Robin Peretzke and Jonathan Deissler and Alexandra Ertl and
+                  Partha Ghosh and Kris Dreher and Stefan Dinkelacker and Annika Reinke and Evangelia
+                  Christodoulou and Numan Saeed and Yoland Savriama and Santiago Estrada and David Kügler and
+                  Laura Alexandra {Daza Barragan} and Cristina Isabel {Gonzalez Osorio} and Jan Peeken and
+                  Michael Baumgartner and Marvin Teichmann and Guillaume Chabin and Matthias Kirchler and
+                  Valentin Koch and {for the ALFA study} and Markus Hohenhaus and Dimitri Koslov and Nina
+                  Decker and Mohammad Yaqub and Arnd Heuser and Martin Reuter and Julia A. Schnabel and Tobias
+                  Heimann and Florin Ghesu and Paul Brachmann and Claus P. Heußel and Alexander Radbruch and
+                  Gianluca Brugnara and Aditya Rastogi and Martha Foltyn-Dumitru and Heinz-Peter Schlemmer and
+                  Ignaz Reicht and Julius C. Holzschuh and Michael Bach and Bram Stieltjes and Kai Schlamp and
+                  Lena Maier-Hein and Marco Nolden and Ralf Floca and Paul F. Jäger and Philipp Vollmuth and
+                  Fabian Isensee and Klaus H. Maier-Hein},
+    title     = {nnFoundation: 3D Foundation Models for Radiology},
+    journal   = {arXiv preprint arXiv:TBA},
+    year      = {2026}
+}
+```
+
+</details>
+
+If you use the `nnssl` framework, the **OpenMind dataset**, or the **OpenMind checkpoints**, please cite:
+
+<details>
+<summary>OpenMind BibTeX</summary>
+
+```bibtex
+@InProceedings{Wald_2025_ICCV,
+    author    = {Wald, Tassilo and Ulrich, Constantin and Suprijadi, Jonathan and Ziegler, Sebastian and Nohel, Michal and Peretzke, Robin and Kohler, Gregor and Maier-Hein, Klaus},
+    title     = {An OpenMind for 3D Medical Vision Self-supervised Learning},
+    booktitle = {Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)},
+    month     = {October},
+    year      = {2025},
+    pages     = {23839-23879}
+}
+```
+
+</details>

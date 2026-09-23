@@ -119,3 +119,9 @@ ENV/
 *.DS_Store
 src/nnssl/utilities/add_adaptation_plan.py
 submission_print.py
+.claude/
+Rocket_v4.json
+query_Rocket_v4.json
+rocket_v4_plots/
+src/nnssl/dataset_conversion/None/
+tmp/
