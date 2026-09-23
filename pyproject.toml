@@ -61,7 +61,7 @@ dependencies = [
     "lpips",
     "wandb",
     "torchio",
-    "blosc2-containerization @ git+https://git.dkfz.de/mic/internal/mic-rocket/blosc2-containerization.git"
+    "blosc2-containerization"
 ]
 
 [project.urls]
