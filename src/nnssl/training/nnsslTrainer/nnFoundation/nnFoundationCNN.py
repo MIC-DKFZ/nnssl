@@ -104,3 +104,7 @@ class BaseMAETrainer_BS8_ep2500_ps192_Arch_Width_L_Depth_L_bs96_lr_1e2(BaseMAETr
         n_params = sum(p.numel() for p in network.parameters())
         self.print_to_log_file(f"Number of parameters: {n_params}")
         return network, adapt_plan
+
+
+class nnFoundationCNN_trainer(BaseMAETrainer_BS8_ep2500_ps192_Arch_Width_L_Depth_L_bs96_lr_1e2):
+    """Alias for the nnFoundationCNN pre-training."""

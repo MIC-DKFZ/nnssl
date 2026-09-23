@@ -115,3 +115,11 @@ class BaseEvaMAETrainer_BS96_192ps_2500ep_200wu_16_12_4_12_864_lr1e4_nolayerscal
         self.decoder_eva_numheads = 12
         self.init_value = None
         self.scale_attn_inner = False
+
+
+class nnFoundationViT_small_trainer(BaseEvaMAETrainer_BS96_192ps_2500ep_200wu_16_12_4_12_864_lr1e4_nolayerscale):
+    """Alias for the nnFoundationViT-small pre-training."""
+
+
+class nnFoundationViT_large_trainer(BaseEvaMAETrainer_BS96_192ps_2500ep_40_16_8_16_1056_lr2e3):
+    """Alias for the nnFoundationViT-large pre-training."""

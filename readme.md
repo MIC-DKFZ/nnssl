@@ -1,34 +1,28 @@
-![OpenMind](assets/images/OpenMindDataset.png)
+<!-- TODO: nnFoundation banner gif -->
 
-## An OpenMind for 3D medical vision self-supervised learning
+## nnFoundation: 3D Foundation Models for Radiology
 <sub>Copyright German Cancer Research Center (DKFZ) and contributors. Please make sure that your usage of this code is in compliance with its license.<sub>
 
-This is the main repository associated for the paper `An OpenMind for 3D medical vision self-supervised learning`, intended for the Review.
-It holds the code for the self-supervised pre-trainings conducted in the Benchmark study.
+This repository holds the code used to pre-train **nnFoundation**, our family of 3D radiology foundation models, built on top of the `nnssl` self-supervised learning framework.
 
-Currently it includes the **ResEnc-L** [[a]((https://arxiv.org/abs/2410.23132)),[b](https://arxiv.org/abs/2404.09556)] CNN architecture and the [Primus-M](https://arxiv.org/abs/2503.01835) Transformer architecture, as well as the following pre-training methods for both architectures, where applicable
-1. [Volume Contrastive (VoCo)](https://arxiv.org/abs/2402.17300)
-2. [VolumeFusion (VF)](https://arxiv.org/abs/2306.16925)
-3. [Models Genesis (MG)](https://www.sciencedirect.com/science/article/pii/S1361841520302048)
-4. [Default MAE (MAE)](https://openaccess.thecvf.com/content/CVPR2022/html/He_Masked_Autoencoders_Are_Scalable_Vision_Learners_CVPR_2022_paper)
-5. [Spark 3D (S3D)](https://arxiv.org/abs/2410.23132)
-6. [SimMIM (SimMIM)](https://openaccess.thecvf.com/content/CVPR2022/html/Xie_SimMIM_A_Simple_Framework_for_Masked_Image_Modeling_CVPR_2022_paper.html)
-7. [SwinUNETR pre-training  (SwinUNETR)](https://arxiv.org/abs/2111.14791)
-8. [SimCLR (SimCLR)](https://arxiv.org/abs/2002.05709)
+## Model family
 
------
-### Complimentary resources:
+| Model | Architecture | Params | Trainer | Checkpoint |
+|---|---|---|---|---|
+| nnFoundationCNN | [ResEnc](https://arxiv.org/abs/2404.09556) | 102M | [`nnFoundationCNN_trainer`](src/nnssl/training/nnsslTrainer/nnFoundation/nnFoundationCNN.py#L109) | |
+| nnFoundationViT-small | [Primus](https://arxiv.org/abs/2503.01835) | 205M | [`nnFoundationViT_small_trainer`](src/nnssl/training/nnsslTrainer/nnFoundation/nnFoundationViT.py#L120) | |
+| nnFoundationViT-large | [Primus](https://arxiv.org/abs/2503.01835) | 674M | [`nnFoundationViT_large_trainer`](src/nnssl/training/nnsslTrainer/nnFoundation/nnFoundationViT.py#L124) | |
 
-**[OpenMind Dataset](https://huggingface.co/datasets/AnonRes/OpenMind)**
+## Using nnFoundation
 
-**[Segmentation Fine-tuning Framework](https://github.com/TaWald/nnUNet)**
+To fine-tune nnFoundation on your own downstream tasks, use one of our dedicated repositories:
 
-**[Classification Fine-tuning Framework](https://github.com/constantinulrich/SSL3D_classification)** Simple framework that allows 3D image classification. 
+- **Segmentation:** <!-- TODO: link -->
+- **Detection:** <!-- TODO: link -->
+- **Classification:** <!-- TODO: link -->
+- **Report generation:** <!-- TODO: link -->
 
-**[OpenMind pre-trained Checkpoints](https://huggingface.co/collections/MIC-DKFZ/openmind-models-6819c21c7fe6f0aaaab7dadf)**
-*You don't need to manually download the checkpoints (for segmentation). The framework will automatically download the checkpoints for you*
-
-----
+---
 
 Below you will find a brief description of the needed steps, to get started with nnssl. 
 Check-out the [documentation](documentation/) directory for a lot more information on how to use this repository.
@@ -38,17 +32,21 @@ Check-out the [documentation](documentation/) directory for a lot more informati
 1. Download/clone the repository
 2. Unzip and navigate into the repository
 3. Install the repository `pip install -e .`  (-e optional)
+4. Set the environment variables (see below)
 
-[More details here](documentation/installation_instructions.md).
+More details can be found in the [installation instructions](documentation/installation_instructions.md).
+
 <details>
-<summary>4. Setting environment variables:</summary>
+<summary>Setting environment variables</summary>
 
-In addition to the installation, this repository requires setting up three additional path 
+In addition to the installation, this repository requires setting up three additional paths:
+
 1. `nnssl_raw` -- The path holding datasets of raw `pretrain_data.json` files.
 2. `nnssl_preprocessed` -- A path where preprocessed data will be stored.
 3. `nnssl_results` -- A path where results will be stored.
 
-[More details here](documentation/setting_up_paths.md). 
+More details can be found [here](documentation/setting_up_paths.md).
+
 </details>
 
 ## Workflow
@@ -60,7 +58,7 @@ In order to conduct pre-training with this repository three main steps need to b
 First, some pre-training dataset needs to be chosen. You can use the **[OpenMind dataset](https://huggingface.co/datasets/AnonRes/OpenMind)**. 
 However any other dataset could be used as well. Opposed to nnU-Net, the data does not have to be in a specific format. Instead, a `pretrain_data.json` file needs to be created detailing the datasets specific information. (For simplicity the OpenMind dataset comes with this). To create this file for your own dataset or to understand the file, we refer to the instructions below.
 
-> If you use the OpenMind dataset, use the dedicated call `nnssl_convert_openmind` to create it's associated `pretrain_data.json`
+> If you use the OpenMind dataset, use the dedicated call `nnssl_convert_openmind` to create its associated `pretrain_data.json`
 <details>
 <summary>Understanding and creating the `pretrain_data.json` file</summary>
 
@@ -145,7 +143,7 @@ Given the preprocessed data we can now pre-train the models. This is done by sel
 The `trainer` determines pre-training method and architecture, the `dataset` the data to use and the `plan` the preprocessing of the data.  
 
 An exemplary pre-training call for a 4xGPU ResEnc-L MAE pre-training would be:
-`python ./nnssl/run/run_training.py ID CONFIG -tr BaseMAETrainer_BS8 -p nnsslPlans -num_gpus 4`
+`python ./src/nnssl/run/run_training.py ID CONFIG -tr BaseMAETrainer_BS8 -p nnsslPlans -num_gpus 4`
 or 
 `nnssl_train ID CONFIG -tr BaseMAETrainer_BS8 -p nnsslPlans -num_gpus 4`
 
@@ -153,7 +151,7 @@ Note: Due to the lack of e.g. linear-probing for segmentation, no metrics aside 
 
 ### 4. Adaptation
 After pre-training, the resulting model checkpoint (or, pre-existing checkpoints) can be adapted to a specific downstream task.
-This can be done via the associated [adaptation frameworks](#complimentary-resources) linked above.
+This can be done via the dedicated [downstream repositories](#using-nnfoundation) linked above.
 
 
 ## Extending and Contributing
