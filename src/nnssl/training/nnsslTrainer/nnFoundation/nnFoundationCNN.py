@@ -38,7 +38,6 @@ class BaseMAETrainer_BS8_ep2500_ps192_Arch_Width_L_Depth_L_bs96_lr_1e2(BaseMAETr
         self.total_batch_size = 96
 
     def build_architecture_and_adaptation_plan(self, *args, **kwargs) -> nn.Module:
-        # Move to same plan as SPARK
         n_stages = 6
         arch_kwargs = DynamicArchitecturePlans(
             n_stages=n_stages,
@@ -106,5 +105,5 @@ class BaseMAETrainer_BS8_ep2500_ps192_Arch_Width_L_Depth_L_bs96_lr_1e2(BaseMAETr
         return network, adapt_plan
 
 
-class nnFoundationCNN_trainer(BaseMAETrainer_BS8_ep2500_ps192_Arch_Width_L_Depth_L_bs96_lr_1e2):
+class nnFoundationCNN_trainer(BaseMAETrainer_BS8_ep2500_ps192_bs8_lr_1e2):
     """Alias for the nnFoundationCNN pre-training."""

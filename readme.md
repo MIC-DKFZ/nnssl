@@ -7,11 +7,10 @@ This repository holds the code used to pre-train **nnFoundation**, our family of
 
 ## Model family
 
-| Model | Architecture | Params | Trainer | Checkpoint |
-|---|---|---|---|---|
-| nnFoundationCNN | [ResEnc](https://arxiv.org/abs/2404.09556) | 102M | [`nnFoundationCNN_trainer`](src/nnssl/training/nnsslTrainer/nnFoundation/nnFoundationCNN.py#L109) | |
-| nnFoundationViT-small | [Primus](https://arxiv.org/abs/2503.01835) | 205M | [`nnFoundationViT_small_trainer`](src/nnssl/training/nnsslTrainer/nnFoundation/nnFoundationViT.py#L120) | |
-| nnFoundationViT-large | [Primus](https://arxiv.org/abs/2503.01835) | 674M | [`nnFoundationViT_large_trainer`](src/nnssl/training/nnsslTrainer/nnFoundation/nnFoundationViT.py#L124) | |
+| Model | Architecture | Details | Params | Trainer | Checkpoint |
+|---|---|---|---|---|---|
+| nnFoundationCNN | [ResEnc](https://arxiv.org/abs/2404.09556) | 6 stages, features 32–64–128–256–320–320 | 102M | [`nnFoundationCNN_trainer`](src/nnssl/training/nnsslTrainer/nnFoundation/nnFoundationCNN.py#L108) | |
+| nnFoundationViT | [Primus](https://arxiv.org/abs/2503.01835) | 40 layers, embedding dim 1056, 16 heads, 8³ patch tokens | 674M | [`nnFoundationViT_trainer`](src/nnssl/training/nnsslTrainer/nnFoundation/nnFoundationViT.py#L120) | |
 
 ## Using nnFoundation
 
