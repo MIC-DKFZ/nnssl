@@ -1,6 +1,9 @@
 ![nnFoundation](assets/images/nnFoundation_banner.webp)
 
 ## nnFoundation: 3D Foundation Models for Radiology
+
+[![arXiv](https://img.shields.io/badge/arXiv-2609.26924-b31b1b.svg)](https://arxiv.org/abs/2609.26924)
+
 <sub>Copyright German Cancer Research Center (DKFZ) and contributors. Please make sure that your usage of this code is in compliance with its license.<sub>
 
 This repository holds the code used to pre-train **nnFoundation**, our family of 3D radiology foundation models, built on top of the `nnssl` self-supervised learning framework.
@@ -167,34 +170,18 @@ Due to the lack of established frameworks in the domain of 3D SSL, we are open t
 
 If you use the **nnFoundation** models or the `nnssl` framework, please cite:
 
-<!-- TODO: nnFoundation arXiv preprint -->
 <details>
 <summary>nnFoundation BibTeX</summary>
 
 ```bibtex
-@article{nnFoundation,
-    author    = {Constantin Ulrich Harsy and Tassilo Wald and Karol Gotkowski and Yannick Kirchhoff and Marcel
-                  Knopp and Maximilian Rokuss and Elisa Stegmeier and Philipp Schader and Dasha Trofimova and
-                  Raphael Stock and Kim-Celine Kahl and Stephen Schaumann and Selen Erkan and David Zimmerer
-                  and Stefan Denner and Moritz Langenberg and Sebastian Ziegler and Katharina Eckstein and
-                  Maximilian Fischer and Jonathan Suprijadi and Bálint Kovács and Benjamin Hamm and Anand
-                  Deshpande and Dimitrios Bounias and Nico Disch and Shuhan Xiao and Jessica Kächele and Jan
-                  Sellner and Rajesh Baidya and Jeremias Traub and Lars Krämer and Maximilian Zenk and Tim
-                  Rädsch and Stefan Dvoretskii and Robin Peretzke and Jonathan Deissler and Alexandra Ertl and
-                  Partha Ghosh and Kris Dreher and Stefan Dinkelacker and Annika Reinke and Evangelia
-                  Christodoulou and Numan Saeed and Yoland Savriama and Santiago Estrada and David Kügler and
-                  Laura Alexandra {Daza Barragan} and Cristina Isabel {Gonzalez Osorio} and Jan Peeken and
-                  Michael Baumgartner and Marvin Teichmann and Guillaume Chabin and Matthias Kirchler and
-                  Valentin Koch and {for the ALFA study} and Markus Hohenhaus and Dimitri Koslov and Nina
-                  Decker and Mohammad Yaqub and Arnd Heuser and Martin Reuter and Julia A. Schnabel and Tobias
-                  Heimann and Florin Ghesu and Paul Brachmann and Claus P. Heußel and Alexander Radbruch and
-                  Gianluca Brugnara and Aditya Rastogi and Martha Foltyn-Dumitru and Heinz-Peter Schlemmer and
-                  Ignaz Reicht and Julius C. Holzschuh and Michael Bach and Bram Stieltjes and Kai Schlamp and
-                  Lena Maier-Hein and Marco Nolden and Ralf Floca and Paul F. Jäger and Philipp Vollmuth and
-                  Fabian Isensee and Klaus H. Maier-Hein},
-    title     = {nnFoundation: 3D Foundation Models for Radiology},
-    journal   = {arXiv preprint arXiv:TBA},
-    year      = {2026}
+@misc{harsy2026nnfoundation3dfoundationmodels,
+      title={nnFoundation: 3D Foundation Models for Radiology}, 
+      author={Constantin Ulrich Harsy and Tassilo Wald and Karol Gotkowski and Yannick Kirchhoff and Marcel Knopp and Maximilian Rokuss and Elisa Stegmeier and Philipp Schader and Dasha Trofimova and Raphael Stock and Kim-Celine Kahl and Stephen Schaumann and Selen Erkan and David Zimmerer and Stefan Denner and Moritz Langenberg and Sebastian Ziegler and Katharina Eckstein and Maximilian Fischer and Jonathan Suprijadi and Bálint Kovács and Benjamin Hamm and Anand Deshpande and Dimitrios Bounias and Nico Disch and Shuhan Xiao and Jessica Kächele and Jan Sellner and Rajesh Baidya and Jeremias Traub and Lars Krämer and Maximilian Zenk and Tim Rädsch and Stefan Dvoretskii and Robin Peretzke and Jonathan Deissler and Alexandra Ertl and Partha Ghosh and Kris Dreher and Stefan Dinkelacker and Annika Reinke and Evangelia Christodoulou and Numan Saeed and Yoland Savriama and Santiago Estrada and David Kügler and Laura Alexandra Daza Barragan and Cristina Isabel Gonzalez Osorio and Jan Peeken and Michael Baumgartner and Marvin Teichmann and Guillaume Chabin and Matthias Kirchler and Valentin Koch and for the ALFA study and Markus Hohenhaus and Dimitri Koslov and Nina Decker and Mohammad Yaqub and Arnd Heuser and Martin Reuter and Julia A. Schnabel and Tobias Heimann and Florin Ghesu and Paul Brachmann and Claus P. Heußel and Alexander Radbruch and Gianluca Brugnara and Aditya Rastogi and Martha Foltyn-Dumitru and Heinz-Peter Schlemmer and Ignaz Reicht and Julius C. Holzschuh and Michael Bach and Bram Stieltjes and Kai Schlamp and Lena Maier-Hein and Marco Nolden and Ralf Floca and Paul F. Jäger and Philipp Vollmuth and Fabian Isensee and Klaus H. Maier-Hein},
+      year={2026},
+      eprint={2609.26924},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2609.26924}, 
 }
 ```
 
