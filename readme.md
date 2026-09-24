@@ -6,9 +6,9 @@
 
 <sub>Copyright German Cancer Research Center (DKFZ) and contributors. Please make sure that your usage of this code is in compliance with its license.<sub>
 
-This repository holds the code used to pre-train **nnFoundation**, our family of 3D radiology foundation models, built on top of the `nnssl` self-supervised learning framework.
+This repository holds the code used to pre-train **nnFoundation**, our pair of 3D radiology foundation models, built on top of the `nnssl` self-supervised learning framework.
 
-## Model family
+## Model pair
 
 | Model | Architecture | Details | Params | Trainer | Checkpoint |
 |---|---|---|---|---|---|
