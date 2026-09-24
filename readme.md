@@ -3,6 +3,7 @@
 ## nnFoundation: 3D Foundation Models for Radiology
 
 [![arXiv](https://img.shields.io/badge/arXiv-2609.26924-b31b1b.svg)](https://arxiv.org/abs/2609.26924)
+[![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Models-yellow.svg)](https://huggingface.co/collections/MIC-DKFZ/nnfoundation-6ab4e3a5a7a8152d83ed86bf)
 
 <sub>Copyright German Cancer Research Center (DKFZ) and contributors. Please make sure that your usage of this code is in compliance with its license.<sub>
 
@@ -12,8 +13,8 @@ This repository holds the code used to pre-train **nnFoundation**, our pair of 3
 
 | Model | Architecture | Details | Params | Trainer | Checkpoint |
 |---|---|---|---|---|---|
-| nnFoundationCNN | [ResEnc](https://arxiv.org/abs/2404.09556) | 6 stages, features 32–64–128–256–320–320 | 102M | [`nnFoundationCNN_trainer`](src/nnssl/training/nnsslTrainer/nnFoundation/nnFoundationCNN.py#L108) | |
-| nnFoundationViT | [Primus](https://arxiv.org/abs/2503.01835) | 40 layers, embedding dim 1056, 16 heads, 8³ patch tokens | 674M | [`nnFoundationViT_trainer`](src/nnssl/training/nnsslTrainer/nnFoundation/nnFoundationViT.py#L120) | |
+| nnFoundationCNN | [ResEnc](https://arxiv.org/abs/2404.09556) | 6 stages, features 32–64–128–256–320–320 | 102M | [`nnFoundationCNN_trainer`](src/nnssl/training/nnsslTrainer/nnFoundation/nnFoundationCNN.py#L108) | [🤗 nnFoundationCNN](https://huggingface.co/MIC-DKFZ/nnFoundationCNN) |
+| nnFoundationViT | [Primus](https://arxiv.org/abs/2503.01835) | 40 layers, embedding dim 1056, 16 heads, 8³ patch tokens | 674M | [`nnFoundationViT_trainer`](src/nnssl/training/nnsslTrainer/nnFoundation/nnFoundationViT.py#L120) | [🤗 nnFoundationViT](https://huggingface.co/MIC-DKFZ/nnFoundationViT) |
 
 ## Using nnFoundation
 
