@@ -22,7 +22,7 @@ To fine-tune nnFoundation on your own downstream tasks, use one of our dedicated
 
 - **Segmentation:** [nnU-Net -- Fine-tuning from nnssl checkpoints](https://github.com/MIC-DKFZ/nnUNet/blob/master/documentation/finetuning_from_nnssl_checkpoints.md)
 - **Detection:** [nnDetection -- Fine-tuning](https://github.com/MIC-DKFZ/nnDetection/blob/finetuning/docs/finetuning.md)
-- **Classification:** TBA
+- **Classification:** [image_classification -- nnFoundation](https://github.com/MIC-DKFZ/image_classification/blob/master/docs/nnfoundation.md)
 - **Report generation:** TBA
 
 ## OpenMind
