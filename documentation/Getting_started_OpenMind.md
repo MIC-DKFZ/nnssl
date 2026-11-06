@@ -11,7 +11,7 @@ Follow the instructions of Hugging Face to download the data.
 
 ## 3. Prepare the dataset
 To prepare the dataset for pre-training you need to create a `pretrain_data.json`. The general structure is explained [here](/documentation/setting_up_paths.md)  
-For the OpenNeuro Dataset we provide a [script](/src/nnssl/dataset_conversion/Dataset001_OpenMind.py) for conversion into the expected data format. 
+For the OpenNeuro Dataset we provide a [script](../src/nnssl/dataset_conversion/Dataset001_OpenMind.py) for conversion into the expected data format. 
 
 ## 4. Preprocess the dataset
 You can preprocess the dataset by calling:
@@ -40,7 +40,7 @@ Primus B:
 The ID corresponds to the dataset ID from above, and CONFIG corresponds to the defined target spacing ('onemmiso','median, 'noresample').
 Here you can explore other implemented trainers, and you're also highly encouraged to implement your own SSL methods.
 If you prefer not to use the 'nnssl' framework but still want to participate in the challenge, please refer to the 'build_architecture_and_adaptation_plan' function in the Trainer to learn how to load the network architecture.
-To ensure your checkpoint is compatible with all downstream fine-tuning tasks, save the architecture following the example in the save_checkpoint function in [AbstractBaseTrainer](/src/nnssl/training/nnsslTrainer/AbstractTrainer.py).
+To ensure your checkpoint is compatible with all downstream fine-tuning tasks, save the architecture following the example in the save_checkpoint function in [AbstractBaseTrainer](../src/nnssl/training/nnsslTrainer/AbstractTrainer.py).
 
 For the SSL3D challenge, we will use the two network architectures from above and a fixed patchsize (160,160,160) for all downstream tasks.
 An adaptation_plan.json file will be generated in the output folder, and its content will also be included in the final checkpoint. This file contains all the information needed for downstream fine-tuning. 
