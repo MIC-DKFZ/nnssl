@@ -60,7 +60,7 @@ Currently all trainers in nnssl treat each image as a single entity, independent
 
 
 # Example dataset conversion scripts
-In the `dataset_conversion` folder (see [here](../nnssl/dataset_conversion)) are multiple example scripts for converting datasets to `nnssl` format. We also provide a dedicated entrypoint for &*Dataset001_OpenMind* which you can call via `nnssl_convert_openmind --openmind_root_dir </Path/to/root/dir/OpenMind>`. We recommend this script as a starting point for your own dataset conversion.
+In the `dataset_conversion` folder (see [here](/src/nnssl/dataset_conversion))) are multiple example scripts for converting datasets to `nnssl` format. We also provide a dedicated entrypoint for &*Dataset001_OpenMind* which you can call via `nnssl_convert_openmind --openmind_root_dir </Path/to/root/dir/OpenMind>`. We recommend this script as a starting point for your own dataset conversion.
 
 ## Public Service annoucenment
 If you find this information lacking, please open an issue and request some more details!
