@@ -31,6 +31,8 @@ This repository also holds the code for *An OpenMind for 3D medical vision self-
 
 - **[OpenMind readme](documentation/openmind.md)** -- the benchmarked architectures and pre-training methods, the [OpenMind dataset](https://huggingface.co/datasets/AnonRes/OpenMind), the fine-tuning frameworks, and the released pre-trained checkpoints.
 
+**SSL3D challenge:** checkpoints of all submissions and a fine-tuning demo are described in [documentation/ssl3d.md](documentation/ssl3d.md).
+
 ---
 
 Below you will find a brief description of the needed steps, to get started with nnssl. 
